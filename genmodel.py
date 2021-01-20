@@ -1,4 +1,5 @@
 import numpy as np
+from scipy import stats
 from utils import obj_array
 import itertools
 
@@ -130,10 +131,43 @@ def generate_likelihood(h_idea_mapping, h_control_mapping, num_neighbours = 1, n
 
         if o_idx == outcast_idx:
 
+            idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
+            
+            # array containing possible combinations of belief states of all agents
             belief_combinations = np.array(list(itertools.product([0, 1], repeat=num_neighbours+1)))
-            # Idea: belief combinatinos give all the combinations of your neighbours' belief states + your belief state. Use particular threhsolds
-            # (e.g. when > 3/5 of my neighbours believe in True and I believe in False, then the expected outcome for this modality is 'High Outcastness - I believe False'
-            # whereas when 1/5 of my neighbours believe in True and I (and other 4/5) believe in False, then the expected outcome for this modality is 'Low Outcastness -  I believe False' etc. etc.)
+
+            for belief_config in belief_combinations:
+
+                focal_agent_belief = belief_config[-1]
+                neighbour_beliefs = belief_config[:-1]
+                
+                for idx, factor_idx in enumerate(neighbour_belief_idx):
+                    idx_vec_o[factor_idx+1] = slice(neighbour_beliefs[idx], neighbour_beliefs[idx]+1, None)
+                
+                idx_vec_o[focal_belief_idx] = slice(focal_agent_belief, focal_agent_belief+1, None)
+
+                if sum(neighbour_beliefs) == (0.5 * num_neighbours): # this is a draw in terms of popularity
+                    pass
+
+                else: # this means either Idea == True or Idea == False is more popular
+
+                    majority_belief = stats.mode(neighbour_beliefs)[0][0]
+
+                    if majority_belief == focal_agent_belief:
+                        pass
+
+
+
+              
+
+
+
+
+
+
+
+
+
     
     return A
 
