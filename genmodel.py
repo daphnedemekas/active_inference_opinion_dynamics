@@ -3,7 +3,7 @@ from scipy import stats
 from utils import obj_array, softmax
 import itertools
 
-def generate_likelihood(h_idea_mapping, h_control_mapping, precisions, num_neighbours = 1, num_outcast_levels = 6 ):
+def generate_likelihood(h_idea_mapping, h_control_mapping, precisions, num_neighbours = 1, num_outcast_levels = 6):
     """
     Docstring @TODO - First attempt at constructing the A matrices 
     
@@ -24,20 +24,19 @@ def generate_likelihood(h_idea_mapping, h_control_mapping, precisions, num_neigh
     Observation modalities:
         - 1 observation modality corresponding for focal agent's own hashtag observations
         - `num_neighbours` hashtag observation modalities corresponding to focal agent's observations of other agent's hashtags (+1 level for `null` outcome)
-        - 1 modality for sensing the overall discrepancy bewteen your own beliefs and those of your neighbours, also whether it concerns the truth/falsity idea
+        # - 1 modality for sensing the overall discrepancy bewteen your own beliefs and those of your neighbours, also whether it concerns the truth/falsity idea
     """
 
     num_H = h_idea_mapping.shape[0]
 
-    num_obs = [num_H] + (num_neighbours) * [num_H+1] + [2] + [num_outcast_levels] # list that contains the dimensionalities of each sensory modality
-    num_modalities = len(num_obs) # total number of observation modalities
+    # num_obs = [num_H] + (num_neighbours) * [num_H+1] + [2] + [num_outcast_levels] # list that contains the dimensionalities of each sensory modality
+    num_obs = [num_H] + (num_neighbours) * [num_H+1] # list that contains the dimensionalities of each sensory modality
 
-    num_obs = [num_H] + (num_neighbours) * [num_H+1] + [2] + [num_outcast_levels] # list that contains the dimensionalities of each sensory modality
     num_modalities = len(num_obs) # total number of observation modalities
 
     focal_h_idx = 0 # index of the observation modality corresponding to my observing my own hashtags
     neighbour_h_idx = [(focal_h_idx + n + 1) for n in range(num_neighbours)] # indices of the observation modalities corresponding to observation of my neighbours' hashtags
-    outcast_idx = neighbour_h_idx[-1] + 1 # index of the observation modality corresponding to seeing the level of discrepancy you have with your neighbours 
+    # outcast_idx = neighbour_h_idx[-1] + 1 # index of the observation modality corresponding to seeing the level of discrepancy you have with your neighbours 
 
     """
     Hidden state factors:
@@ -176,5 +175,5 @@ def generate_likelihood(h_idea_mapping, h_control_mapping, precisions, num_neigh
 
 
     
-    return A
+    return A, num_states
 
