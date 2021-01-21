@@ -66,6 +66,22 @@ def dot_likelihood(A,obs):
 
     return LL
 
+def softmax(dist):
+    """ 
+    Computes the softmax function on a set of values, either a straight numpy
+    1-D vector or an array-of-arrays.
+    """
+    if is_arr_of_arr(dist):
+        output = obj_array(len(dist))
+        for i in range(len(dist)):
+            output[i] = softmax(dist[i])
+        return output
+    else:
+        output = dist - dist.max(axis=0)
+        output = np.exp(output)
+        output = output / np.sum(output, axis=0)
+        return output
+
 def is_arr_of_arr(arr):
     return arr.dtype == "object"
 
