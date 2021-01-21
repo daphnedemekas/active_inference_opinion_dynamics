@@ -1,9 +1,9 @@
 import numpy as np
 from scipy import stats
-from utils import obj_array
+from utils import obj_array, softmax
 import itertools
 
-def generate_likelihood(h_idea_mapping, h_control_mapping, num_neighbours = 1, num_outcast_levels = 6 ):
+def generate_likelihood(h_idea_mapping, h_control_mapping, precisions, num_neighbours = 1, num_outcast_levels = 6 ):
     """
     Docstring @TODO - First attempt at constructing the A matrices 
     
@@ -95,66 +95,73 @@ def generate_likelihood(h_idea_mapping, h_control_mapping, num_neighbours = 1, n
 
         if o_idx in neighbour_h_idx: # now we're considering one of the observation modalities corresponding to seeing my neighbour's tweets
 
-            idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
+            for truth_level in range(num_states[focal_belief_idx]): # the precision of the mapping is dependent on the truth value of the hidden state 
+                                                                    # this reflects the idea that 
+                h_idea_mapping_scaled = np.copy(h_idea_mapping)
+                h_idea_mapping_scaled[:,truth_level] = softmax(precisions[truth_level] * h_idea_mapping[:,truth_level])
 
-            # augment the h->idea mapping matrix with a row of 0s on top to account for the the null observation (this is for the case when you are sampling the agent whose modality we're considering)
-            h_idea_with_null = np.zeros((o_dim,num_states[o_idx-1]))
-            h_idea_with_null[1:,:] = h_idea_mapping
+                idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
+                idx_vec_o[focal_belief_idx+1] = slice(truth_level,truth_level+1,None)
 
-            # create the null matrix to tile throughout the appropriate dimensions (this matrix is for the case when you're _not_ sampling the neighbour whose modality we're considering)
-            null_matrix = np.zeros((o_dim,num_states[o_idx-1]))
-            null_matrix[0,:] = np.ones(num_states[o_idx-1]) # every observation is the 'null' observation because we're sampling someone else
+                # augment the h->idea mapping matrix with a row of 0s on top to account for the the null observation (this is for the case when you are sampling the agent whose modality we're considering)
+                h_idea_with_null = np.zeros((o_dim,num_states[o_idx-1]))
+                h_idea_with_null[1:,:] = np.copy(h_idea_mapping_scaled)
 
-            for neighbour_i in range(num_states[who_idx]):
+                # create the null matrix to tile throughout the appropriate dimensions (this matrix is for the case when you're _not_ sampling the neighbour whose modality we're considering)
+                null_matrix = np.zeros((o_dim,num_states[o_idx-1]))
+                null_matrix[0,:] = np.ones(num_states[o_idx-1]) # every observation is the 'null' observation because we're sampling someone else
 
-                # create a list of which dimensions you need to reshape along for the broadcasted tiling
-                broadcast_dims_specific = broadcast_dims.copy()
-                broadcast_dims_specific[who_idx+1] = 1
-                broadcast_dims_specific[neighbour_i+2] = 1
+                for neighbour_i in range(num_states[who_idx]):
 
-                idx_vec_o[who_idx+1] = slice(neighbour_i,neighbour_i+1,None)
+                    # create a list of which dimensions you need to reshape along for the broadcasted tiling
+                    broadcast_dims_specific = broadcast_dims.copy()
+                    broadcast_dims_specific[focal_belief_idx+1] = 1
+                    broadcast_dims_specific[who_idx+1] = 1
+                    broadcast_dims_specific[neighbour_i+2] = 1
 
-                reshape_vector = [o_dim] + [1] * num_factors
-                reshape_vector[neighbour_i+2] = num_states[neighbour_i+1] # this sets the correspondong factor of the reshape vector (corresponding to neighbour_i's belief states) to the correct number
+                    idx_vec_o[who_idx+1] = slice(neighbour_i,neighbour_i+1,None)
 
-                if (o_idx - 1) == neighbour_i: # this is the case when the observation modality in question `o_idx` corresponds to the modality of the neighbour we're sampling `who_i`               
-                    h_idea_mapping_reshaped = np.reshape(h_idea_with_null,reshape_vector)
-                    A[o_idx][tuple(idx_vec_o)] = np.tile(h_idea_mapping_reshaped, tuple(broadcast_dims_specific))   
-                else: # this is the case when the observation modality in question `o_idx` corresponds to a modality _other than_ the neighbour we're sampling `who_i` 
-                    null_matrix_reshaped = np.reshape(null_matrix,reshape_vector)
-                    A[o_idx][tuple(idx_vec_o)] = np.tile(null_matrix_reshaped, tuple(broadcast_dims_specific))
+                    reshape_vector = [o_dim] + [1] * num_factors
+                    reshape_vector[neighbour_i+2] = num_states[neighbour_i+1] # this sets the correspondong factor of the reshape vector (corresponding to neighbour_i's belief states) to the correct number
+
+                    if (o_idx - 1) == neighbour_i: # this is the case when the observation modality in question `o_idx` corresponds to the modality of the neighbour we're sampling `who_i`               
+                        h_idea_mapping_reshaped = np.reshape(h_idea_with_null,reshape_vector)
+                        A[o_idx][tuple(idx_vec_o)] = np.tile(h_idea_mapping_reshaped, tuple(broadcast_dims_specific))   
+                    else: # this is the case when the observation modality in question `o_idx` corresponds to a modality _other than_ the neighbour we're sampling `who_i` 
+                        null_matrix_reshaped = np.reshape(null_matrix,reshape_vector)
+                        A[o_idx][tuple(idx_vec_o)] = np.tile(null_matrix_reshaped, tuple(broadcast_dims_specific))
         
         """
         Last modality (N_{N} + 1) - observations of the 'outcast-i-ness' variable or 'cohesion' variable - how disparate are my tweet outputs from those of my local community
         NOTE: This A matrix is still TBD
         """
 
-        if o_idx == outcast_idx:
+        # if o_idx == outcast_idx:
 
-            idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
+        #     idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
             
-            # array containing possible combinations of belief states of all agents
-            belief_combinations = np.array(list(itertools.product([0, 1], repeat=num_neighbours+1)))
+        #     # array containing possible combinations of belief states of all agents
+        #     belief_combinations = np.array(list(itertools.product([0, 1], repeat=num_neighbours+1)))
 
-            for belief_config in belief_combinations:
+        #     for belief_config in belief_combinations:
 
-                focal_agent_belief = belief_config[-1]
-                neighbour_beliefs = belief_config[:-1]
+        #         focal_agent_belief = belief_config[-1]
+        #         neighbour_beliefs = belief_config[:-1]
                 
-                for idx, factor_idx in enumerate(neighbour_belief_idx):
-                    idx_vec_o[factor_idx+1] = slice(neighbour_beliefs[idx], neighbour_beliefs[idx]+1, None)
+        #         for idx, factor_idx in enumerate(neighbour_belief_idx):
+        #             idx_vec_o[factor_idx+1] = slice(neighbour_beliefs[idx], neighbour_beliefs[idx]+1, None)
                 
-                idx_vec_o[focal_belief_idx] = slice(focal_agent_belief, focal_agent_belief+1, None)
+        #         idx_vec_o[focal_belief_idx] = slice(focal_agent_belief, focal_agent_belief+1, None)
 
-                if sum(neighbour_beliefs) == (0.5 * num_neighbours): # this is a draw in terms of popularity
-                    pass
+        #         if sum(neighbour_beliefs) == (0.5 * num_neighbours): # this is a draw in terms of popularity
+        #             pass
 
-                else: # this means either Idea == True or Idea == False is more popular
+        #         else: # this means either Idea == True or Idea == False is more popular
 
-                    majority_belief = stats.mode(neighbour_beliefs)[0][0]
+        #             majority_belief = stats.mode(neighbour_beliefs)[0][0]
 
-                    if majority_belief == focal_agent_belief:
-                        pass
+        #             if majority_belief == focal_agent_belief:
+        #                 pass
 
 
 
