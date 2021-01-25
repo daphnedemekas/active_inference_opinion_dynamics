@@ -3,7 +3,7 @@ from scipy import stats
 from utils import obj_array, softmax
 import itertools
 
-def generate_likelihood(h_idea_mapping, h_control_mapping, precisions, num_neighbours = 1, num_outcast_levels = 6):
+def generate_likelihood(h_idea_mapping, h_control_mapping, precisions, num_neighbours = 1, num_cohesion_levels = 6):
     """
     Docstring @TODO - First attempt at constructing the A matrices 
     
@@ -12,7 +12,7 @@ def generate_likelihood(h_idea_mapping, h_control_mapping, precisions, num_neigh
     `h_idea_mapping` - 
     `h_control_mapping` - 
     `num_neighbours` - 
-    `num_outcast_levels` - 
+    `num_cohesion_levels` - 
 
     Returns:
     ___________
@@ -30,13 +30,13 @@ def generate_likelihood(h_idea_mapping, h_control_mapping, precisions, num_neigh
     num_H = h_idea_mapping.shape[0]
 
     # num_obs = [num_H] + (num_neighbours) * [num_H+1] + [2] + [num_outcast_levels] # list that contains the dimensionalities of each sensory modality
-    num_obs = [num_H] + (num_neighbours) * [num_H+1] # list that contains the dimensionalities of each sensory modality
+    num_obs = [num_H] + (num_neighbours) * [num_H+1] + [num_cohesion_levels] # list that contains the dimensionalities of each sensory modality
 
     num_modalities = len(num_obs) # total number of observation modalities
 
     focal_h_idx = 0 # index of the observation modality corresponding to my observing my own hashtags
     neighbour_h_idx = [(focal_h_idx + n + 1) for n in range(num_neighbours)] # indices of the observation modalities corresponding to observation of my neighbours' hashtags
-    # outcast_idx = neighbour_h_idx[-1] + 1 # index of the observation modality corresponding to seeing the level of discrepancy you have with your neighbours 
+    cohesion_idx = neighbour_h_idx[-1] + 1 # index of the observation modality corresponding to seeing the level of discrepancy you have with your neighbours 
 
     """
     Hidden state factors:
@@ -132,48 +132,49 @@ def generate_likelihood(h_idea_mapping, h_control_mapping, precisions, num_neigh
         
         """
         Last modality (N_{N} + 1) - observations of the 'outcast-i-ness' variable or 'cohesion' variable - how disparate are my tweet outputs from those of my local community
-        NOTE: This A matrix is still TBD
         """
 
-        # if o_idx == outcast_idx:
+        if o_idx == cohesion_idx:
 
-        #     idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
-            
-        #     # array containing possible combinations of belief states of all agents
-        #     belief_combinations = np.array(list(itertools.product([0, 1], repeat=num_neighbours+1)))
+            belief_combos = np.array(list(itertools.product([0, 1], repeat=num_neighbours+1)))
 
-        #     for belief_config in belief_combinations:
+            pop_sum = belief_combos[:,1:].sum(axis=1)
 
-        #         focal_agent_belief = belief_config[-1]
-        #         neighbour_beliefs = belief_config[:-1]
+            cohesion_levels = np.zeros( (2, 3, belief_combos.shape[0] ) )
+
+            for truth_level in range(num_states[focal_belief_idx]):
+
+                idx = np.logical_and( (belief_combos[:,0]==truth_level), (pop_sum < num_neighbours/3) )
+                cohesion_levels[truth_level,0,idx] = 1.0 
+
+                idx = np.logical_and( (belief_combos[:,0]==truth_level), np.logical_and( (pop_sum > num_neighbours/3), (pop_sum < 2*(num_neighbours/3)) ) )
+                cohesion_levels[truth_level,1,idx] = 1.0
+
+                idx = np.logical_and( (belief_combos[:,0]==truth_level), (pop_sum > 2*(num_neighbours/3)) )
+                cohesion_levels[truth_level,2,idx] = 1.0
+        
+            # create a list of which dimensions you need to reshape along for the broadcasted tiling
+            broadcast_dims_specific = broadcast_dims.copy()
+
+            # we're mapping each conditional distribution per belief configuration, so the broadcast dimensions along the hidden state factors that correspond to my beliefs and all my neighbours' beliefs can be set to 1
+            broadcast_dims_specific[focal_belief_idx+1] = 1
+            for neighbour_i in range(num_neighbours):
+                broadcast_dims_specific[neighbour_i+2] = 1
+
+            reshape_vector = [o_dim] + [1] * num_factors
+            idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
+
+            for combo_id, combo in enumerate(belief_combos):
+
+                # this filling out of the idx_vec_o is what determines the particular configuration we're considering
+                idx_vec_o[focal_belief_idx+1] = slice(combo[0],combo[0]+1,None)
+
+                for neighbour_i in range(num_neighbours):
+                    idx_vec_o[neighbour_i+2] = slice(combo[neighbour_i+1],combo[neighbour_i+1]+1,None)
                 
-        #         for idx, factor_idx in enumerate(neighbour_belief_idx):
-        #             idx_vec_o[factor_idx+1] = slice(neighbour_beliefs[idx], neighbour_beliefs[idx]+1, None)
-                
-        #         idx_vec_o[focal_belief_idx] = slice(focal_agent_belief, focal_agent_belief+1, None)
-
-        #         if sum(neighbour_beliefs) == (0.5 * num_neighbours): # this is a draw in terms of popularity
-        #             pass
-
-        #         else: # this means either Idea == True or Idea == False is more popular
-
-        #             majority_belief = stats.mode(neighbour_beliefs)[0][0]
-
-        #             if majority_belief == focal_agent_belief:
-        #                 pass
-
-
-
-              
-
-
-
-
-
-
-
-
-
+                # we reshape this 6 x 1 conditional distribution to have the appropriate number of lagging dimensions (although all trivially-1-dimensional)
+                cohesion_outcomes_reshaped = np.reshape(cohesion_levels[:,:,combo_id].flatten(), reshape_vector) # now we reshape it into a [o_dim x 1 x 1 x ... x 1] matrix 
+                A[o_idx][tuple(idx_vec_o)] = np.tile(cohesion_outcomes_reshaped, tuple(broadcast_dims_specific))  # now actually do the assignment
     
     return A, num_states
 

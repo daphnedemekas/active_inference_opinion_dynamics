@@ -1,15 +1,16 @@
 # %% Imports
 import numpy as np
-from utils import obj_array, spm_dot, dot_likelihood
+from utils import obj_array, spm_dot, dot_likelihood, softmax
 from genmodel import generate_likelihood
 import itertools
+
 # %% Initialize constants
 """
 Constant parameters of a focal agent's generative model, e.g. its number of neighbours
 """
 
 num_neighbours = 2 # number of neighbours whose tweets our focal agent can read
-num_outcast_levels = 6 # 3 levels of observed discrepancy between focal agent and community, x 2 levels for the truth/falsity of the idea at hand
+num_cohesion_levels = 6 # 3 levels of observed discrepancy between focal agent and community, x 2 levels for the truth/falsity of the idea at hand
 
 """
 Specify the mapping between hidden states (truth/falsity of Idea) and Hashtags - this matrix will be used to 'fill out' 
@@ -30,7 +31,7 @@ num_H = h_idea_mapping.shape[0]# add an extra observation level to include the `
 h_control_mapping = np.array([[1, 0], 
                       [0, 1]])
                       
-A, num_states = generate_likelihood(h_idea_mapping, h_control_mapping, true_false_precisions, num_neighbours = num_neighbours, num_outcast_levels = num_outcast_levels)
+A, num_states = generate_likelihood(h_idea_mapping, h_control_mapping, true_false_precisions, num_neighbours = num_neighbours, num_cohesion_levels = num_cohesion_levels)
 
 # %% Some quick helper functions that will let you make quick, random hidden state and observation vectors
 
@@ -96,6 +97,3 @@ observation_indices = [1, 1, 1]
 observation_vector = create_observations(num_obs, ob_idx = observation_indices)
 
 likelihood = dot_likelihood(A[0],observation_vector[0])
-
-
-# %%
