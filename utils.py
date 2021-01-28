@@ -91,3 +91,8 @@ def to_arr_of_arr(arr):
     arr_of_arr = np.empty(1, dtype=object)
     arr_of_arr[0] = arr.squeeze()
     return arr_of_arr
+
+def insert_multiple(s, indices, items):
+    for idx in range(len(items)):
+        s.insert(indices[idx], items[idx])
+    return s
