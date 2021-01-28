@@ -69,8 +69,9 @@ def generate_likelihood2(h_idea_mapping, h_control_mapping, precisions, num_neig
                     
                     for item in itertools.product(*[list(range(d)) for d in fill_dimensions]):
                         slice_ = list(item) #now we specify the values of the indices for this specific combination of truth value, neighbour and who_idx
-                        A_indices = insert_multiple(slice_, fill_indices, [slice(0,h_obs_with_null), slice(0,idea_levels), truth_level,neighbour_i ]) #here we insert the correct values for the fill indices for this slice                    
-                        
+                        # A_indices = insert_multiple(slice_, fill_indices, [slice(0,h_obs_with_null), slice(0,idea_levels), truth_level,neighbour_i ]) #here we insert the correct values for the fill indices for this slice                    
+                        A_indices = insert_multiple(slice_, fill_indices, [slice(0,h_obs_with_null), truth_level, slice(0,idea_levels), neighbour_i ]) #here we insert the correct values for the fill indices for this slice                    
+
                         if (o_idx - 1) == neighbour_i: # this is the case when the observation modality in question `o_idx` corresponds to the modality of the neighbour we're sampling `who_i`               
                             A[o_idx][tuple(A_indices)] = h_idea_with_null
                         else:
