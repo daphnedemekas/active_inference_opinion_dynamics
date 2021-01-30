@@ -1,8 +1,8 @@
 # %% Imports
 import numpy as np
 from utils import obj_array, spm_dot, dot_likelihood, softmax
-from genmodel import generate_likelihood
-from genmodel_v2 import generate_likelihood2
+#from genmodel import generate_likelihood
+from genmodel_v2 import GenerativeModel
 import itertools
 
 # %% Initialize constants
@@ -32,14 +32,11 @@ num_H = h_idea_mapping.shape[0]# add an extra observation level to include the `
 h_control_mapping = np.array([[1, 0], 
                       [0, 1]])
 
-A, num_states = generate_likelihood(h_idea_mapping, h_control_mapping, true_false_precisions, num_neighbours = num_neighbours, num_cohesion_levels = num_cohesion_levels)
+stubborness_levels = [2,1,4]
+genmodel = GenerativeModel(h_idea_mapping, h_control_mapping, true_false_precisions, num_neighbours, num_cohesion_levels, stubborness_levels)
 
-A2, num_states2 = generate_likelihood2(h_idea_mapping, h_control_mapping, true_false_precisions, num_neighbours = num_neighbours, num_cohesion_levels = num_cohesion_levels)
-
-print((A[0] == A2[0]).all())
-print((A[1] == A2[1]).all())
-print((A[2] == A2[2]).all())
-print((A[3] == A2[3]).all())
+A, num_states = genmodel.generate_likelihood()
+B = genmodel.generate_transition()
 
 # %% Some quick helper functions that will let you make quick, random hidden state and observation vectors
 
