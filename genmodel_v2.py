@@ -15,7 +15,6 @@ class GenerativeModel(object):
         h_control_mapping, 
         precisions, 
         num_neighbours, 
-        num_cohesion_levels, 
         stubborness_levels 
     ):
 
@@ -23,9 +22,8 @@ class GenerativeModel(object):
         self.h_control_mapping = h_control_mapping
         self.precisions = precisions
         self.num_neighbours = num_neighbours
-        self.num_cohesion_levels = num_cohesion_levels
+        self.num_cohesion_levels = 2 * (self.num_neighbours+1)
         self.stubborness_levels = stubborness_levels
-
 
         self.num_H = self.h_idea_mapping.shape[0] 
         self.idea_levels = self.h_idea_mapping.shape[1] # number of levels to the truth/falsity belief
@@ -43,7 +41,6 @@ class GenerativeModel(object):
         self.neighbour_belief_idx = [(self.focal_belief_idx + n + 1) for n in range(self.num_neighbours)]
         self.h_control_idx = self.neighbour_belief_idx[-1] + 1
         self.who_idx = self.h_control_idx + 1
-
 
 
     def generate_likelihood(self):
@@ -102,26 +99,23 @@ class GenerativeModel(object):
                 dimensions = [self.num_cohesion_levels] + [self.idea_levels] + [self.idea_levels]*self.num_neighbours + [self.num_H] + [self.num_neighbours]
                 belief_combos = np.array(list(itertools.product([0, 1], repeat=self.num_neighbours+1))) #all combinations of low, medium high cohesiveness beliefs
                 pop_sum = belief_combos[:,1:].sum(axis=1)
-                cohesion_levels = np.zeros( (2, 3, belief_combos.shape[0] ) )
+                cohesion_levels = np.zeros( (2, self.num_neighbours+1, belief_combos.shape[0] ) )
                 thresholds = np.linspace(0,1,self.num_neighbours+2)
                 
                 for truth_level in range(self.num_states[self.focal_belief_idx]): #map the possible combinations to different levels of cohesion 
                     for t_idx in range(len(thresholds[0:-1])):
                         idx = np.logical_and( (belief_combos[:,0]==truth_level), np.logical_and((pop_sum >= thresholds[t_idx]*self.num_neighbours), (pop_sum <= thresholds[t_idx+1]*self.num_neighbours) ) )
-                        cohesion_levels[truth_level,t_idx,idx] = 1.0     
-                
+                        cohesion_levels[truth_level,t_idx,idx] = 1.0 
+
                 fill_dimensions = np.delete(dimensions,0) #only need to fill the first dimension
 
                 for item in itertools.product(*[list(range(d)) for d in fill_dimensions]):
                     A_indices = list(item)
-                    A_indices.insert(0,slice(0,self.num_cohesion_levels))
-                    combo = A_indices[self.focal_belief_idx+1:self.h_control_idx+1] #the current combination of beliefs 
+                    A_indices.insert(0,slice(0,self.num_cohesion_levels+1))
+                    combo = A_indices[(self.focal_belief_idx+1):(self.h_control_idx+1)] #the current combination of beliefs 
                     combo_id = np.where(np.all(belief_combos==combo, axis=1)) #find the index of this combination in belief_combos
                     A[o_idx][tuple(A_indices)] = cohesion_levels[:,:,combo_id].flatten()
         return A, self.num_states
-
-
-
 
 
     def generate_transition(self):
@@ -129,22 +123,55 @@ class GenerativeModel(object):
         transition_identity = np.eye(self.idea_levels, self.num_H)
         B = obj_array(self.num_factors)
 
-        for o_idx, o_dim in enumerate(self.num_states): 
-            if o_idx == self.focal_h_idx or o_idx in self.neighbour_h_idx: #the first N+1 modalities are variations of the identity matrix based on stubborness
+        for f_idx, f_dim in enumerate(self.num_states):
 
-                B[o_idx] = softmax(transition_identity*(o_dim*[self.stubborness_levels[o_idx]]))
+            if f_idx == self.focal_belief_idx or f_idx in self.neighbour_belief_idx: #the first N+1 hidden state factors are variations of the identity matrix based on stubborness
+                
+                transition_identity = np.eye(f_dim, f_dim)
+                B[f_idx] = softmax(transition_identity * self.stubborness_levels[f_idx])
             
-            if o_idx == self.h_control_idx: #for the hashtag control state we have rows of ones corresponding to the next state
-                modality_shape = 2*[o_dim] + [self.num_H]
-                B[o_idx] = np.zeros(modality_shape)
-                for action in range(self.num_H):
-                    B[o_idx][:,:,action][action] = np.ones(self.num_H)
+            if f_idx == self.h_control_idx: #for the hashtag control state we have rows of ones corresponding to the next state
 
-            if o_idx == self.who_idx: #same as above for the who control state
-                modality_shape = 2*[self.num_neighbours] + [self.num_neighbours]
-                B[o_idx] = np.zeros(modality_shape)
-                for action in range(self.num_neighbours):
-                    B[o_idx][:,:,action][action] = np.ones(self.num_neighbours)
+                b_matrix_shape = 2*[f_dim] + [self.num_H]
+                B[f_idx] = np.zeros(b_matrix_shape)
+                for action in range(self.num_H):
+                    B[f_idx][action,:,action] = np.ones(self.num_H)
+            
+            if f_idx == self.who_idx: #same as above for the who control state
+
+                num_actions = self.num_neighbours
+                modality_shape = 2*[self.num_neighbours] + [num_actions] # @ TODO: make dimensionality of control states dissociable from the hidden state dimensionality for this factor
+                B[f_idx] = np.zeros(modality_shape)
+                for action in range(num_actions): # @ TODO: make dimensionality of control states dissociable from the hidden state dimensionality for this factor
+                    B[f_idx][action,:,action] = np.ones(self.num_neighbours)
+
     
         return B
+    
+    def generate_prior_preferences(self, preference_shape = "parabola", cohesion_exp = 2.0, cohesion_temp = 5.0):
+
+        C = obj_array(self.num_modalities)
+
+        for o_idx, o_dim in enumerate(self.num_obs): 
+            
+            C[o_idx] = np.zeros(o_dim)
+
+            if o_idx == self.cohesion_idx:
+
+                if preference_shape == "one_hot":
+                    C[o_idx][0] = 1.0
+                    C[o_idx][-1] = 1.0
+                    C[o_idx] = softmax(cohesion_pref*C[o_idx])
+
+                if preference_shape == "parabola":
+                    C[o_idx] = np.linspace(-1.0, 1.0, o_dim) ** cohesion_exp
+
+                if preference_shape == "linear":
+                    C[o_idx] = np.absolute(np.linspace(-1.0, 1.0, o_dim))       
+                
+        return C
+    
+    def generate_prior_policies(self, *args):
+
+
 
