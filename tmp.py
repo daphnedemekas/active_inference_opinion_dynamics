@@ -10,8 +10,7 @@ import itertools
 Constant parameters of a focal agent's generative model, e.g. its number of neighbours
 """
 
-num_neighbours = 2 # number of neighbours whose tweets our focal agent can read
-num_cohesion_levels = 6 # 3 levels of observed discrepancy between focal agent and community, x 2 levels for the truth/falsity of the idea at hand
+num_neighbours = 5 # number of neighbours whose tweets our focal agent can read
 
 """
 Specify the mapping between hidden states (truth/falsity of Idea) and Hashtags - this matrix will be used to 'fill out' 
@@ -22,21 +21,33 @@ Note that how you set up this mapping determines:
 (2) the focal agent's beliefs about the 'semantics' of the Idea--> Hashtag content mapping - how do Hashtags provide evidence for the Idea
 """
 
-h_idea_mapping = np.array([[0.6, 0.4], 
-                      [0.4, 0.6]])
+h_idea_mapping = np.array([[0.9, 0.1], 
+                      [0.1, 0.9]])
 
-true_false_precisions = [5.0, 5.0]
+# num_hashtags = 10
+# num_truth_levels = 2
+# h_idea_mapping = np.zeros((num_hashtags, num_truth_levels))
+# semantic_fuzz = 0.1
+# for truth_level_i in range(num_truth_levels):
+#     h_idea_mapping[:,truth_level_i] = softmax(semantic_fuzz * np.eye(num_hashtags)[np.random.randint(num_hashtags)])
 
-num_H = h_idea_mapping.shape[0]# add an extra observation level to include the `null` observation
+true_false_precisions = np.random.uniform(low=3.0, high=10.0, size=(num_neighbours,))
 
-h_control_mapping = np.array([[1, 0], 
-                      [0, 1]])
+num_H = h_idea_mapping.shape[0] # add an extra observation level to include the `null` observation
 
-stubborness_levels = [2,1,4]
-genmodel = GenerativeModel(h_idea_mapping, h_control_mapping, true_false_precisions, num_neighbours, num_cohesion_levels, stubborness_levels)
+# h_control_mapping = np.array([[1, 0], 
+#                       [0, 1]])
+
+h_control_mapping = np.eye(num_H)
+
+stubborness_levels = np.random.uniform(low=0.5, high=3.0, size=(num_neighbours+1,)) # in theory, the first hidden state factor (my beliefs) should be parameterised based on the focal agent's beliefs _about the inherent stochasticity_ of the world,
+                                                                                    # not the 'stubborness' of their own beliefs
+
+genmodel = GenerativeModel(h_idea_mapping, h_control_mapping, true_false_precisions, num_neighbours, stubborness_levels)
 
 A, num_states = genmodel.generate_likelihood()
 B = genmodel.generate_transition()
+C = genmodel.generate_prior_preferences()
 
 # %% Some quick helper functions that will let you make quick, random hidden state and observation vectors
 
