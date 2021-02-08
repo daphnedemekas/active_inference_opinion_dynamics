@@ -11,12 +11,22 @@ class GenerativeModel(object):
 
     def __init__(
         self,
-        h_idea_mapping, 
         h_control_mapping, 
         precisions, 
         num_neighbours, 
-        stubborness_levels 
+        stubborness_levels,
+        h_idea_mapping = None,
+        h_true_weights = None, 
+        h_false_weights = None, 
+        policy_true_weights = None,
+        policy_false_weights = None
+
     ):
+
+        self.h_idea_mapping = h_idea_mapping
+
+        if self.h_idea_mapping is None:
+            self.h_idea_mapping = self.create_idea_mapping()
 
         self.h_idea_mapping = h_idea_mapping
         self.h_control_mapping = h_control_mapping
@@ -25,12 +35,18 @@ class GenerativeModel(object):
         self.num_cohesion_levels = 2 * (self.num_neighbours+1)
         self.stubborness_levels = stubborness_levels
 
+        self.h_true_weights = h_true_weights
+        self.h_false_weights = h_false_weights 
+        self.policy_true_weights = policy_true_weights 
+        self.policy_false_weights = policy_false_weights
+
         self.num_H = self.h_idea_mapping.shape[0] 
         self.idea_levels = self.h_idea_mapping.shape[1] # number of levels to the truth/falsity belief
         self.num_obs = [self.num_H] + (self.num_neighbours) * [self.num_H+1] + [self.num_cohesion_levels] # list that contains the dimensionalities of each sensory   
         self.num_modalities = len(self.num_obs) # total number of observation modalities
         self.num_states = (1+ self.num_neighbours) * [self.idea_levels] + [self.num_H] + [self.num_neighbours]
         self.num_factors = len(self.num_states) # total number of hidden state factors
+        self.num_policies = self.num_H
 
         self.focal_h_idx = 0 # index of the observation modality corresponding to my observing my own hashtags
         self.neighbour_h_idx = [(self.focal_h_idx + n + 1) for n in range(self.num_neighbours)] # indices of the observation modalities corresponding to observation of my neighbours' hashtags
@@ -44,6 +60,9 @@ class GenerativeModel(object):
 
 
     def generate_likelihood(self):
+
+        if self.h_idea_mapping is None:
+            h_idea_mapping = self.create_idea_mapping()
 
         #initialize the A matrix 
         A = obj_array(self.num_modalities)
@@ -148,6 +167,8 @@ class GenerativeModel(object):
     
         return B
     
+    #these are prior preferences over observations so
+    #what i would like to see (cohesion, other beliefs)
     def generate_prior_preferences(self, preference_shape = "parabola", cohesion_exp = 2.0, cohesion_temp = 5.0):
 
         C = obj_array(self.num_modalities)
@@ -161,7 +182,7 @@ class GenerativeModel(object):
                 if preference_shape == "one_hot":
                     C[o_idx][0] = 1.0
                     C[o_idx][-1] = 1.0
-                    C[o_idx] = softmax(cohesion_pref*C[o_idx])
+                    C[o_idx] = softmax(cohesion_temp*C[o_idx])
 
                 if preference_shape == "parabola":
                     C[o_idx] = np.linspace(-1.0, 1.0, o_dim) ** cohesion_exp
@@ -171,7 +192,36 @@ class GenerativeModel(object):
                 
         return C
     
-    def generate_prior_policies(self, *args):
+    #  generate the policy probability vector E as a mapping from the hidden state factors
+    #This is the same function that I wrote to create the h_idea_mapping 
+    # it only works if we have 2 idea levels (truth/false) it would need to be adapted to go beyond that 
+    #because of the 1-
 
+    #if we want to choose on purpose weights for which our agent will tweet some tweets more than others 
+    #based on it being true or false, we can do that in policy_true_weights and policy_false_weights 
 
+    #otherwise we generate them randomly, and if they are random then they are mutually exclusive, but we can 
+    #change this as well if we want to 
 
+    def generate_policy_mapping(self):
+        policy_mapping = np.zeros((self.num_policies, self.idea_levels))
+        if self.policy_true_weights is None:
+            self.policy_true_weights = np.random.uniform(low = 1, high = 9, size=self.num_policies)
+        if self.policy_false_weights is None:
+            self.policy_false_weights = np.ones(self.num_policies) - self.policy_true_weights
+        policy_mapping[:,0] = self.policy_true_weights / self.policy_true_weights.sum()    
+        policy_mapping[:,1] = self.policy_false_weights / self.policy_false_weights.sum()
+
+        return policy_mapping
+
+    def create_idea_mapping(self):
+        h_idea_mapping = np.zeros((self.num_H, self.idea_levels))
+        if self.h_true_weights is None:
+            self.h_true_weights = np.random.uniform(low = 1, high = 9, size=self.num_H)
+        if self.h_false_weights is None:
+            self.h_false_weights = np.ones(self.num_H) - self.h_true_weights
+
+        h_idea_mapping[:,0] = self.h_true_weights / self.h_true_weights.sum()    
+        h_idea_mapping[:,1] = self.h_false_weights / self.h_false_weights.sum()
+
+        return h_idea_mapping
