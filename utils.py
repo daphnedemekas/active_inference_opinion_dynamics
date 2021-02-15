@@ -82,6 +82,11 @@ def softmax(dist):
         output = output / np.sum(output, axis=0)
         return output
 
+def onehot(value, num_values):
+    arr = np.zeros(num_values)
+    arr[value] = 1.0
+    return arr
+
 def is_arr_of_arr(arr):
     return arr.dtype == "object"
 
