@@ -21,9 +21,9 @@ Note that how you set up this mapping determines:
 (2) the focal agent's beliefs about the 'semantics' of the Idea--> Hashtag content mapping - how do Hashtags provide evidence for the Idea
 """
 
-h_idea_mapping = np.array([[0.9, 0.1], 
-                      [0.1, 0.9]])
+h_idea_mapping = np.array([[0.9, 0.1], [0.1, 0.9]])
 
+    
 # num_hashtags = 10
 # num_truth_levels = 2
 # h_idea_mapping = np.zeros((num_hashtags, num_truth_levels))
@@ -43,11 +43,13 @@ h_control_mapping = np.eye(num_H)
 stubborness_levels = np.random.uniform(low=0.5, high=3.0, size=(num_neighbours+1,)) # in theory, the first hidden state factor (my beliefs) should be parameterised based on the focal agent's beliefs _about the inherent stochasticity_ of the world,
                                                                                     # not the 'stubborness' of their own beliefs
 
-genmodel = GenerativeModel(h_idea_mapping, h_control_mapping, true_false_precisions, num_neighbours, stubborness_levels)
+genmodel = GenerativeModel(h_control_mapping, true_false_precisions, num_neighbours, stubborness_levels, h_idea_mapping)
 
 A, num_states = genmodel.generate_likelihood()
 B = genmodel.generate_transition()
 C = genmodel.generate_prior_preferences()
+E = genmodel.generate_policy_mapping()
+
 
 # %% Some quick helper functions that will let you make quick, random hidden state and observation vectors
 
