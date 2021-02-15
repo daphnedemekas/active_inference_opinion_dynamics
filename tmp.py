@@ -2,7 +2,9 @@
 import numpy as np
 from utils import obj_array, spm_dot, dot_likelihood, softmax
 #from genmodel import generate_likelihood
-from genmodel_v2 import GenerativeModel
+# from genmodel_v2 import GenerativeModel
+from genmodel import GenerativeModel
+
 import itertools
 
 # %% Initialize constants
