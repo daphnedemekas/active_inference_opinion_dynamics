@@ -17,9 +17,9 @@ class Agent(object):
 
         def infer_states(self, observation):
 
-            self.qs = update_posterior_states_mmp(self.genmodel.A, self.genmodel.B, observation, self.genmodel.D, **inference_hyperparams)
+            self.qs = update_posterior_states(self.genmodel.A, self.genmodel.B, observation, self.genmodel.D, **inference_hyperparams)
             """ 
-            def update_posterior_states_mmp(
+            def update_posterior_states(
             A,
             B,
             prev_obs,

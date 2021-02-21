@@ -12,12 +12,11 @@ import numpy as np
 
 import utils
 from maths import get_joint_likelihood_seq
-from mmp import run_mmp
+from mmp import run_fpi
 
 VANILLA = "VANILLA"
-MMP = "MMP"
 
-def update_posterior_states_mmp(
+def update_posterior_states_v2(
     A,
     B,
     prev_obs,
