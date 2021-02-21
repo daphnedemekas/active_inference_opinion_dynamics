@@ -1,11 +1,9 @@
 import numpy as np
 from genmodel import GenerativeModel
-from inference import update_posterior_hidden_states
+from pymdp.inference import update_posterior_hidden_state
+from pymdp.control import *
 
 class Agent(object):
-
-    #imagine we have different types of agents such as agent_types = ['influencer','shy',etc..]
-    #this would then feed into different generator functions instead of having random distributions as below
 
     def __init__(
         self,
@@ -19,8 +17,20 @@ class Agent(object):
 
         def infer_states(self, observation):
 
-            self.qs = update_posterior_hidden_states(observation, self.genmodel.A, self.genmodel.B, self.genmodel.D, **inference_hyperparams)
-
+            self.qs = update_posterior_states_mmp(self.genmodel.A, self.genmodel.B, observation, self.genmodel.D, **inference_hyperparams)
+            """ 
+            def update_posterior_states_mmp(
+            A,
+            B,
+            prev_obs,
+            policies,
+            prev_actions=None,
+            prior=None,
+            return_numpy=True,
+            policy_sep_prior = True,
+            **kwargs,
+            ):
+            """
             return qs
 
         def infer_policies(self):
@@ -28,46 +38,31 @@ class Agent(object):
             self.genmodel.E = self.genmodel.get_policy_prior() 
 
             self.q_pi = update_posterior_policies(self.qs, self.genmodel.A, self.genmodel.B, self.genmodel.C, self.genmodel.D, self.genmodel.E, **policy_hyperparams)
-
+            """
+            def update_posterior_policies(
+            qs,
+            A,
+            B,
+            C,
+            policies,
+            use_utility=True,
+            use_states_info_gain=True,
+            use_param_info_gain=False,
+            pA=None,
+            pB=None,
+            gamma=16.0,
+            return_numpy=True,
+            ):
+            """
             return q_pi
 
         def sample_action(self)
 
-            action = q_pi.sample()
+            action = q_pi.sample() #how does this work? 
 
             return action
 
         def set_starting_state_and_priors(starting_state)
             self.genmodel.D = self.genmodel.generate_prior_states(starting_state)
 
-        #here i just used random arrays for everything, but obviously these need to be specified by agent "roles"
-        def set_hidden_states(self):
-            focal_agent_beliefs = np.random.dirichlet(np.ones(2))
-            neighbour_beliefs = np.ndarray([self.n_neighbors, 2])
-            for n_idx in range(self.n_neighbors):
-                neighbour_beliefs[n_idx] = np.random.dirichlet(np.ones(2))
-            hashtag_control_state = np.random.dirichlet(np.ones(self.n_hashtags))
-            attending_neighbor_control_state = np.random.dirichlet(np.ones(self.n_neighbours))
 
-            return None
-
-        def set_priors(self):
-            focal_prior = np.random.dirichlet(np.ones(2))
-            neighbour_priors = np.ndarray([self.n_neighbors, 2])
-            for n_idx in range(self.n_neighbours):
-                neighbour_priors[n_idx] = np.random.dirichlet(np.ones(2))
-            
-            return None
-
-        def set_observations(self):
-            return None
-        
-        def set_A_matrix(self):
-            n_modalities = n_hidden_states
-            return None
-
-        def set_B_matrix(self):
-            return None
-
-        def set_C_matrix(self):
-            return None 

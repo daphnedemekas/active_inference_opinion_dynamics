@@ -1,7 +1,7 @@
 
 import numpy as np
 import itertools
-from utils import obj_array, softmax, insert_multiple, onehot
+from pymdp.utils import obj_array, softmax, insert_multiple, onehot
 
 class GenerativeModel(object):
 
@@ -239,8 +239,7 @@ class GenerativeModel(object):
         return policies
     
     #  generate the policy probability vector E as a mapping from the hidden state factors
-    #This is the same function that I wrote to create the h_idea_mapping 
-    # it only works if we have 2 idea levels (truth/false) it would need to be adapted to go beyond that 
+    # this only works if we have 2 idea levels (truth/false) it would need to be adapted to go beyond that 
     #because of the 1-
 
     #if we want to choose on purpose weights for which our agent will tweet some tweets more than others 
