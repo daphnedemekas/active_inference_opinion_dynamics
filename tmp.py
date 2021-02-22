@@ -1,9 +1,10 @@
 # %% Imports
 import numpy as np
-from pymdp.utils import obj_array
-from pymdp.maths import spm_dot, dot_likelihood, softmax
-from pymdp.inference import average_states_over_policies
-from genmodel import GenerativeModel
+from Model.pymdp.utils import obj_array
+from Model.pymdp.maths import spm_dot, dot_likelihood, softmax
+from Model.pymdp.inference import average_states_over_policies
+from Model.genmodel import GenerativeModel
+from Model.agent import Agent
 
 import itertools
 
@@ -12,7 +13,7 @@ import itertools
 Constant parameters of a focal agent's generative model, e.g. its number of neighbours
 """
 
-num_neighbours = 5 # number of neighbours whose tweets our focal agent can read
+num_neighbours = 3 # number of neighbours whose tweets our focal agent can read
 
 """
 Specify the mapping between hidden states (truth/falsity of Idea) and Hashtags - this matrix will be used to 'fill out' 
@@ -23,34 +24,50 @@ Note that how you set up this mapping determines:
 (2) the focal agent's beliefs about the 'semantics' of the Idea--> Hashtag content mapping - how do Hashtags provide evidence for the Idea
 """
 
-h_idea_mapping = np.array([[0.9, 0.1], [0.1, 0.9]])
-
-    
-# num_hashtags = 10
-# num_truth_levels = 2
-# h_idea_mapping = np.zeros((num_hashtags, num_truth_levels))
-# semantic_fuzz = 0.1
-# for truth_level_i in range(num_truth_levels):
-#     h_idea_mapping[:,truth_level_i] = softmax(semantic_fuzz * np.eye(num_hashtags)[np.random.randint(num_hashtags)])
-
 true_false_precisions = np.random.uniform(low=3.0, high=10.0, size=(num_neighbours,))
 
-num_H = h_idea_mapping.shape[0] # add an extra observation level to include the `null` observation
-
-# h_control_mapping = np.array([[1, 0], 
-#                       [0, 1]])
+num_H = 2
+idea_levels = 2
 
 h_control_mapping = np.eye(num_H)
 
-stubborness_levels = np.random.uniform(low=0.5, high=3.0, size=(num_neighbours+1,)) # in theory, the first hidden state factor (my beliefs) should be parameterised based on the focal agent's beliefs _about the inherent stochasticity_ of the world,
-                                                                                    # not the 'stubborness' of their own beliefs
+volatility_levels = np.random.uniform(low=0.5, high=3.0, size=(num_neighbours+1,)) # in theory, the first hidden state factor (my beliefs) should be parameterised based on the focal agent's beliefs _about the inherent stochasticity_ of the world,
 
-genmodel = GenerativeModel(h_control_mapping, true_false_precisions, num_neighbours, stubborness_levels, h_idea_mapping)
+genmodel = GenerativeModel(true_false_precisions, num_neighbours, num_H, idea_levels, volatility_levels = volatility_levels)
 
-A, num_states = genmodel.generate_likelihood()
+A = genmodel.generate_likelihood()
 B = genmodel.generate_transition()
 C = genmodel.generate_prior_preferences()
 E = genmodel.generate_policy_mapping()
+
+num_states = genmodel.num_states
+print(idea_levels)
+# MY PARAMETERS 
+neighbour_params = {
+    "precisions" : true_false_precisions,
+    "num_neighbours" : num_neighbours,
+    "volatility_levels": volatility_levels
+    }
+
+idea_mapping_params = {
+    "num_H" : num_H,
+    "idea_levels": idea_levels,
+    "h_idea_mapping": None
+    }
+
+policy_params = {
+    "starting_state" : None,
+    "belief2tweet_mapping" : None
+    }
+
+C_params = {
+    "preference_shape" : None,
+    "cohesion_exp" : None,
+    "cohesion_temp" : None
+    }
+    
+johnny = Agent(neighbour_params, idea_mapping_params, policy_params, C_params)
+
 
 
 # %% Some quick helper functions that will let you make quick, random hidden state and observation vectors
@@ -62,7 +79,7 @@ def create_hidden_state_vector(num_states, state_idx=None):
     form [1, 0, 0, 0, ...] for each hidden state factor, with a 1 at the index of the 'true' state.
     This distributional representation of the hidden state is useful for computations like spm_dot
     """
-
+    print(num_states)
     s = obj_array(len(num_states))
     for f, num_levels_f in enumerate(num_states):
         s[f] = np.zeros(num_levels_f)
@@ -92,7 +109,7 @@ def create_observations(num_obs, ob_idx=None):
 
 # %% How to use the A matrix to generate expected observations, given a particular hidden state configuration
 
-state_indices = [0, 0, 0, 1, 0] 
+state_indices = [0, 0, 0, 0, 1, 0] 
 # this^^ set of hidden state indices corresponds to the state of the world when the Idea is true, 
 # neighbour 1 believes the Idea is true, neighbour 2 believes the Idea is true, I am tweeting
 # Hashtag 2 (Hashtag Control State Idx = 1), and I am sampling neighbour 1
@@ -110,7 +127,7 @@ print(f'Given these hidden states, I expect to see myself tweeting Hashtag {whic
 
 num_obs = [A[m].shape[0] for m, _ in enumerate(A)]
 
-observation_indices = [1, 1, 1]
+observation_indices = [1, 1, 1, 1, 1]
 # this^^ set of observation indices corresponds to the observation of myself tweeting Hashtag content 2,
 # seeing my neighbour tweet 0, and seeing my other neighbour tweet null
 

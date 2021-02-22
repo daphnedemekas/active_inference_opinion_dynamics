@@ -1,12 +1,14 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+
+import numpy as np
 
 """ Utility functions
 
 __author__: Conor Heins, Alexander Tschantz, Brennan Klein
 """
 
-import numpy as np
+def obj_array(shape):
+    
+    return np.empty(shape, dtype=object)
 
 def insert_multiple(s, indices, items):
     for idx in range(len(items)):
@@ -19,13 +21,6 @@ def sample(probabilities):
     #     raise ValueError("Can only currently sample from [n x 1] distribution")
     sample_onehot = np.random.multinomial(1, probabilities.squeeze())
     return np.where(sample_onehot == 1)[0][0]
-
-
-def obj_array(num_arr):
-    """
-    Creates a generic object array with the desired number of sub-arrays, given by `num_arr`
-    """
-    return np.empty(num_arr, dtype=object)
 
 def obj_array_zeros(shape_list):
     """ 
@@ -185,3 +180,18 @@ def process_prior(prior, n_factors):
 
     return prior
 
+def softmax(dist):
+    """ 
+    Computes the softmax function on a set of values, either a straight numpy
+    1-D vector or an array-of-arrays.
+    """
+    if is_arr_of_arr(dist):
+        output = obj_array(len(dist))
+        for i in range(len(dist)):
+            output[i] = softmax(dist[i])
+        return output
+    else:
+        output = dist - dist.max(axis=0)
+        output = np.exp(output)
+        output = output / np.sum(output, axis=0)
+        return output

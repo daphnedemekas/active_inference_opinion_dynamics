@@ -1,9 +1,6 @@
-
-import numpy as np
+import numpy as np 
 import itertools
-
-from pymdp.utils import obj_array, onehot, insert_multiple
-from pymdp.maths import softmax 
+from .pymdp.utils import obj_array, insert_multiple, softmax, onehot
 
 class GenerativeModel(object):
 
@@ -14,22 +11,36 @@ class GenerativeModel(object):
         self,
         precisions, 
         num_neighbours, 
-        volatility_levels,
-        starting_state = None,
+
+        num_H,
+        idea_levels,
+        
         h_idea_mapping = None,
-        h_true_weights = None, 
-        h_false_weights = None, 
+
+        starting_state = None,
         belief2tweet_mapping = None,
+
         preference_shape = None,
         cohesion_exp = None,
-        cohesion_temp = None
+        cohesion_temp = None,
+
+        volatility_levels = None
+
+
     ):
 
+        
+        self.num_H = num_H
+        self.idea_levels = idea_levels
+
         self.h_idea_mapping = h_idea_mapping
+        print(h_idea_mapping)
 
         if self.h_idea_mapping is None:
             self.h_idea_mapping = self.create_idea_mapping()
-        
+        else:
+            assert self.h_idea_mapping.shape == (self.num_H, self.idea_levels), "Your h_idea_mapping has the wrong shape. It should be (num_H, idea_levels)"
+
         if preference_shape is None:
             self.preference_shape = "parabola"
         if cohesion_exp is None:
@@ -37,28 +48,25 @@ class GenerativeModel(object):
         if cohesion_temp is None:
             self.cohesion_temp = 5.0
 
-        self.h_idea_mapping = h_idea_mapping
+
         self.precisions = precisions
         self.num_neighbours = num_neighbours
         self.num_cohesion_levels = 2 * (self.num_neighbours+1)
+
         self.volatility_levels = volatility_levels
+        if self.volatility_levels is None:
+            self.volatility_levels = np.random.uniform(low=0.5, high=3.0, size=(num_neighbours+1,))
+        else:
+            assert self.volatility_levels.shape == (num_neighbours+1,), "Your volatility_levels has the wrong shape. It should be (num_neighbours+1,)"
 
-        self.h_true_weights = h_true_weights
-        self.h_false_weights = h_false_weights 
-        self.policy_true_weights = policy_true_weights 
-        self.policy_false_weights = policy_false_weights
 
-        self.num_H = self.h_idea_mapping.shape[0]
-        self.h_control_mapping = np.eye(self.num_h)
-        self.idea_levels = self.h_idea_mapping.shape[1] # number of levels to the truth/falsity belief
-        # self.num_obs = (self.num_neighbours+1) * [self.num_H+1] + [self.num_cohesion_levels] # list that contains the dimensionalities of each sensory 
+        self.belief2tweet_mapping = belief2tweet_mapping 
+        self.h_control_mapping = np.eye(self.num_H)
         self.num_obs = [self.num_H] + (self.num_neighbours) * [self.num_H+1] + [self.num_cohesion_levels] # list that contains the dimensionalities of each sensory   
-  
+
         self.num_modalities = len(self.num_obs) # total number of observation modalities
-        self.num_states = (1+ self.num_neighbours) * [self.idea_levels] + [self.num_H+1] + [self.num_neighbours]
+        self.num_states = (1+ self.num_neighbours) * [self.idea_levels] + [self.num_H] + [self.num_neighbours]
         self.num_factors = len(self.num_states) # total number of hidden state factors
-        self.num_policies = self.num_H
-        self.policies = self.generate_policies()
 
 
         self.focal_h_idx = 0 # index of the observation modality corresponding to my observing my own hashtags
@@ -73,20 +81,20 @@ class GenerativeModel(object):
 
         self.control_factor_idx = [self.h_control_idx, self.who_idx]
         
+        self.policies = self.generate_policies()
         self.A = self.generate_likelihood()
         self.B = self.generate_transition()
         self.C = self.generate_prior_preferences()
 
-        # # self.D = self.generate_prior_states()
+        #self.D = self.generate_prior_states()
+        #self.starting_state = starting_state 
 
         # self.generate_likelihood()
         # self.generate_transition()
         # self.generate_prior_preferences()
 
-    def generate_likelihood(self):
 
-        if self.h_idea_mapping is None:
-            h_idea_mapping = self.create_idea_mapping()
+    def generate_likelihood(self):
 
         #initialize the A matrix 
         A = obj_array(self.num_modalities)
@@ -175,7 +183,7 @@ class GenerativeModel(object):
             
             if f_idx == self.h_control_idx: #for the hashtag control state we have rows of ones corresponding to the next state
 
-                b_matrix_shape = 2*[f_dim] + [self.num_H]
+                b_matrix_shape = self.num_H*[f_dim] + [self.num_H]
                 B[f_idx] = np.zeros(b_matrix_shape)
                 for action in range(self.num_H):
                     B[f_idx][action,:,action] = np.ones(self.num_H)
@@ -211,7 +219,7 @@ class GenerativeModel(object):
                     C[o_idx] = softmax(cohesion_temp*C[o_idx])
 
                 if self.preference_shape == "parabola":
-                    C[o_idx] = np.linspace(-1.0, 1.0, o_dim) ** cohesion_exp
+                    C[o_idx] = np.linspace(-1.0, 1.0, o_dim) ** self.cohesion_exp
 
                 if self.preference_shape == "linear":
                     C[o_idx] = np.absolute(np.linspace(-1.0, 1.0, o_dim))       
@@ -220,44 +228,21 @@ class GenerativeModel(object):
     
     def generate_prior_states(self):
 
-        D = obj_array(self.num_modalities)
+        D = obj_array(self.num_factors)
 
         for f_idx, f_dim in enumerate(self.num_states):
 
             if f_idx == self.focal_belief_idx or f_idx in self.neighbour_belief_idx: #the first N+1 hidden state factors are variations of the identity matrix based on stubborness
                 
-                D[f_idx] = np.ones(f_dim)/fdim
+                D[f_idx] = np.ones(f_dim)/f_dim
             
             if f_idx == self.h_control_idx or f_idx == self.who_idx: 
-
                 D[f_idx] = onehot(self.starting_state[f_idx],f_dim)
-        
         return D
 
-    def generate_policies(self):
-        
-        self.policies = list(itertools.product(*[np.arange(self.num_states[i]) for i in self.control_factor_idx]))
+    def generate_policies(self):        
+        return list(itertools.product(*[np.arange(self.num_states[i]) for i in self.control_factor_idx]))
     
-    #  generate the policy probability vector E as a mapping from the hidden state factors
-    # this only works if we have 2 idea levels (truth/false) it would need to be adapted to go beyond that 
-    #because of the 1-
-
-    #if we want to choose on purpose weights for which our agent will tweet some tweets more than others 
-    #based on it being true or false, we can do that in policy_true_weights and policy_false_weights 
-
-    #otherwise we generate them randomly, and if they are random then they are mutually exclusive, but we can 
-    #change this as well if we want to 
-
-    # def generate_policy_mapping(self):
-    #     policy_mapping = np.zeros((self.num_policies, self.idea_levels))
-    #     if self.policy_true_weights is None:
-    #         self.policy_true_weights = np.random.uniform(low = 1, high = 9, size=self.num_policies)
-    #     if self.policy_false_weights is None:
-    #         self.policy_false_weights = np.ones(self.num_policies) - self.policy_true_weights
-    #     policy_mapping[:,0] = self.policy_true_weights / self.policy_true_weights.sum()    
-    #     policy_mapping[:,1] = self.policy_false_weights / self.policy_false_weights.sum()
-
-    #     return policy_mapping
 
     def generate_policy_mapping(self):
         """
@@ -270,14 +255,16 @@ class GenerativeModel(object):
         """
         num_policies = len(self.policies)
 
-        policy_mapping = np.zeros((self.num_policies, self.idea_levels))
-
-        if self.belief2tweet_mapping is None:
-            self.belief2tweet_mapping = np.random.uniform(low = 1, high = 9, size=(self.num_H, self.idea_levels))
+        policy_mapping = np.zeros((num_policies, self.idea_levels))
         
+        if self.belief2tweet_mapping is None:
+            self.belief2tweet_mapping = np.random.uniform(low = 1, high = 9, size=(self.num_H , self.idea_levels))
+        else:
+            assert self.belief2tweet_mapping.shape == (self.num_H , self.idea_levels), "Your belief2tweet_mapping has the wrong shape. It should be (self.num_H , self.idea_levels)"
         self.belief2tweet_mapping = self.belief2tweet_mapping / self.belief2tweet_mapping.sum(axis=0)
 
         array_policies = np.array(self.policies)
+
 
         for policy_idx, policy in enumerate(self.policies):
             for action_idx in range(self.num_H):
@@ -289,13 +276,9 @@ class GenerativeModel(object):
 
     def create_idea_mapping(self):
         h_idea_mapping = np.zeros((self.num_H, self.idea_levels))
-        if self.h_true_weights is None:
-            self.h_true_weights = np.random.uniform(low = 1, high = 9, size=self.num_H)
-        if self.h_false_weights is None:
-            self.h_false_weights = np.ones(self.num_H) - self.h_true_weights
+        h_idea_mapping = np.random.uniform(low = 1, high = 9, size=(self.num_H, self.idea_levels))
 
-        h_idea_mapping[:,0] = self.h_true_weights / self.h_true_weights.sum()    
-        h_idea_mapping[:,1] = self.h_false_weights / self.h_false_weights.sum()
+        h_idea_mapping = h_idea_mapping / h_idea_mapping.sum(axis=0)
 
         return h_idea_mapping
     

@@ -2,15 +2,16 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=no-member
 # pylint: disable=not-an-iterable
-
 """ Functions
 
 __author__: Conor Heins, Alexander Tschantz, Brennan Klein
 """
 
+
 import numpy as np
-from scipy import special
 from . import utils
+from scipy import special
+
 
 EPS_VAL = 1e-16 # global constant for use in spm_log() function
 

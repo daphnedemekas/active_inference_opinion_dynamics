@@ -7,11 +7,11 @@
 __author__: Conor Heins, Alexander Tschantz, Brennan Klein
 """
 
-import itertools
+import itertools 
 import numpy as np
 from .maths import softmax, spm_dot, spm_wnorm, spm_MDP_G
 from . import utils
-import copy
+import copy 
 
 def update_posterior_policies(
     qs,
