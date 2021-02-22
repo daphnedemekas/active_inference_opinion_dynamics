@@ -298,6 +298,17 @@ def kl_divergence(q, p):
     return kl
 
 
+
+
+
+
+
+
+
+
+
+
+
 def spm_MDP_G(A, x):
     """
     Calculates the Bayesian surprise in the same way as spm_MDP_G.m does in 

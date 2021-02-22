@@ -1,6 +1,6 @@
 import numpy as np
 from genmodel import GenerativeModel
-from pymdp.inference import update_posterior_hidden_state
+from pymdp.inference import update_posterior_states
 from pymdp.control import *
 
 class Agent(object):
@@ -18,8 +18,10 @@ class Agent(object):
         def infer_states(self, observation):
 
             self.qs = update_posterior_states(self.genmodel.A, self.genmodel.B, observation, self.genmodel.D, **inference_hyperparams)
+            #update_posterior_states(obs, A, prior=None, return_numpy=True, **kwargs)
+
             """ 
-            def update_posterior_states(
+            def update_posterior_states_v2(
             A,
             B,
             prev_obs,
