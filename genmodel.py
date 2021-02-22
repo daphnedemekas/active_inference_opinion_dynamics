@@ -1,7 +1,9 @@
 
 import numpy as np
 import itertools
-from pymdp.utils import obj_array, softmax, insert_multiple, onehot
+
+from pymdp.utils import obj_array, onehot, insert_multiple
+from pymdp.maths import softmax 
 
 class GenerativeModel(object):
 
@@ -17,8 +19,7 @@ class GenerativeModel(object):
         h_idea_mapping = None,
         h_true_weights = None, 
         h_false_weights = None, 
-        policy_true_weights = None,
-        policy_false_weights = None,
+        belief2tweet_mapping = None,
         preference_shape = None,
         cohesion_exp = None,
         cohesion_temp = None
@@ -75,6 +76,7 @@ class GenerativeModel(object):
         self.A = self.generate_likelihood()
         self.B = self.generate_transition()
         self.C = self.generate_prior_preferences()
+
         # # self.D = self.generate_prior_states()
 
         # self.generate_likelihood()
@@ -234,9 +236,7 @@ class GenerativeModel(object):
 
     def generate_policies(self):
         
-        policies = list(itertools.product(*[np.arange(self.num_states[i]) for i in control_factor_idx]))
-
-        return policies
+        self.policies = list(itertools.product(*[np.arange(self.num_states[i]) for i in self.control_factor_idx]))
     
     #  generate the policy probability vector E as a mapping from the hidden state factors
     # this only works if we have 2 idea levels (truth/false) it would need to be adapted to go beyond that 
@@ -248,15 +248,43 @@ class GenerativeModel(object):
     #otherwise we generate them randomly, and if they are random then they are mutually exclusive, but we can 
     #change this as well if we want to 
 
-    def generate_policy_mapping(self):
-        policy_mapping = np.zeros((self.num_policies, self.idea_levels))
-        if self.policy_true_weights is None:
-            self.policy_true_weights = np.random.uniform(low = 1, high = 9, size=self.num_policies)
-        if self.policy_false_weights is None:
-            self.policy_false_weights = np.ones(self.num_policies) - self.policy_true_weights
-        policy_mapping[:,0] = self.policy_true_weights / self.policy_true_weights.sum()    
-        policy_mapping[:,1] = self.policy_false_weights / self.policy_false_weights.sum()
+    # def generate_policy_mapping(self):
+    #     policy_mapping = np.zeros((self.num_policies, self.idea_levels))
+    #     if self.policy_true_weights is None:
+    #         self.policy_true_weights = np.random.uniform(low = 1, high = 9, size=self.num_policies)
+    #     if self.policy_false_weights is None:
+    #         self.policy_false_weights = np.ones(self.num_policies) - self.policy_true_weights
+    #     policy_mapping[:,0] = self.policy_true_weights / self.policy_true_weights.sum()    
+    #     policy_mapping[:,1] = self.policy_false_weights / self.policy_false_weights.sum()
 
+    #     return policy_mapping
+
+    def generate_policy_mapping(self):
+        """
+        Creates a 'link' function that maps current beliefs about the Idea (in practice, qx[0], the first marginal
+        factor of the posterior beliefs about hidden states) to the prior over policies - the E matrix. 
+        First, a belief2tweet_mapping is created that parameterises the weights linking the belief state
+        to the probability to tweet one of the `num_H` hashtags. Then the full policy mapping (over all policies, 
+        which also include other control factors like the which_neighbour factor) is generated from this
+        policy mapping over just the `hashtag` control factor.
+        """
+        num_policies = len(self.policies)
+
+        policy_mapping = np.zeros((self.num_policies, self.idea_levels))
+
+        if self.belief2tweet_mapping is None:
+            self.belief2tweet_mapping = np.random.uniform(low = 1, high = 9, size=(self.num_H, self.idea_levels))
+        
+        self.belief2tweet_mapping = self.belief2tweet_mapping / self.belief2tweet_mapping.sum(axis=0)
+
+        array_policies = np.array(self.policies)
+
+        for policy_idx, policy in enumerate(self.policies):
+            for action_idx in range(self.num_H):
+                normalising_constant = (array_policies[:,0] == action_idx).sum()
+                if policy[0] == action_idx:
+                    policy_mapping[policy_idx,:] = self.belief2tweet_mapping[action_idx,:] / normalising_constant
+        
         return policy_mapping
 
     def create_idea_mapping(self):
@@ -272,7 +300,5 @@ class GenerativeModel(object):
         return h_idea_mapping
     
     def get_policy_prior(self, qs_f):
-
-
 
         E = self.policy_mapping.dot(qs_f)
