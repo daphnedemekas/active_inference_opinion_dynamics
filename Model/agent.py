@@ -2,6 +2,8 @@ import numpy as np
 from .genmodel import GenerativeModel
 from .pymdp.inference import update_posterior_states
 from .pymdp.control import *
+from .pymdp.maths import spm_log
+from .pymdp import utils
 
 class Agent(object):
 
@@ -15,16 +17,22 @@ class Agent(object):
 
         self.genmodel = GenerativeModel(**neighbour_params, **idea_mapping_params, **policy_params, **C_params)
         self.action = np.zeros(len(self.genmodel.control_factor_idx))
+        self.kwargs = {"num_iter":10, 
+                        "dF":1.0,
+                        "dF_tol":0.001}
 
 
-    def infer_states(self, timestep):
+    def infer_states(self, timestep, observation):
 
         if timestep == 0:
-            empirical_prior = self.genmodel.D.log()
+            empirical_prior = utils.obj_array(self.genmodel.num_factors)
+            for f in range(self.genmodel.num_factors):
+                empirical_prior[f] = spm_log(self.genmodel.D[f])
         else:
             for f, ns in enumerate(self.genmodel.num_states):
                 empirical_prior[f] = self.B[f][:,:,self.action]
-        qs = update_posterior_states(obs, A, prior=empirical_prior, return_numpy=True, **kwargs)
+        
+        qs = update_posterior_states(observation, self.genmodel.A, prior=empirical_prior, return_numpy=True, **self.kwargs)
 
         self.qs = qs
         

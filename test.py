@@ -52,5 +52,6 @@ johnny.genmodel.starting_state = starting_state
 johnny.genmodel.D = johnny.genmodel.generate_prior_states()
 
 timestep = 0
-qs = johnny.infer_states(timestep)
+observation = (1,0)
+qs = johnny.infer_states(timestep, observation)
 print(qs)

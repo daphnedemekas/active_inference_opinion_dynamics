@@ -11,6 +11,7 @@ import numpy as np
 
 from . import utils 
 from . import maths 
+from . import fpi
 
 def average_states_over_policies(qs_pi, q_pi):
     """
@@ -92,6 +93,6 @@ def update_posterior_states(obs, A, prior=None, **kwargs):
     if prior is not None:
         prior = utils.process_prior(prior, n_factors)
 
-    qs = maths.run_fpi(A, obs, n_observations, n_states, prior, **kwargs)
+    qs = fpi.run_fpi(A, obs, n_observations, n_states, prior, **kwargs)
 
     return qs
