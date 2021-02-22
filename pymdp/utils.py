@@ -8,8 +8,11 @@ __author__: Conor Heins, Alexander Tschantz, Brennan Klein
 
 import numpy as np
 
-from pymdp.distributions import Categorical, Dirichlet
-
+def insert_multiple(s, indices, items):
+    for idx in range(len(items)):
+        s.insert(indices[idx], items[idx])
+    return s
+    
 def sample(probabilities):
     # TODO dont assume dist class
     # if probabilities.shape[1] > 1:
@@ -118,28 +121,15 @@ def to_numpy(dist, flatten=False):
     flattened into row vectors(common operation when dealing with array of arrays 
     with 1D numpy array entries)
     """
-    if isinstance(dist, (Categorical, Dirichlet)):
-        values = np.copy(dist.values)
-        if flatten:
-            if dist.IS_AOA:
-                for idx, arr in enumerate(values):
-                    values[idx] = arr.flatten()
-            else:
-                values = values.flatten()
-    else:
-        values = dist
-        if flatten:
-            if is_arr_of_arr(values):
-                for idx, arr in enumerate(values):
-                    values[idx] = arr.flatten()
-            else:
-                values = values.flatten()
+
+    values = dist
+    if flatten:
+        if is_arr_of_arr(values):
+            for idx, arr in enumerate(values):
+                values[idx] = arr.flatten()
+        else:
+            values = values.flatten()
     return values
-
-
-def is_distribution(obj):
-    return isinstance(obj, (Categorical, Dirichlet))
-
 
 def is_arr_of_arr(arr):
     return arr.dtype == "object"
@@ -151,14 +141,6 @@ def to_arr_of_arr(arr):
     arr_of_arr = np.empty(1, dtype=object)
     arr_of_arr[0] = arr.squeeze()
     return arr_of_arr
-
-
-def to_categorical(values):
-    return Categorical(values=values)
-
-
-def to_dirichlet(values):
-    return Dirichlet(values=values)
 
 def process_observation_seq(obs_seq, n_modalities, n_observations):
     """
@@ -180,16 +162,7 @@ def process_observation(obs, n_modalities, n_observations):
 
         Observations can either be `Categorical`, `int` (converted to one-hot)
         or `tuple` (obs for each modality)
-    
-    @TODO maybe provide error messaging about observation format
     """
-    if is_distribution(obs):
-        obs = to_numpy(obs)
-        if n_modalities == 1:
-            obs = obs.squeeze()
-        else:
-            for m in range(n_modalities):
-                obs[m] = obs[m].squeeze()
 
     if isinstance(obs, (int, np.integer)):
         obs = np.eye(n_observations[0])[obs]
@@ -206,16 +179,8 @@ def process_prior(prior, n_factors):
     """
     Helper function for formatting prior beliefs  
         """
-    if is_distribution(prior):
-        prior_arr = obj_array(n_factors)
-        if n_factors == 1:
-            prior_arr[0] = prior.values.squeeze()
-        else:
-            for factor in range(n_factors):
-                prior_arr[factor] = prior[factor].values.squeeze()
-        prior = prior_arr
 
-    elif not is_arr_of_arr(prior):
+    if not is_arr_of_arr(prior):
         prior = to_arr_of_arr(prior)
 
     return prior

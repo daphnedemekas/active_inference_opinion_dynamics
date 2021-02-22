@@ -9,10 +9,8 @@ __author__: Conor Heins, Alexander Tschantz, Brennan Klein
 
 import numpy as np
 
-
-import utils
-import get_joint_likelihood_seq
-import run_fpi
+from . import utils
+from . import maths 
 
 def average_states_over_policies(qs_pi, q_pi):
     """
@@ -41,7 +39,7 @@ def average_states_over_policies(qs_pi, q_pi):
 
     return qs_bma
 
-def update_posterior_states(obs, A, prior=None, return_numpy=True, **kwargs):
+def update_posterior_states(obs, A, prior=None, **kwargs):
     """
     Update marginal posterior over hidden states using variational inference
         Can optionally set message passing algorithm used for inference
@@ -63,8 +61,6 @@ def update_posterior_states(obs, A, prior=None, return_numpy=True, **kwargs):
         If None, prior is set to be equal to a flat categorical distribution (at the level of
         the individual inference functions).
         (optional)
-    - 'return_numpy' [bool]:
-        True/False flag to determine whether the posterior is returned as a numpy array or a Categorical
     - **kwargs:
         List of keyword/parameter arguments corresponding to parameter values for the respective
         variational inference algorithm
@@ -96,69 +92,6 @@ def update_posterior_states(obs, A, prior=None, return_numpy=True, **kwargs):
     if prior is not None:
         prior = utils.process_prior(prior, n_factors)
 
-    qs = run_fpi(A, obs, n_observations, n_states, prior, **kwargs)
+    qs = maths.run_fpi(A, obs, n_observations, n_states, prior, **kwargs)
 
-    if return_numpy:
-        return qs
-    else:
-        return utils.to_categorical(qs)
-
-""" 
-def update_posterior_states_v2(
-    A,
-    B,
-    prev_obs,
-    policies,
-    prev_actions=None,
-    prior=None,
-    return_numpy=True,
-    policy_sep_prior = True,
-    **kwargs,
-):
-    """
-    #Update posterior over hidden states using marginal message passing
-    """
-    # safe convert to numpy
-    A = utils.to_numpy(A)
-
-    num_obs, num_states, num_modalities, num_factors = utils.get_model_dimensions(A, B)
-    A = utils.to_arr_of_arr(A)
-    B = utils.to_arr_of_arr(B)
-
-    prev_obs = utils.process_observation_seq(prev_obs, num_modalities, num_obs)
-    if prior is not None:
-        if policy_sep_prior:
-            for p_idx, policy in enumerate(policies):
-                prior[p_idx] = utils.process_prior(prior[p_idx], num_factors)
-        else:
-            prior = utils.process_prior(prior, num_factors)
-
-    lh_seq = get_joint_likelihood_seq(A, prev_obs, num_states)
-
-    qs_seq_pi = utils.obj_array(len(policies))
-    F = np.zeros(len(policies)) # variational free energy of policies
-
-    if policy_sep_prior:
-        for p_idx, policy in enumerate(policies):
-            # get sequence and the free energy for policy
-            qs_seq_pi[p_idx], F[p_idx] = run_mmp(
-                lh_seq,
-                B,
-                policy,
-                prev_actions=prev_actions,
-                prior=prior[p_idx], 
-                **kwargs
-            )
-    else:
-        for p_idx, policy in enumerate(policies):
-            # get sequence and the free energy for policy
-            qs_seq_pi[p_idx], F[p_idx] = run_mmp(
-                lh_seq,
-                B,
-                policy,
-                prev_actions=prev_actions,
-                prior=prior, 
-                **kwargs
-            )
-
-    return qs_seq_pi, F """
+    return qs

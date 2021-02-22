@@ -10,7 +10,7 @@ __author__: Conor Heins, Alexander Tschantz, Brennan Klein
 
 import numpy as np
 from scipy import special
-from pymdp.core import utils
+from . import utils
 
 EPS_VAL = 1e-16 # global constant for use in spm_log() function
 
@@ -249,14 +249,7 @@ def softmax(dist, return_numpy=True):
     """ Computes the softmax function on a set of values
 
     """
-    if utils.is_distribution(dist):
-        if dist.IS_AOA:
-            output = []
-            for i in range(len(dist.values)):
-                output[i] = softmax(dist.values[i], return_numpy=True)
-            output = utils.to_categorical(np.array(output))
-        else:
-            dist = np.copy(dist.values)
+    dist = np.copy(dist.values)
 
     output = dist - dist.max(axis=0)
     output = np.exp(output)
@@ -283,30 +276,6 @@ def calc_free_energy(qs, prior, n_factors, likelihood=None):
         accuracy = spm_dot(likelihood, qs)[0]
         free_energy -= accuracy
     return free_energy
-
-
-def kl_divergence(q, p):
-    """ Calculate KL divdivergence between two distributions
-
-    @TODO: make this work for multi-dimensional arrays
-    """
-    q.remove_zeros()
-    p.remove_zeros()
-    q = np.copy(q.values)
-    p = np.copy(p.values)
-    kl = np.sum(q * np.log(q / p), axis=0)[0]
-    return kl
-
-
-
-
-
-
-
-
-
-
-
 
 
 def spm_MDP_G(A, x):

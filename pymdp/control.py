@@ -9,108 +9,9 @@ __author__: Conor Heins, Alexander Tschantz, Brennan Klein
 
 import itertools
 import numpy as np
-from pymdp.distributions import Categorical, Dirichlet
-from pymdp.core.maths import softmax, spm_dot, spm_wnorm, spm_MDP_G
-from pymdp.core import utils
+from .maths import softmax, spm_dot, spm_wnorm, spm_MDP_G
+from . import utils
 import copy
-
-def update_posterior_policies_v2(
-    qs_seq_pi,
-    A,
-    B,
-    C,
-    policies,
-    use_utility=True,
-    use_states_info_gain=True,
-    use_param_info_gain=False,
-    prior=None,
-    pA=None,
-    pB=None,
-    F = None,
-    E = None,
-    gamma=16.0,
-    return_numpy=True,
-):  
-    """
-    `qs_seq_pi`: numpy object array that stores posterior marginals beliefs over hidden states for each policy. 
-                The structure is nested as policies --> timesteps --> hidden state factors. So qs_seq_pi[p_idx][t][f] is the belief about factor `f` at time `t`, under policy `p_idx`
-    `A`: numpy object array that stores likelihood mappings for each modality.
-    `B`: numpy object array that stores transition matrices (possibly action-conditioned) for each hidden state factor
-    `policies`: numpy object array that stores each (potentially-multifactorial) policy in `policies[p_idx]`. Shape of `policies[p_idx]` is `(num_timesteps, num_factors)`
-    `use_utility`: Boolean that determines whether expected utility should be incorporated into computation of EFE (default: `True`)
-    `use_states_info_gain`: Boolean that determines whether state epistemic value (info gain about hidden states) should be incorporated into computation of EFE (default: `True`)
-    `use_param_info_gain`: Boolean that determines whether parameter epistemic value (info gain about generative model parameters) should be incorporated into computation of EFE (default: `False`)
-    `prior`: numpy object array that stores priors over hidden states 
-    `pA`: numpy object array that stores Dirichlet priors over likelihood mappings (one per modality)
-    `pB`: numpy object array that stores Dirichlet priors over transition mappings (one per hidden state factor)
-    `F` : 1D numpy array that stores variational free energy of each policy 
-    `E` : 1D numpy array that stores prior probability each policy (e.g. 'habits')
-    `gamma`: Float that encodes the precision over policies
-    `return_numpy`: Boolean that determines whether output should be a numpy array or an instance of the Categorical class (default: `True`)
-    """
-
-    num_obs, num_states, num_modalities, num_factors = utils.get_model_dimensions(A, B)
-    horizon = len(qs_seq_pi[0])
-    num_policies = len(qs_seq_pi)
-
-    # initialise `base_obs` and `obs_over_time` as object arrays to initially populate `qo_seq_pi`
-    
-    # base obs is the observation (potentially multi-modality) template for a single timepoint
-    base_obs = utils.obj_array(num_modalities)
-    for g in range(num_modalities):
-        base_obs[g] = np.zeros(num_obs[g])
-
-    # obs_over_time is the multi-timestep observation (potentially multi-modality) template at all timepoints
-    obs_over_time = utils.obj_array(horizon)
-    for t in range(horizon):
-        obs_over_time[t] = copy.deepcopy(base_obs)
-
-    # initialise expected observations
-    qo_seq_pi = utils.obj_array(num_policies)
-    for p_idx in range(num_policies):
-        qo_seq_pi[p_idx] = copy.deepcopy(obs_over_time)
-
-    efe = np.zeros(num_policies)
-
-    if F is None:
-        F = np.zeros(num_policies)
-    if E is None:
-        E = np.zeros(num_policies)
-
-    for p_idx, policy in enumerate(policies):
-
-        qs_seq_pi_i = qs_seq_pi[p_idx]
-
-        for t in range(horizon):
-            # print(qs_seq_pi_i[t].shape)
-            qo_pi_t = get_expected_obs(qs_seq_pi_i[t], A)
-            qo_seq_pi[p_idx][t] = qo_pi_t
-
-            if use_utility:
-               efe[p_idx] += calc_expected_utility(qo_seq_pi[p_idx][t], C[t])
-
-            if use_states_info_gain:
-                efe[p_idx] += calc_states_info_gain(A, qs_seq_pi_i[t])
-
-            if use_param_info_gain:
-                if pA is not None:
-                    efe[p_idx] += calc_pA_info_gain(pA, qo_seq_pi[p_idx][t], qs_seq_pi_i[t])
-                if pB is not None:
-                    if t > 0:
-                        efe[p_idx] += calc_pB_info_gain(pB, qs_seq_pi_i[t], qs_seq_pi_i[t-1], policy)
-                    else:
-                        if prior is not None:
-                            efe[p_idx] += calc_pB_info_gain(pB, qs_seq_pi_i[t], prior, policy)
-
-
-    q_pi = softmax(efe * gamma - F + E)
-    if return_numpy:
-        q_pi = q_pi / q_pi.sum(axis=0)
-    else:
-        q_pi = utils.to_categorical(q_pi)
-        q_pi.normalize()
-    return q_pi, efe
-
 
 def update_posterior_policies(
     qs,
@@ -123,9 +24,7 @@ def update_posterior_policies(
     use_param_info_gain=False,
     pA=None,
     pB=None,
-    gamma=16.0,
-    return_numpy=True,
-):
+    gamma=16.0):
     """ Updates the posterior beliefs about policies based on expected free energy prior
 
         @TODO: Needs to be amended for use with multi-step policies (where possible_policies is a 
@@ -165,9 +64,7 @@ def update_posterior_policies(
         - `gamma` [float, defaults to 16.0]:
             Precision over policies, used as the inverse temperature parameter of a softmax transformation 
             of the expected free energies of each policy
-        - `return_numpy` [Boolean]:
-            True/False flag to determine whether output of function is a numpy array or a Categorical
-        
+       
         Returns
         --------
         - `qp` [1D numpy array or Categorical]:
@@ -199,11 +96,8 @@ def update_posterior_policies(
 
     q_pi = softmax(efe * gamma)
 
-    if return_numpy:
-        q_pi = q_pi / q_pi.sum(axis=0)  # type: ignore
-    else:
-        q_pi = utils.to_categorical(q_pi)
-        q_pi.normalize()
+    q_pi = q_pi / q_pi.sum(axis=0)  # type: ignore
+    
 
     return q_pi, efe
 
@@ -476,21 +370,15 @@ def calc_pA_info_gain(pA, qo_pi, qs_pi):
         n_steps = 1
         qs_pi = [utils.to_numpy(qs_pi, flatten=True)]
 
-    if isinstance(pA, Dirichlet):
-        if pA.IS_AOA:
-            num_modalities = pA.n_arrays
-        else:
-            num_modalities = 1
-        wA = pA.expectation_of_log()
+    
+    if utils.is_arr_of_arr(pA):
+        num_modalities = len(pA)
+        wA = np.empty(num_modalities, dtype=object)
+        for modality in range(num_modalities):
+            wA[modality] = spm_wnorm(pA[modality])
     else:
-        if utils.is_arr_of_arr(pA):
-            num_modalities = len(pA)
-            wA = np.empty(num_modalities, dtype=object)
-            for modality in range(num_modalities):
-                wA[modality] = spm_wnorm(pA[modality])
-        else:
-            num_modalities = 1
-            wA = spm_wnorm(pA)
+        num_modalities = 1
+        wA = spm_wnorm(pA)
 
     pA = utils.to_numpy(pA)
     pA_infogain = 0
@@ -541,24 +429,14 @@ def calc_pB_info_gain(pB, qs_pi, qs_prev, policy):
         n_steps = 1
         qs_pi = [utils.to_numpy(qs_pi, flatten=True)]
 
-    if isinstance(qs_prev, Categorical):
-        qs_prev = utils.to_numpy(qs_prev, flatten=True)
-
-    if isinstance(pB, Dirichlet):
-        if pB.IS_AOA:
-            num_factors = pB.n_arrays
-        else:
-            num_factors = 1
-        wB = pB.expectation_of_log()
+    if utils.is_arr_of_arr(pB):
+        num_factors = len(pB)
+        wB = np.empty(num_factors, dtype=object)
+        for factor in range(num_factors):
+            wB[factor] = spm_wnorm(pB[factor])
     else:
-        if utils.is_arr_of_arr(pB):
-            num_factors = len(pB)
-            wB = np.empty(num_factors, dtype=object)
-            for factor in range(num_factors):
-                wB[factor] = spm_wnorm(pB[factor])
-        else:
-            num_factors = 1
-            wB = spm_wnorm(pB)
+        num_factors = 1
+        wB = spm_wnorm(pB)
 
     pB = utils.to_numpy(pB)
     pB_infogain = 0
@@ -685,9 +563,6 @@ def sample_action(q_pi, policies, n_control, sampling_type="marginal_action"):
 
     if sampling_type == "marginal_action":
 
-        if utils.is_distribution(q_pi):
-            q_pi = utils.to_numpy(q_pi)
-
         action_marginals = np.empty(n_factors, dtype=object)
         for c_idx in range(n_factors):
             action_marginals[c_idx] = np.zeros(n_control[c_idx])
@@ -698,18 +573,15 @@ def sample_action(q_pi, policies, n_control, sampling_type="marginal_action"):
                 for factor_i, action_i in enumerate(policy[t, :]):
                     action_marginals[factor_i][action_i] += q_pi[pol_idx]
 
-        action_marginals = Categorical(values=action_marginals)
-        action_marginals.normalize()
-        selected_policy = np.array(action_marginals.sample())
+        selected_policy = np.zeros(n_factors)
+        for factor_i in range(n_factors):
+            selected_policy[factor_i] = np.where(np.random.multinomial(1,action_marginals[factor_i]))[0][0]
 
     elif sampling_type == "posterior_sample":
-        if utils.is_distribution(q_pi):
-            policy_index = q_pi.sample()
-            selected_policy = policies[policy_index]
-        else:
-            q_pi = Categorical(values=q_pi)
-            policy_index = q_pi.sample()
-            selected_policy = policies[policy_index]
+        
+        policy_index = np.where(np.random.multinomial(1,q_pi))[0][0]
+        selected_policy = policies[policy_index]
+
     else:
         raise ValueError(f"{sampling_type} not supported")
 

@@ -1,8 +1,8 @@
 # %% Imports
 import numpy as np
-from utils import obj_array, spm_dot, dot_likelihood, softmax
-#from genmodel import generate_likelihood
-# from genmodel_v2 import GenerativeModel
+from pymdp.utils import obj_array
+from pymdp.maths import spm_dot, dot_likelihood, softmax
+from pymdp.inference import average_states_over_policies
 from genmodel import GenerativeModel
 
 import itertools

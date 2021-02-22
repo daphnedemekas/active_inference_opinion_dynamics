@@ -14,25 +14,21 @@ class Agent(object):
         ):            
 
         self.genmodel = GenerativeModel(**neighbour_params, **idea_mapping_params, **policy_params, **C_params)
+        self.action = np.zeros(len(self.genmodel.control_factor_idx))
 
         def infer_states(self, observation):
 
-            self.qs = update_posterior_states(self.genmodel.A, self.genmodel.B, observation, self.genmodel.D, **inference_hyperparams)
-            #update_posterior_states(obs, A, prior=None, return_numpy=True, **kwargs)
+            # self.qs = update_posterior_states(self.genmodel.A, self.genmodel.B, observation, self.genmodel.D, **inference_hyperparams)
 
-            """ 
-            def update_posterior_states_v2(
-            A,
-            B,
-            prev_obs,
-            policies,
-            prev_actions=None,
-            prior=None,
-            return_numpy=True,
-            policy_sep_prior = True,
-            **kwargs,
-            ):
-            """
+            if timestep == 0:
+                empirical_prior = self.genmodel.D.log()
+            else:
+                for f, ns in enumerate(self.genmodel.num_states)
+                    empirical_prior[f] = self.B[f][:,:,self.action]
+            qs = update_posterior_states(obs, A, prior=prior, return_numpy=True, **kwargs)
+
+            self.qs = qs
+            
             return qs
 
         def infer_policies(self):
