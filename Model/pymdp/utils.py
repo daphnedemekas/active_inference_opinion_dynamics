@@ -160,12 +160,14 @@ def process_observation(obs, n_modalities, n_observations):
     """
 
     if isinstance(obs, (int, np.integer)):
-        obs = np.eye(n_observations[0])[obs]
+        obs = onehot(obs, n_observations[0]) # use the onehot function already defined in utils
+        # obs = np.eye(n_observations[0])[obs]
 
     if isinstance(obs, tuple):
         obs_arr_arr = np.empty(n_modalities, dtype=object)
         for m in range(n_modalities):
-            obs_arr_arr[m] = np.eye(n_observations[m])[obs[m]]
+            obs_arr_arr[m] = onehot(obs[m], n_observations[m]) # use the onehot function already defined in utils
+            # obs_arr_arr[m] = np.eye(n_observations[m])[obs[m]]
         obs = obs_arr_arr
 
     return obs
