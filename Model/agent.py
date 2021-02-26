@@ -12,14 +12,16 @@ class Agent(object):
         neighbour_params,
         idea_mapping_params,
         policy_params,
-        C_params
+        C_params,
+        starting_state = None
         ):            
 
         self.genmodel = GenerativeModel(**neighbour_params, **idea_mapping_params, **policy_params, **C_params)
+        self.set_starting_state_and_priors(starting_state)
         self.action = np.zeros(len(self.genmodel.control_factor_idx))
-        self.kwargs = {"num_iter":10, 
-                        "dF":1.0,
-                        "dF_tol":0.001}
+        self.inference_params = {"num_iter":10, 
+                                 "dF":1.0,
+                                 "dF_tol":0.001}
 
 
     def infer_states(self, timestep, observation):
@@ -32,7 +34,7 @@ class Agent(object):
             for f, ns in enumerate(self.genmodel.num_states):
                 empirical_prior[f] = self.B[f][:,:,self.action]
         
-        qs = update_posterior_states(observation, self.genmodel.A, prior=empirical_prior, return_numpy=True, **self.kwargs)
+        qs = update_posterior_states(observation, self.genmodel.A, prior=empirical_prior, **self.inference_params)
 
         self.qs = qs
         
@@ -68,7 +70,7 @@ class Agent(object):
 
         return action
 
-    def set_starting_state_and_priors(starting_state):
-        self.genmodel.D = self.genmodel.generate_prior_states(starting_state)
+    def set_starting_state_and_priors(self, starting_state):
+        self.genmodel.D = self.genmodel.generate_prior_states(starting_state = starting_state)
 
 

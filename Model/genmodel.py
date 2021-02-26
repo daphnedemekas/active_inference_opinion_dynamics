@@ -1,6 +1,6 @@
 import numpy as np 
 import itertools
-from .pymdp.utils import obj_array, insert_multiple, softmax, onehot
+from .pymdp.utils import obj_array, obj_array_uniform, insert_multiple, softmax, onehot
 
 class GenerativeModel(object):
 
@@ -86,8 +86,8 @@ class GenerativeModel(object):
         self.B = self.generate_transition()
         self.C = self.generate_prior_preferences()
 
-        #self.D = self.generate_prior_states()
-        #self.starting_state = starting_state 
+        # self.starting_state = starting_state 
+        # self.D = self.generate_prior_states()
 
         # self.generate_likelihood()
         # self.generate_transition()
@@ -226,18 +226,21 @@ class GenerativeModel(object):
                 
         return C
     
-    def generate_prior_states(self):
+    def generate_prior_states(self, starting_state = None):
 
         D = obj_array(self.num_factors)
 
-        for f_idx, f_dim in enumerate(self.num_states):
+        if starting_state is not None:
+            for f_idx, f_dim in enumerate(self.num_states):
 
-            if f_idx == self.focal_belief_idx or f_idx in self.neighbour_belief_idx: #the first N+1 hidden state factors are variations of the identity matrix based on stubborness
+                if f_idx == self.focal_belief_idx or f_idx in self.neighbour_belief_idx: #the first N+1 hidden state factors are variations of the identity matrix based on stubborness
+                    
+                    D[f_idx] = np.ones(f_dim)/f_dim
                 
-                D[f_idx] = np.ones(f_dim)/f_dim
-            
-            if f_idx == self.h_control_idx or f_idx == self.who_idx: 
-                D[f_idx] = onehot(self.starting_state[f_idx],f_dim)
+                if f_idx == self.h_control_idx or f_idx == self.who_idx: 
+                    D[f_idx] = onehot(starting_state[f_idx],f_dim)
+        else:
+            D = obj_array_uniform(self.num_states)
         return D
 
     def generate_policies(self):        

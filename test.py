@@ -1,5 +1,5 @@
 import numpy as np
-from Model.pymdp.utils import obj_array
+from Model.pymdp.utils import obj_array, index_list_to_onehots, sample
 from Model.pymdp.maths import spm_dot, dot_likelihood, softmax
 from Model.pymdp.inference import average_states_over_policies
 from Model.genmodel import GenerativeModel
@@ -7,9 +7,8 @@ from Model.agent import Agent
 
 import itertools
 
-
-num_neighbours = 5
-num_H = 3
+num_neighbours = 2
+num_H = 2
 idea_levels = 2
 
 #h_idea_mapping = np.array([[0.9, 0.1], [0.1, 0.9]])
@@ -44,14 +43,22 @@ C_params = {
     }
     
 
-johnny = Agent(neighbour_params, idea_mapping_params, policy_params, C_params)
-
 #need to define a starting state 
-starting_state = (num_neighbours + 1) * [1] + [0] + [2]
-johnny.genmodel.starting_state = starting_state
-johnny.genmodel.D = johnny.genmodel.generate_prior_states()
+# starting_state = (num_neighbours + 1) * [1] + [0] + [2]
+# starting_state = (num_neighbours + 1) * [1] + [0] + [1]
+starting_state = (num_neighbours+1) * [np.random.randint(idea_levels)] + [0] + [1]
 
-timestep = 0
-observation = (1,0)
-qs = johnny.infer_states(timestep, observation)
-print(qs)
+johnny = Agent(neighbour_params, idea_mapping_params, policy_params, C_params, starting_state = starting_state)
+
+state_vector = index_list_to_onehots(starting_state, johnny.genmodel.num_states)
+observations = [sample(spm_dot(johnny.genmodel.A[m],state_vector)) for m in range(johnny.genmodel.num_modalities)]
+
+# print(johnny.genmodel.num_states)
+# print(johnny.genmodel.num_factors)
+
+# print(johnny.genmodel.num_obs)
+# print(johnny.genmodel.num_modalities)
+
+
+qs = johnny.infer_states(0, tuple(observations))
+# print(qs)

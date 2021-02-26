@@ -40,7 +40,7 @@ def average_states_over_policies(qs_pi, q_pi):
 
     return qs_bma
 
-def update_posterior_states(obs, A, prior=None, **kwargs):
+def update_posterior_states(obs, A, prior=None, **inference_params):
     """
     Update marginal posterior over hidden states using variational inference
         Can optionally set message passing algorithm used for inference
@@ -62,7 +62,7 @@ def update_posterior_states(obs, A, prior=None, **kwargs):
         If None, prior is set to be equal to a flat categorical distribution (at the level of
         the individual inference functions).
         (optional)
-    - **kwargs:
+    - **inference_params:
         List of keyword/parameter arguments corresponding to parameter values for the respective
         variational inference algorithm
 
@@ -93,6 +93,6 @@ def update_posterior_states(obs, A, prior=None, **kwargs):
     if prior is not None:
         prior = utils.process_prior(prior, n_factors)
 
-    qs = fpi.run_fpi(A, obs, n_observations, n_states, prior, **kwargs)
+    qs = fpi.run_fpi(A, obs, n_observations, n_states, prior, **inference_params)
 
     return qs

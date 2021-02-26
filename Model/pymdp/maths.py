@@ -246,20 +246,15 @@ def spm_betaln(z):
     return np.sum(special.gammaln(z), axis=0) - special.gammaln(np.sum(z, axis=0))
 
 
-def softmax(dist, return_numpy=True):
+def softmax(dist):
     """ Computes the softmax function on a set of values
 
     """
-    dist = np.copy(dist.values)
-
     output = dist - dist.max(axis=0)
     output = np.exp(output)
     output = output / np.sum(output, axis=0)
-    if return_numpy:
-        return output
-    else:
-        return utils.to_categorical(output)
-
+    return output
+  
 
 def calc_free_energy(qs, prior, n_factors, likelihood=None):
     """ Calculate variational free energy
