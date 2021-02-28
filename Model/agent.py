@@ -12,16 +12,16 @@ class Agent(object):
         neighbour_params,
         idea_mapping_params,
         policy_params,
-        C_params,
-        starting_state = None
+        C_params       
         ):            
 
         self.genmodel = GenerativeModel(**neighbour_params, **idea_mapping_params, **policy_params, **C_params)
-        self.set_starting_state_and_priors(starting_state)
+        self.set_starting_state_and_priors(policy_params["starting_state"])
         self.action = np.zeros(len(self.genmodel.control_factor_idx))
         self.inference_params = {"num_iter":10, 
                                  "dF":1.0,
                                  "dF_tol":0.001}
+        self.starting_state = policy_params["starting_state"]
 
 
     def infer_states(self, timestep, observation):

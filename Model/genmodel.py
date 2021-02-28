@@ -34,7 +34,6 @@ class GenerativeModel(object):
         self.idea_levels = idea_levels
 
         self.h_idea_mapping = h_idea_mapping
-        print(h_idea_mapping)
 
         if self.h_idea_mapping is None:
             self.h_idea_mapping = self.create_idea_mapping()
@@ -268,15 +267,14 @@ class GenerativeModel(object):
 
         array_policies = np.array(self.policies)
 
-
         for policy_idx, policy in enumerate(self.policies):
             for action_idx in range(self.num_H):
                 normalising_constant = (array_policies[:,0] == action_idx).sum()
                 if policy[0] == action_idx:
                     policy_mapping[policy_idx,:] = self.belief2tweet_mapping[action_idx,:] / normalising_constant
-        
         return policy_mapping
-
+    
+    
     def create_idea_mapping(self):
         h_idea_mapping = np.zeros((self.num_H, self.idea_levels))
         h_idea_mapping = np.random.uniform(low = 1, high = 9, size=(self.num_H, self.idea_levels))
