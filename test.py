@@ -61,6 +61,19 @@ observations = [sample(spm_dot(johnny.genmodel.A[m],state_vector)) for m in rang
 # print(johnny.genmodel.num_modalities)
 
 
+print('H idea mapping:\n')
+print(johnny.genmodel.h_idea_mapping)
 qs = johnny.infer_states(0, tuple(observations))
-action = johnny.infer_policies()
+print('Beliefs about the idea:\n')
+print(qs[0])
+q_pi = johnny.infer_policies(qs)
+print('Probability over policies:\n')
+print(q_pi)
+action = johnny.sample_action()
+
+hashtag_names = ['Hashtag 1', 'Hashtag 2']
+neighbour_names = ['Mia', 'Vincent']
+print(f'What Johnny will tweet: {hashtag_names[int(action[johnny.genmodel.h_control_idx])]} \n')
+print(f'Who Johnny will look at: {neighbour_names[int(action[johnny.genmodel.who_idx])]} \n')
 # print(qs)
+

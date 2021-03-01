@@ -1,9 +1,4 @@
 import numpy as np
-#initalize parameters of the overall environment
-idea_levels = 2 #the levels of beliefs that agents can have about the idea 
-num_H = 3 #the number of hashtags, or outcomes of the idea
-total_number_of_agents = 3
-
 
 """ 
 params: 
@@ -105,7 +100,7 @@ vincent_params = {
         }
     }
 
-num_neighbours = 3
+num_neighbours = 2
 jules_params = {
     "neighbour_params" : {
         "precisions" : np.random.uniform(low=3.0, high=10.0, size=(num_neighbours,)),

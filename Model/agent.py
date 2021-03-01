@@ -33,9 +33,6 @@ class Agent(object):
             empirical_prior = utils.obj_array(self.genmodel.num_factors)
             for f in range(self.genmodel.num_factors):
                 empirical_prior[f] = spm_log(self.genmodel.D[f])
-            print("initial state priors")
-            print(self.genmodel.D)
-            print()
 
         else:
             for f, ns in enumerate(self.genmodel.num_states):
@@ -50,16 +47,17 @@ class Agent(object):
 
     def infer_policies(self, qs):
 
-        self.genmodel.E = self.genmodel.get_policy_prior(qs) 
 
-        self.q_pi = update_posterior_policies(self.qs, self.genmodel.A, self.genmodel.B, self.genmodel.C, self.genmodel.E, **policy_hyperparams)
-
+        self.genmodel.E = self.genmodel.get_policy_prior(qs[0]) 
+        q_pi, neg_efe = update_posterior_policies(self.qs, self.genmodel.A, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
+        self.q_pi = q_pi
+        self.neg_efe = neg_efe
         return q_pi
 
     def sample_action(self):
 
-        action = sample_action(q_pi, self.policies, self.n_control, sampling_type = 'marginal_action') #how does this work? 
-
+        action = sample_action(self.q_pi, self.genmodel.policies, self.genmodel.num_states, sampling_type = 'marginal_action') #how does this work? 
+        self.action = action
         return action
 
     def set_starting_state_and_priors(self, starting_state):
