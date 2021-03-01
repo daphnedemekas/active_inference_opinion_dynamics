@@ -21,6 +21,9 @@ class Agent(object):
         self.inference_params = {"num_iter":10, 
                                  "dF":1.0,
                                  "dF_tol":0.001}
+        self.policy_hyperparams = {"use_utility": True,
+                                   "use_states_info_gain": True,
+                                   "use_param_info_gain": False}
         self.starting_state = policy_params["starting_state"]
 
 
@@ -32,7 +35,7 @@ class Agent(object):
                 empirical_prior[f] = spm_log(self.genmodel.D[f])
         else:
             for f, ns in enumerate(self.genmodel.num_states):
-                empirical_prior[f] = self.B[f][:,:,self.action]
+                empirical_prior[f] = spm_log(self.B[f][:,:,self.action].dot(self.qs[f]))
         
         qs = update_posterior_states(observation, self.genmodel.A, prior=empirical_prior, **self.inference_params)
 
@@ -45,28 +48,13 @@ class Agent(object):
 
         self.genmodel.E = self.genmodel.get_policy_prior() 
 
-        self.q_pi = update_posterior_policies(self.qs, self.genmodel.A, self.genmodel.B, self.genmodel.C, self.genmodel.D, self.genmodel.E, **policy_hyperparams)
-        """
-        def update_posterior_policies(
-        qs,
-        A,
-        B,
-        C,
-        policies,
-        use_utility=True,
-        use_states_info_gain=True,
-        use_param_info_gain=False,
-        pA=None,
-        pB=None,
-        gamma=16.0,
-        return_numpy=True,
-        ):
-        """
+        self.q_pi = update_posterior_policies(self.qs, self.genmodel.A, self.genmodel.B, self.genmodel.C, self.genmodel.E, **policy_hyperparams)
+
         return q_pi
 
     def sample_action(self):
 
-        action = q_pi.sample() #how does this work? 
+        action = sample_action(q_pi, self.policies, self.n_control, sampling_type = 'marginal_action') #how does this work? 
 
         return action
 
