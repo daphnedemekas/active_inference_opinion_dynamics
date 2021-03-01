@@ -44,8 +44,10 @@ h_control_mapping = np.eye(num_H)
 """
  QUESTIONS TO BE ADDRESSED  -- HOW TO INITIALIZE AGENTS 
  1.  What does the range of precisions signify? higher precisions versus lower precisions? bigger range versus smaller range?
- 2.  What about volatility levels? higher volatility -- expecting those neighbours to be more stubborn 
- 3.  
+ 2.  What about volatility levels? higher volatility -- expecting those neighbours to be less stubborn 
+ 3.  What is the effect of the starting state?
+ 4. For the C params -- higher exponent should make agents more prone to agreeing -- positive exponent should make them indifferent to the idea level they are agreeing on (symmetric)
+ 5. belief2tweetmapping should probably have some relation to h_idea_mapping? it maps what beliefs correspond to a higher / lower probability of tweeting a certain hashtag. need some function that creates both, perhaps?
 
 """
 

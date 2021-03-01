@@ -30,6 +30,10 @@ class Agent(object):
             empirical_prior = utils.obj_array(self.genmodel.num_factors)
             for f in range(self.genmodel.num_factors):
                 empirical_prior[f] = spm_log(self.genmodel.D[f])
+            print("initial state priors")
+            print(self.genmodel.D)
+            print()
+
         else:
             for f, ns in enumerate(self.genmodel.num_states):
                 empirical_prior[f] = self.B[f][:,:,self.action]
