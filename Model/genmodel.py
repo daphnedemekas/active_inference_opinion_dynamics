@@ -243,8 +243,12 @@ class GenerativeModel(object):
         return D
 
     def generate_policies(self):        
-        return list(itertools.product(*[np.arange(self.num_states[i]) for i in self.control_factor_idx]))
-    
+        policies = list(itertools.product(*[np.arange(self.num_states[i]) for i in self.control_factor_idx]))
+        for pol_i, policy in enumerate(policies):
+            policies[pol_i] = np.array(policy).reshape(1, len(self.control_factor_idx))
+
+        return policies
+
 
     def generate_policy_mapping(self):
         """

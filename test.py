@@ -47,8 +47,9 @@ C_params = {
 # starting_state = (num_neighbours + 1) * [1] + [0] + [2]
 # starting_state = (num_neighbours + 1) * [1] + [0] + [1]
 starting_state = (num_neighbours+1) * [np.random.randint(idea_levels)] + [0] + [1]
+policy_params['starting_state'] = starting_state
 
-johnny = Agent(neighbour_params, idea_mapping_params, policy_params, C_params, starting_state = starting_state)
+johnny = Agent(neighbour_params, idea_mapping_params, policy_params, C_params)
 
 state_vector = index_list_to_onehots(starting_state, johnny.genmodel.num_states)
 observations = [sample(spm_dot(johnny.genmodel.A[m],state_vector)) for m in range(johnny.genmodel.num_modalities)]
@@ -61,4 +62,5 @@ observations = [sample(spm_dot(johnny.genmodel.A[m],state_vector)) for m in rang
 
 
 qs = johnny.infer_states(0, tuple(observations))
+action = johnny.infer_policies()
 # print(qs)
