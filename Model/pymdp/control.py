@@ -18,6 +18,7 @@ def update_posterior_policies(
     A,
     B,
     C,
+    E,
     policies,
     use_utility=True,
     use_states_info_gain=True,
@@ -116,10 +117,8 @@ def get_expected_states(qs, B, policy, return_numpy=False):
         (either single-factor of AoA)]:
         Transition likelihood mapping from states at t to states at t + 1, with different actions 
         (per factor) stored along the lagging dimension
-   - `policy` [np.arrays]:
+   - `policy` [numpy nd-array]:
         np.array of size (policy_len x n_factors) where each value corrresponds to a control state
-    - `return_numpy` [Boolean]:
-        True/False flag to determine whether output of function is a numpy array or a Categorical
     Returns
     -------
     - `qs_pi` [ list of np.arrays with len n_steps, where in case of multiple hidden state factors, 
@@ -127,8 +126,7 @@ def get_expected_states(qs, B, policy, return_numpy=False):
         Expected states under the given policy - also known as the 'posterior predictive density'
 
     """
-    n_steps = policy.shape[0]
-    n_factors = policy.shape[1]
+    n_steps, n_factors = policy.shape
     qs = utils.to_numpy(qs, flatten=True)
     B = utils.to_numpy(B)
 
@@ -159,18 +157,11 @@ def get_expected_states(qs, B, policy, return_numpy=False):
             for t in range(1, n_steps):
                 qs_pi.append(spm_dot(B[:, :, policy[t, 0]], qs_pi[t - 1]))
 
-    if return_numpy:
-        if len(qs_pi) == 1:
-            return qs_pi[0]
-        else:
-            return qs_pi
+    if len(qs_pi) == 1:
+        return qs_pi[0]
     else:
-        if len(qs_pi) == 1:
-            return utils.to_categorical(qs_pi[0])
-        else:
-            for t in range(n_steps):
-                qs_pi[t] = utils.to_categorical(qs_pi[t])
-            return qs_pi
+        return qs_pi
+
 
 
 def get_expected_obs(qs_pi, A, return_numpy=False):
@@ -188,8 +179,6 @@ def get_expected_obs(qs_pi, A, return_numpy=False):
     (either single-factor of AoA)]:
         Observation likelihood mapping from hidden states to observations, with different modalities 
         (if there are multiple) stored in different arrays
-    return_numpy [Boolean]:
-        True/False flag to determine whether output of function is a numpy array or a Categorical
     Returns
     -------
     qo_pi [numpy 1D array, array-of-arrays (where each entry is a numpy 1D array), Categorical 
@@ -229,18 +218,11 @@ def get_expected_obs(qs_pi, A, return_numpy=False):
         for t in range(n_steps):
             qo_pi.append(spm_dot(A, qs_pi[t]))
 
-    if return_numpy:
-        if n_steps == 1:
-            return qo_pi[0]
-        else:
-            return qo_pi
+    if n_steps == 1:
+        return qo_pi[0]
     else:
-        if n_steps == 1:
-            return utils.to_categorical(qo_pi[0])
-        else:
-            for t in range(n_steps):
-                qo_pi[t] = utils.to_categorical(qo_pi[t])
-            return qo_pi
+        return qo_pi
+
 
 
 def calc_expected_utility(qo_pi, C):
