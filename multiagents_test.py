@@ -8,10 +8,21 @@ from Model.params import *
 import itertools
 import time
 
+import networkx as nx
+
+G = nx.Graph()  
+
+
 #make agents 
 mia = Agent(mia_params["neighbour_params"], mia_params["idea_mapping_params"], mia_params["policy_params"], mia_params["C_params"])
 vincent = Agent(vincent_params["neighbour_params"], vincent_params["idea_mapping_params"], vincent_params["policy_params"], vincent_params["C_params"])
 jules = Agent(jules_params["neighbour_params"], jules_params["idea_mapping_params"], jules_params["policy_params"], jules_params["C_params"])
+
+G.add_node(mia)
+G.add_node(vincent)
+G.add_node(jules)
+
+
 
 belief_state = {0 : "idea is true", 1: "idea is false"}
 hashtags = {0: "republican", 1: "democrat"}
@@ -45,10 +56,10 @@ def agent_loop(agent, name):    #time.sleep(1)
     qs = agent.infer_states(0, tuple(observations))
     print("new approximate posterior")
     print(qs)
-    print()
-    print("infer policy")
-    action = agent.infer_policies(qs)
-    print(action)
+    # print()
+    # print("infer policy")
+    # action = agent.infer_policies(qs)
+    # print(action)
 
     #now sample new states using this posterior
     #print(index_list_to_onehots(qs, agent.genmodel.num_states))
