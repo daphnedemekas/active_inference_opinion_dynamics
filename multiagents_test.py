@@ -46,6 +46,10 @@ def agent_loop(agent, name):    #time.sleep(1)
     print("new approximate posterior")
     print(qs)
     print()
+    print("infer policy")
+    action = agent.infer_policies(qs)
+    print(action)
+
     #now sample new states using this posterior
     #print(index_list_to_onehots(qs, agent.genmodel.num_states))
     #new_states = sample(index_list_to_onehots(qs, agent.genmodel.num_states))

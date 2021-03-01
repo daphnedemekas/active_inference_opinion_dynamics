@@ -48,9 +48,9 @@ class Agent(object):
         return qs
 
 
-    def infer_policies(self):
+    def infer_policies(self, qs):
 
-        self.genmodel.E = self.genmodel.get_policy_prior() 
+        self.genmodel.E = self.genmodel.get_policy_prior(qs) 
 
         self.q_pi = update_posterior_policies(self.qs, self.genmodel.A, self.genmodel.B, self.genmodel.C, self.genmodel.E, **policy_hyperparams)
 

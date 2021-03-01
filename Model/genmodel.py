@@ -85,6 +85,8 @@ class GenerativeModel(object):
         self.B = self.generate_transition()
         self.C = self.generate_prior_preferences()
 
+        self.policy_mapping = self.generate_policy_mapping()
+
         # self.starting_state = starting_state 
         # self.D = self.generate_prior_states()
 
@@ -245,8 +247,7 @@ class GenerativeModel(object):
     def generate_policies(self):        
         policies = list(itertools.product(*[np.arange(self.num_states[i]) for i in self.control_factor_idx]))
         for pol_i, policy in enumerate(policies):
-            policies[pol_i] = np.array(policy).reshape(1, len(self.control_factor_idx))
-
+            policies[pol_i] = np.array(policy).reshape(1, len(self.control_factor_idx))[0]
         return policies
 
 
@@ -260,7 +261,6 @@ class GenerativeModel(object):
         policy mapping over just the `hashtag` control factor.
         """
         num_policies = len(self.policies)
-
         policy_mapping = np.zeros((num_policies, self.idea_levels))
         
         if self.belief2tweet_mapping is None:
@@ -269,10 +269,8 @@ class GenerativeModel(object):
         else:
             assert self.belief2tweet_mapping.shape == (self.num_H , self.idea_levels), "Your belief2tweet_mapping has the wrong shape. It should be (self.num_H , self.idea_levels)"
         self.belief2tweet_mapping = self.belief2tweet_mapping / self.belief2tweet_mapping.sum(axis=0)
-
         array_policies = np.array(self.policies)
-
-        for policy_idx, policy in enumerate(self.policies):
+        for policy_idx, policy in enumerate(array_policies):
             for action_idx in range(self.num_H):
                 normalising_constant = (array_policies[:,0] == action_idx).sum()
                 if policy[0] == action_idx:
@@ -289,5 +287,7 @@ class GenerativeModel(object):
         return h_idea_mapping
     
     def get_policy_prior(self, qs_f):
-
+        print(self.policies)
+        print(qs_f)
+        print(self.policy_mapping)
         E = self.policy_mapping.dot(qs_f)
