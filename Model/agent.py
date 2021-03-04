@@ -16,7 +16,7 @@ class Agent(object):
         ):            
 
         self.genmodel = GenerativeModel(**neighbour_params, **idea_mapping_params, **policy_params, **C_params)
-        self.set_starting_state_and_priors(policy_params["starting_state"])
+        self.set_starting_state_and_priors(policy_params["initial_action"])
         self.action = np.zeros(len(self.genmodel.control_factor_idx))
         self.inference_params = {"num_iter":10, 
                                  "dF":1.0,
@@ -24,7 +24,7 @@ class Agent(object):
         self.policy_hyperparams = {"use_utility": True,
                                    "use_states_info_gain": True,
                                    "use_param_info_gain": False}
-        self.starting_state = policy_params["starting_state"]
+        self.initial_action = policy_params["initial_action"]
 
 
     def infer_states(self, timestep, observation):
@@ -58,7 +58,7 @@ class Agent(object):
 
         return action
 
-    def set_starting_state_and_priors(self, starting_state):
-        self.genmodel.D = self.genmodel.generate_prior_states(starting_state = starting_state)
+    def set_starting_state_and_priors(self, initial_action):
+        self.genmodel.D = self.genmodel.generate_prior_states(initial_action = initial_action)
 
 

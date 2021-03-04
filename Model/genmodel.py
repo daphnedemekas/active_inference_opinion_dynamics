@@ -17,14 +17,14 @@ class GenerativeModel(object):
         
         h_idea_mapping = None,
 
-        starting_state = None,
         belief2tweet_mapping = None,
 
         preference_shape = None,
         cohesion_exp = None,
         cohesion_temp = None,
 
-        volatility_levels = None
+        env_volatility = None,
+        belief_volatility = None
 
 
     ):
@@ -52,11 +52,18 @@ class GenerativeModel(object):
         self.num_neighbours = num_neighbours
         self.num_cohesion_levels = 2 * (self.num_neighbours+1)
 
-        self.volatility_levels = volatility_levels
-        if self.volatility_levels is None:
-            self.volatility_levels = np.random.uniform(low=0.5, high=3.0, size=(num_neighbours+1,))
+        self.env_volatility = env_volatility
+        if self.env_volatility is None:
+            self.env_volatility = np.random.uniform(low=0.5, high=3.0)
         else:
-            assert self.volatility_levels.shape == (num_neighbours+1,), "Your volatility_levels has the wrong shape. It should be (num_neighbours+1,)"
+            assert np.isscalar(self.env_volatility), "Your env_volatility has the wrong shape. It should be a scalar"
+
+
+        self.belief_volatility = belief_volatility   
+        if self.belief_volatility is None:
+            self.belief_volatility = np.random.uniform(low=0.5, high=3.0, size=(num_neighbours,))
+        else:
+            assert self.belief_volatility.shape == (num_neighbours,), "Your belief_volatility has the wrong shape. It should be (num_neighbours,)"
 
 
         self.belief2tweet_mapping = belief2tweet_mapping 
@@ -84,14 +91,6 @@ class GenerativeModel(object):
         self.A = self.generate_likelihood()
         self.B = self.generate_transition()
         self.C = self.generate_prior_preferences()
-
-        # self.starting_state = starting_state 
-        # self.D = self.generate_prior_states()
-
-        # self.generate_likelihood()
-        # self.generate_transition()
-        # self.generate_prior_preferences()
-
 
     def generate_likelihood(self):
 
@@ -175,7 +174,11 @@ class GenerativeModel(object):
 
         for f_idx, f_dim in enumerate(self.num_states):
 
-            if f_idx == self.focal_belief_idx or f_idx in self.neighbour_belief_idx: #the first N+1 hidden state factors are variations of the identity matrix based on stubborness
+            if f_idx == self.focal_belief_idx:
+                transition_identity = np.eye(f_dim, f_dim)
+                B[f_idx]
+            
+            if f_idx in self.neighbour_belief_idx: #the first N+1 hidden state factors are variations of the identity matrix based on stubborness
                 
                 transition_identity = np.eye(f_dim, f_dim)
                 B[f_idx] = softmax(transition_identity * self.volatility_levels[f_idx])
@@ -225,19 +228,22 @@ class GenerativeModel(object):
                 
         return C
     
-    def generate_prior_states(self, starting_state = None):
+    def generate_prior_states(self, initial_action = None):
 
         D = obj_array(self.num_factors)
 
-        if starting_state is not None:
+        if initial_action is not None:
             for f_idx, f_dim in enumerate(self.num_states):
 
                 if f_idx == self.focal_belief_idx or f_idx in self.neighbour_belief_idx: #the first N+1 hidden state factors are variations of the identity matrix based on stubborness
                     
                     D[f_idx] = np.ones(f_dim)/f_dim
                 
-                if f_idx == self.h_control_idx or f_idx == self.who_idx: 
-                    D[f_idx] = onehot(starting_state[f_idx],f_dim)
+                elif f_idx == self.h_control_idx:
+                    D[f_idx] = onehot(initial_action[0],f_dim)
+
+                elif f_idx == self.who_idx: 
+                    D[f_idx] = onehot(initial_action[1],f_dim)
         else:
             D = obj_array_uniform(self.num_states)
         return D
