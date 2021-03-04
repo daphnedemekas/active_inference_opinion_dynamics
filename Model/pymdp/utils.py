@@ -48,7 +48,7 @@ def index_list_to_onehots(index_list, dim_list):
         for idx in range(len(index_list)):
             arr_arr[idx] = onehot(index_list[idx], dim_list[idx]) # use the onehot function already defined in utils
     return arr_arr
-    
+
 def onehot(value, num_values):
     arr = np.zeros(num_values)
     arr[value] = 1.0
