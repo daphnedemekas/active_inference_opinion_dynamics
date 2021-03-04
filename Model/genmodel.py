@@ -92,19 +92,6 @@ class GenerativeModel(object):
         self.B = self.generate_transition()
         self.C = self.generate_prior_preferences()
 
-<<<<<<< HEAD
-=======
-        self.policy_mapping = self.generate_policy_mapping()
-
-        # self.starting_state = starting_state 
-        # self.D = self.generate_prior_states()
-
-        # self.generate_likelihood()
-        # self.generate_transition()
-        # self.generate_prior_preferences()
-
-
->>>>>>> origin/main
     def generate_likelihood(self):
 
         #initialize the A matrix 
