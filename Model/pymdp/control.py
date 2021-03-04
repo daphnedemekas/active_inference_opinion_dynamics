@@ -76,7 +76,7 @@ def update_posterior_policies(
 
     """
     n_policies = len(policies)
-    efe = np.zeros(n_policies)
+    neg_efe = np.zeros(n_policies) 
     q_pi = np.zeros((n_policies, 1))
 
     for idx, policy in enumerate(policies):
@@ -84,23 +84,22 @@ def update_posterior_policies(
         qo_pi = get_expected_obs(qs_pi, A)
 
         if use_utility:
-            efe[idx] += calc_expected_utility(qo_pi, C)
+            neg_efe[idx] += calc_expected_utility(qo_pi, C)
 
         if use_states_info_gain:
-            efe[idx] += calc_states_info_gain(A, qs_pi)
+            neg_efe[idx] += calc_states_info_gain(A, qs_pi)
 
-        if use_param_info_gain:
-            if pA is not None:
-                efe[idx] += calc_pA_info_gain(pA, qo_pi, qs_pi)
-            if pB is not None:
-                efe[idx] += calc_pB_info_gain(pB, qs_pi, qs, policy)
+        # if use_param_info_gain:
+        #     if pA is not None:
+        #         neg_efe[idx] += calc_pA_info_gain(pA, qo_pi, qs_pi)
+        #     if pB is not None:
+        #         neg_efe[idx] += calc_pB_info_gain(pB, qs_pi, qs, policy)
 
-    q_pi = softmax(efe * gamma)
+    q_pi = softmax(gamma*neg_efe + E)
 
     q_pi = q_pi / q_pi.sum(axis=0)  # type: ignore
     
-
-    return q_pi, efe
+    return q_pi, neg_efe
 
 
 def get_expected_states(qs, B, policy, return_numpy=False):
@@ -517,7 +516,7 @@ def construct_policies(n_states, n_control=None, policy_len=1, control_fac_idx=N
         return policies
 
 
-def sample_action(q_pi, policies, n_control, sampling_type="marginal_action"):
+def sample_action(q_pi, policies, n_states, sampling_type="marginal_action"):
     """
     Samples action from posterior over policies, using one of two methods. 
     Parameters
@@ -528,8 +527,8 @@ def sample_action(q_pi, policies, n_control, sampling_type="marginal_action"):
         List of arrays that indicate the policies under consideration. Each element 
         within the list is a matrix that stores the 
         the indices of the actions  upon the separate hidden state factors, at 
-        each timestep (n_step x n_control_factor)
-    n_control [list of integers]:
+        each timestep (n_step x n_states)
+    n_states [list of integers]:
         List of the dimensionalities of the different (controllable)) hidden state factors
     sampling_type [string, 'marginal_action' or 'posterior_sample']:
         Indicates whether the sampled action for a given hidden state factor is given by 
@@ -541,13 +540,13 @@ def sample_action(q_pi, policies, n_control, sampling_type="marginal_action"):
         Numpy array containing the indices of the actions along each control factor
     """
 
-    n_factors = len(n_control)
+    n_factors = len(n_states)
 
     if sampling_type == "marginal_action":
 
-        action_marginals = np.empty(n_factors, dtype=object)
-        for c_idx in range(n_factors):
-            action_marginals[c_idx] = np.zeros(n_control[c_idx])
+        action_marginals = utils.obj_array(n_factors)
+        for f_idx, f_dim in enumerate(n_states):
+            action_marginals[f_idx] = np.zeros(f_dim)
 
         # weight each action according to its integrated posterior probability over policies and timesteps
         for pol_idx, policy in enumerate(policies):
@@ -557,7 +556,8 @@ def sample_action(q_pi, policies, n_control, sampling_type="marginal_action"):
 
         selected_policy = np.zeros(n_factors)
         for factor_i in range(n_factors):
-            selected_policy[factor_i] = np.where(np.random.multinomial(1,action_marginals[factor_i]))[0][0]
+            # selected_policy[factor_i] = np.where(np.random.multinomial(1,action_marginals[factor_i]))[0][0]
+            selected_policy[factor_i] = np.argmax(action_marginals[factor_i])
 
     elif sampling_type == "posterior_sample":
         

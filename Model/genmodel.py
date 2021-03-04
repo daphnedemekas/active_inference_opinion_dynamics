@@ -85,6 +85,8 @@ class GenerativeModel(object):
         self.B = self.generate_transition()
         self.C = self.generate_prior_preferences()
 
+        self.policy_mapping = self.generate_policy_mapping()
+
         # self.starting_state = starting_state 
         # self.D = self.generate_prior_states()
 
@@ -178,7 +180,8 @@ class GenerativeModel(object):
             if f_idx == self.focal_belief_idx or f_idx in self.neighbour_belief_idx: #the first N+1 hidden state factors are variations of the identity matrix based on stubborness
                 
                 transition_identity = np.eye(f_dim, f_dim)
-                B[f_idx] = softmax(transition_identity * self.volatility_levels[f_idx])
+                #expand dimension so we can fit with the length of the policy arrays 
+                B[f_idx] = np.expand_dims(softmax(transition_identity * self.volatility_levels[f_idx]), axis = 2)
             
             if f_idx == self.h_control_idx: #for the hashtag control state we have rows of ones corresponding to the next state
 
@@ -242,10 +245,38 @@ class GenerativeModel(object):
             D = obj_array_uniform(self.num_states)
         return D
 
-    def generate_policies(self):        
-        policies = list(itertools.product(*[np.arange(self.num_states[i]) for i in self.control_factor_idx]))
-        for pol_i, policy in enumerate(policies):
-            policies[pol_i] = np.array(policy).reshape(1, len(self.control_factor_idx))
+
+    def generate_policies(self):
+        """Generate a set of policies
+
+        Each policy is encoded as a numpy.ndarray of shape (n_steps, n_factors), where each 
+        value corresponds to the index of an action for a given time step and control factor. The variable 
+        `policies` that is returned is a list of each policy-specific numpy nd.array.
+
+        If `self.control_fac_idx` does not exist, then the control factors are set to all the hidden state factors
+
+        Returns:
+        -------
+        - `policies`: list of np.ndarrays, where each array within the list is a 
+                        numpy.ndarray of shape (n_steps, n_factors).
+                    Each value in a policy array corresponds to the index of an action for 
+                    a given timestep and control factor.
+        """
+
+        if self.control_factor_idx is None:
+            self.control_factor_idx = list(range(self.num_factors))
+        
+        n_control = []
+        for f_idx, f_dim in enumerate(self.num_states):
+            if f_idx in self.control_factor_idx:
+                n_control.append(f_dim)
+            else:
+                n_control.append(1)
+
+        policies = list(itertools.product(*[list(range(i)) for i in n_control]))
+
+        for pol_i in range(len(policies)):
+            policies[pol_i] = np.array(policies[pol_i]).reshape(1, self.num_factors)
 
         return policies
 
@@ -260,21 +291,19 @@ class GenerativeModel(object):
         policy mapping over just the `hashtag` control factor.
         """
         num_policies = len(self.policies)
-
         policy_mapping = np.zeros((num_policies, self.idea_levels))
         
         if self.belief2tweet_mapping is None:
-            self.belief2tweet_mapping = np.random.uniform(low = 1, high = 9, size=(self.num_H , self.idea_levels))
+            self.belief2tweet_mapping = self.h_idea_mapping
+            #self.belief2tweet_mapping = np.random.uniform(low = 1, high = 9, size=(self.num_H , self.idea_levels))
         else:
             assert self.belief2tweet_mapping.shape == (self.num_H , self.idea_levels), "Your belief2tweet_mapping has the wrong shape. It should be (self.num_H , self.idea_levels)"
         self.belief2tweet_mapping = self.belief2tweet_mapping / self.belief2tweet_mapping.sum(axis=0)
-
-        array_policies = np.array(self.policies)
-
-        for policy_idx, policy in enumerate(self.policies):
+        array_policies = np.array(self.policies).squeeze()
+        for policy_idx, policy in enumerate(array_policies):
             for action_idx in range(self.num_H):
-                normalising_constant = (array_policies[:,0] == action_idx).sum()
-                if policy[0] == action_idx:
+                normalising_constant = (array_policies[:,self.h_control_idx] == action_idx).sum()
+                if policy[self.h_control_idx] == action_idx:
                     policy_mapping[policy_idx,:] = self.belief2tweet_mapping[action_idx,:] / normalising_constant
         return policy_mapping
     
@@ -290,3 +319,5 @@ class GenerativeModel(object):
     def get_policy_prior(self, qs_f):
 
         E = self.policy_mapping.dot(qs_f)
+
+        return E
