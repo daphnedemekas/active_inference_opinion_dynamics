@@ -8,11 +8,6 @@ from Model.params import *
 import itertools
 import time
 
-import networkx as nx
-
-G = nx.Graph()  
-
-
 #make agents 
 mia = Agent(mia_params["neighbour_params"], mia_params["idea_mapping_params"], mia_params["policy_params"], mia_params["C_params"])
 vincent = Agent(vincent_params["neighbour_params"], vincent_params["idea_mapping_params"], vincent_params["policy_params"], vincent_params["C_params"])
