@@ -4,7 +4,7 @@ import networkx as nx
 from .agent import Agent
 
 
-def create_multiagents(G, N = N, idea_levels = 2, num_H = 2, precision_params = None, env_volatility = None, belief_volatility = None):
+def create_multiagents(G, N , idea_levels = 2, num_H = 2, precision_params = None, env_volatility = None, belief_volatility = None):
     """
     Populates a networkx graph object G with N active inference agents
     """
@@ -20,9 +20,9 @@ def create_multiagents(G, N = N, idea_levels = 2, num_H = 2, precision_params = 
     if belief_volatility is None:
         belief_volatility = [[0.5, 3.0] for i in range(N)] # min and max values of uniform distribution over neighbour-belief volatility parameters
     
-    for agent_i in G.nodes():
+    for i in G.nodes():
 
-        neighbors_i = list(nx.neighbors(G, agent_i))
+        neighbors_i = list(nx.neighbors(G, i))
         num_neighbours = len(neighbors_i)
 
         agent_i_params = {
@@ -30,7 +30,7 @@ def create_multiagents(G, N = N, idea_levels = 2, num_H = 2, precision_params = 
             "neighbour_params" : {
                 "precisions" : np.random.uniform(low=precision_params[i][0], high=precision_params[i][1], size=(num_neighbours,)),
                 "num_neighbours" : num_neighbours,
-                "env_volatility": np.random.uniform(low = env_volatility[i][0], high = env_volatility[i][1])
+                "env_volatility": np.random.uniform(low = env_volatility[i][0], high = env_volatility[i][1]),
                 "belief_volatility": np.random.uniform(low=belief_volatility[i][0], high=belief_volatility[i][1], size=(num_neighbours,))
                 },
 
@@ -52,7 +52,7 @@ def create_multiagents(G, N = N, idea_levels = 2, num_H = 2, precision_params = 
                 }
         }
 
-        agents_dict[agent_i] = agent_i_params
+        agents_dict[i] = agent_i_params
     
     nx.set_node_attributes(G, agents_dict, 'agent')
 

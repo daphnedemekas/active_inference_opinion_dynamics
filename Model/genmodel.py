@@ -14,6 +14,8 @@ class GenerativeModel(object):
 
         num_H,
         idea_levels,
+
+        initial_action = None,
         
         h_idea_mapping = None,
 
@@ -91,6 +93,8 @@ class GenerativeModel(object):
         self.A = self.generate_likelihood()
         self.B = self.generate_transition()
         self.C = self.generate_prior_preferences()
+
+        self.policy_mapping = self.generate_policy_mapping()
 
     def generate_likelihood(self):
 
@@ -176,13 +180,13 @@ class GenerativeModel(object):
 
             if f_idx == self.focal_belief_idx:
                 transition_identity = np.eye(f_dim, f_dim)
-                B[f_idx]
+                B[f_idx] = np.expand_dims(softmax(transition_identity * self.env_volatility), axis = 2)
             
-            if f_idx in self.neighbour_belief_idx: #the first N+1 hidden state factors are variations of the identity matrix based on stubborness
+            if f_idx in self.neighbour_belief_idx: #the first N+1 hidden state factors are variations of the identity matrix based on belief volatiliy
                 
                 transition_identity = np.eye(f_dim, f_dim)
                 #expand dimension so we can fit with the length of the policy arrays 
-                B[f_idx] = np.expand_dims(softmax(transition_identity * self.volatility_levels[f_idx]), axis = 2)
+                B[f_idx] = np.expand_dims(softmax(transition_identity * self.belief_volatility[f_idx-1]), axis = 2)
             
             if f_idx == self.h_control_idx: #for the hashtag control state we have rows of ones corresponding to the next state
 
@@ -309,6 +313,7 @@ class GenerativeModel(object):
                 normalising_constant = (array_policies[:,self.h_control_idx] == action_idx).sum()
                 if policy[self.h_control_idx] == action_idx:
                     policy_mapping[policy_idx,:] = self.belief2tweet_mapping[action_idx,:] / normalising_constant
+        #self.policy_mapping = policy_mapping
         return policy_mapping
     
     
@@ -321,7 +326,6 @@ class GenerativeModel(object):
         return h_idea_mapping
     
     def get_policy_prior(self, qs_f):
-
         E = self.policy_mapping.dot(qs_f)
 
         return E
