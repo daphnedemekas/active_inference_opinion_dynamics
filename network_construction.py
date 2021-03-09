@@ -42,9 +42,7 @@ agent2 = Agent(**agents_dict[1])
 agent3 = Agent(**agents_dict[2])
 agents = [agent1, agent2, agent3]
 
-agent1_neighbours = {0: 1, 1:2}
-agent2_neighbours = {0: 0, 1:2}
-agent3_neighbours = {0: 0, 1:1}
+agent_neighbours = {0:{0: 1, 1:2},1:{0: 0, 1:2}, 2:{0: 0, 1:1}}
 
 timestep = 0
 action = None
@@ -59,7 +57,7 @@ while timestep < 200:
     for idx, agent in enumerate(agents):
         observed_neighbour = int(actions[idx][agent.genmodel.who_idx])
         #which actual agent is that?
-        observed_agent = agent1_neighbours[observed_neighbour]
+        observed_agent = agent_neighbours[idx][observed_neighbour]
         states[idx][observed_neighbour+1] = int(actions[observed_agent][agents[observed_agent].genmodel.h_control_idx])
     print(states)
     timestep += 1
