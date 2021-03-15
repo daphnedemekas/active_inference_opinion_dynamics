@@ -26,20 +26,21 @@ def agent_loop(agent, observations = None, initial = False):
         qs = agent.infer_states(0, tuple(observations))
         policy = agent.infer_policies(qs)
         action = agent.sample_action()
+    print(observations)
     return action
 
 
-#print(list(G.edges))
-#print(G.graph)
-
 actions = []
-agent1 = Agent(**agents_dict[0])
-agent2 = Agent(**agents_dict[1])
-agent3 = Agent(**agents_dict[2])
+agents = []
+idea_mappings = []
 
-agents = [agent1, agent2, agent3]
+agent_neighbours = {}
 
-agent_neighbours = {0:{0: 1, 1:2},1:{0: 0, 1:2}, 2:{0: 0, 1:1}}
+for agent_i in G.nodes():
+    agent_neighbours[agent_i] = list(nx.neighbors(G, agent_i))
+    agent = Agent(**agents_dict[agent_i])
+    agents.append(agent)
+    idea_mappings.append(agent.genmodel.h_idea_mapping)
 
 timestep = 0
 action = None
@@ -61,7 +62,7 @@ for agent in agents:
 
 initial = True
 while timestep < 50:
-    actions = [agent_loop(agent1, observations[0], initial), agent_loop(agent2, observations[1], initial), agent_loop(agent3, observations[2], initial)]
+    actions = [agent_loop(agents[i], observations[i], initial) for i in range(len(agents))]
     initial = False
     for idx, agent in enumerate(agents):
         my_tweet = int(actions[idx][-2])
@@ -71,20 +72,23 @@ while timestep < 50:
         observed_agent = agent_neighbours[idx][observed_neighbour]
         observations[idx][observed_neighbour+1] = int(actions[observed_agent][-2])
 
-        if my_tweet == 0:
+        my_belief = np.argmax(idea_mappings[idx][my_tweet]) # p(true | h1) p(false | h1) so we just choose whether this agent beliefs the hashtag represents true or false 
+        #TODO: we should use the distribution instead 
+
+        if my_belief == 0:
             trues[idx] += 1
             if my_tweet == int(actions[observed_agent][-2]):
                 true_affirmations[idx] += 1 #accumulate how many times we have all agreed on the idea being true
             cohesion_level = int((trues[idx] - true_affirmations[idx]) / trues[idx] * (num_cohesion_levels[idx]/2-1))
-            #if i tweeted true, then my cohesion level is how much others agree have been agreeing with me
+            #if i tweeted true, then my cohesion level is how much others have been agreeing with me
             # 0 is the most, 2 is the least 
 
-        elif my_tweet == 1:
+        elif my_belief == 1:
             falses[idx] += 1
             if my_tweet == int(actions[observed_agent][-2]):
                 false_affirmations[idx] += 1
             cohesion_level = int(false_affirmations[idx] / falses[idx] * (num_cohesion_levels[idx]-1))
-            #if i tweeted false, then my cohesion level is how much others agree have been agreeing with me
+            #if i tweeted false, then my cohesion level is how much others have been agreeing with me
             # 5 is the most, 3 is the least 
         observations[idx][-1] = cohesion_level
         
