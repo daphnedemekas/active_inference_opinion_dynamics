@@ -1,5 +1,6 @@
 import numpy as np
 import networkx as nx
+import random
 
 from .agent import Agent
 
@@ -58,3 +59,50 @@ def create_multiagents(G, N , idea_levels = 2, num_H = 2, precision_params = Non
 
     return G, agents_dict
 
+def connect_edgeless_nodes(G):
+    """
+    This function ensures there are no nodes with only 1 edge in the graph
+    """
+
+    for node_i in G.nodes():
+        connected = [target for (source, target) in G.edges(node_i)]
+        while len(connected) <= 1:
+            candidate_additions = [n_i for (n_i) in G.nodes()]
+            candidate_additions.pop(node_i)
+            addition = random.choice(candidate_additions)
+            G.add_edge(node_i,addition)
+            print('\tEdge added:\t %d -- %d'%(node_i, addition))
+            connected = [target for (source, target) in G.edges(node_i)]
+    
+    return G
+
+def clip_edges(G, max_degree = 10):
+    """
+    This function iteratively removes edges from nodes that have more than max_degree edges
+    """
+    single_edge_node = False 
+
+    for node_i in G.nodes():
+        connected = [target for (source, target) in G.edges(node_i)]
+        while G.degree(node_i) > max_degree:
+            
+            # list of the numbers of edges of each node connected to our considered node
+            deg_of_neighbors = np.zeros(len(connected))
+
+            for idx,neighbor_i in enumerate(connected):
+                # this gets the neighbors of the neighbor of node_i we're currently considering (namely, neighbor_i)
+                deg_of_neighbors[idx] = G.degree(neighbor_i)
+            
+            if np.any(deg_of_neighbors > 2):
+                idx = np.where(deg_of_neighbors > 2)[0]
+                remove = connected[random.choice(idx)]
+            else:
+                # you'll have to remove a random edge anyway and run 'connect_edgeless_nodes' afterwards
+                remove = random.choice(connected)
+                single_edge_node = True
+            G.remove_edge(node_i,remove)
+            connected.remove(remove)
+  
+            print('\tEdge removed:\t %d -- %d'%(node_i, remove))
+
+    return G, single_edge_node

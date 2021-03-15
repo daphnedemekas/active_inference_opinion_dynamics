@@ -1,22 +1,32 @@
 import numpy as np
 from Model.genmodel import GenerativeModel
 from Model.agent import Agent
-from Model.network_tools import create_multiagents
+from Model.network_tools import create_multiagents, clip_edges, connect_edgeless_nodes
 import networkx as nx
 from Model.pymdp.utils import obj_array, index_list_to_onehots, sample
 from Model.pymdp.maths import spm_dot, dot_likelihood, softmax
 import seaborn as sns
 from matplotlib import pyplot as plt
 
-N = 6 # total number of agents
+N = 10 # total number of agents
 idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)
 num_H = 2 #the number of hashtags, or observations that can shed light on the idea
 # num_H = 3 #the number of hashtags, or observations that can shed light on the idea
 
 # G = nx.complete_graph(N)
-G = nx.fast_gnp_random_graph(N, 0.2)
+G = nx.fast_gnp_random_graph(N, 0.25)
 
-G, agents_dict = create_multiagents(G, N = N)
+# Method 1 for cleaning the graph: keep regenerating the graph as long as its not connected. once the graph is connected, we know everyone has at least one edge
+# while not nx.is_connected(G):
+#     G = nx.fast_gnp_random_graph(N, 0.5)
+
+# Method 2 for cleaning the graph: this doesn't ensure connectedness, but rather just ensures that everyone has at least TWO edges 
+G, _ = clip_edges(G, max_degree = 4)
+G = connect_edgeless_nodes(G)
+
+print(list(G.degree()))
+
+G, agents_dict = create_multiagents(G, N)
 for n in range(N):
     agents_dict[n]['idea_mapping_params']['h_idea_mapping'] = np.eye(num_H)
 
@@ -33,7 +43,6 @@ def agent_loop(agent, observations = None, initial = False):
         policy = agent.infer_policies(qs)
         action = agent.sample_action()
     return action
-
 
 actions = []
 agents = []
@@ -71,7 +80,7 @@ for agent in agents:
 
 initial = True
 all_actions = []
-while timestep < 50:
+while timestep < 20:
     actions = [agent_loop(agents[i], observations[i], initial) for i in range(len(agents))]
     all_actions.append(actions)
     initial = False
@@ -106,9 +115,9 @@ while timestep < 50:
     timestep += 1
 
 
-tweet_history = np.zeros((N, 50))
+tweet_history = np.zeros((N, 20))
 
-for t in range(50):
+for t in range(20):
     for n in range(4):
         tweet_history[n,t] = all_actions[t][n][-2]
 
