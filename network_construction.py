@@ -14,17 +14,17 @@ num_H = 2 #the number of hashtags, or observations that can shed light on the id
 # num_H = 3 #the number of hashtags, or observations that can shed light on the idea
 
 # G = nx.complete_graph(N)
-G = nx.fast_gnp_random_graph(N, 0.25)
+G = nx.fast_gnp_random_graph(N, 0.5)
 
 # Method 1 for cleaning the graph: keep regenerating the graph as long as its not connected. once the graph is connected, we know everyone has at least one edge
 # while not nx.is_connected(G):
 #     G = nx.fast_gnp_random_graph(N, 0.5)
 
 # Method 2 for cleaning the graph: this doesn't ensure connectedness, but rather just ensures that everyone has at least TWO edges 
-G, _ = clip_edges(G, max_degree = 4)
+#G, _ = clip_edges(G, max_degree = 4)
 G = connect_edgeless_nodes(G)
 
-print(list(G.degree()))
+print(list(G.edges()))
 
 G, agents_dict = create_multiagents(G, N)
 for n in range(N):
@@ -67,9 +67,10 @@ false_affirmations = []
 falses = []
 
 for agent in agents:
-    o = [0]
-    for n in range(N-1):
-        o.append(2)
+    o = []
+    o.append(None)
+    for n in range(agent.genmodel.num_neighbours):
+        o.append(0)
     o.append(None)
     observations.append(o)
     num_cohesion_levels.append( 2 * (agent.genmodel.num_neighbours+1))
@@ -90,7 +91,7 @@ while timestep < 20:
         observed_neighbour = int(actions[idx][-1])
         #which actual agent is that?
         observed_agent = agent_neighbours[idx][observed_neighbour]
-        observations[idx][observed_neighbour+1] = int(actions[observed_agent][-2])
+        observations[idx][observed_neighbour+1] = int(actions[observed_agent][-2]) + 1
 
         my_belief = np.argmax(idea_mappings[idx][my_tweet]) # p(true | h1) p(false | h1) so we just choose whether this agent beliefs the hashtag represents true or false 
         #TODO: we should use the distribution instead 
@@ -111,6 +112,18 @@ while timestep < 20:
             #if i tweeted false, then my cohesion level is how much others have been agreeing with me
             # 5 is the most, 3 is the least 
         observations[idx][-1] = cohesion_level
+    labels_dict = {}
+    colors_dict = {}
+    for action_idx in range(len(actions)):
+        if actions[action_idx][-2] == 0:
+            labels_dict[action_idx] = "D"
+            colors_dict[action_idx] = "blue"
+        else:
+            labels_dict[action_idx] = "R"
+            colors_dict[action_idx] = "red"
+
+    nx.draw_networkx(G, labels = labels_dict, node_color=colors_dict.values())
+    plt.show()
         
     timestep += 1
 
@@ -118,7 +131,7 @@ while timestep < 20:
 tweet_history = np.zeros((N, 20))
 
 for t in range(20):
-    for n in range(4):
+    for n in range(N):
         tweet_history[n,t] = all_actions[t][n][-2]
 
 
