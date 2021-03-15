@@ -6,9 +6,9 @@ import networkx as nx
 from Model.pymdp.utils import obj_array, index_list_to_onehots, sample
 from Model.pymdp.maths import spm_dot, dot_likelihood, softmax
 
-N = 3 # total number of agents
+N = 4 # total number of agents
 idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)
-num_H = 2 #the number of hashtags, or observations that can shed light on the idea
+num_H = 3 #the number of hashtags, or observations that can shed light on the idea
 
 G = nx.complete_graph(N)
 
@@ -53,7 +53,11 @@ false_affirmations = []
 falses = []
 
 for agent in agents:
-    observations.append([0,2,2,None])
+    o = [0]
+    for n in range(N-1):
+        o.append(2)
+    o.append(None)
+    observations.append(o)
     num_cohesion_levels.append( 2 * (agent.genmodel.num_neighbours+1))
     true_affirmations.append(0)
     trues.append(0)
