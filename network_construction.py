@@ -5,14 +5,20 @@ from Model.network_tools import create_multiagents
 import networkx as nx
 from Model.pymdp.utils import obj_array, index_list_to_onehots, sample
 from Model.pymdp.maths import spm_dot, dot_likelihood, softmax
+import seaborn as sns
+from matplotlib import pyplot as plt
 
-N = 4 # total number of agents
+N = 6 # total number of agents
 idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)
-num_H = 3 #the number of hashtags, or observations that can shed light on the idea
+num_H = 2 #the number of hashtags, or observations that can shed light on the idea
+# num_H = 3 #the number of hashtags, or observations that can shed light on the idea
 
-G = nx.complete_graph(N)
+# G = nx.complete_graph(N)
+G = nx.fast_gnp_random_graph(N, 0.2)
 
 G, agents_dict = create_multiagents(G, N = N)
+for n in range(N):
+    agents_dict[n]['idea_mapping_params']['h_idea_mapping'] = np.eye(num_H)
 
 hashtags = {0: "#republican", 1: "#democrat"}
 
@@ -26,7 +32,6 @@ def agent_loop(agent, observations = None, initial = False):
         qs = agent.infer_states(0, tuple(observations))
         policy = agent.infer_policies(qs)
         action = agent.sample_action()
-    print(observations)
     return action
 
 
@@ -65,8 +70,10 @@ for agent in agents:
     falses.append(0)
 
 initial = True
+all_actions = []
 while timestep < 50:
     actions = [agent_loop(agents[i], observations[i], initial) for i in range(len(agents))]
+    all_actions.append(actions)
     initial = False
     for idx, agent in enumerate(agents):
         my_tweet = int(actions[idx][-2])
@@ -91,12 +98,34 @@ while timestep < 50:
             falses[idx] += 1
             if my_tweet == int(actions[observed_agent][-2]):
                 false_affirmations[idx] += 1
-            cohesion_level = int(false_affirmations[idx] / falses[idx] * (num_cohesion_levels[idx]-1))
+            cohesion_level = int(false_affirmations[idx] / falses[idx] * (num_cohesion_levels[idx]/2-1)+num_cohesion_levels[idx]/2)
             #if i tweeted false, then my cohesion level is how much others have been agreeing with me
             # 5 is the most, 3 is the least 
         observations[idx][-1] = cohesion_level
         
     timestep += 1
+
+
+tweet_history = np.zeros((N, 50))
+
+for t in range(50):
+    for n in range(4):
+        tweet_history[n,t] = all_actions[t][n][-2]
+
+
+plt.figure(figsize=(14, 8))
+sns.heatmap(tweet_history, cmap='gray', vmax=1., vmin=0., cbar=True)
+plt.savefig('tweet_history.png',dpi=325)
+
+fig, axes = plt.subplots(2,2,figsize=(16, 10))
+
+sns.heatmap(idea_mappings[0], ax = axes[0,0], cmap='gray', vmax=1., vmin=0., cbar=True)
+sns.heatmap(idea_mappings[1], ax = axes[0,1], cmap='gray', vmax=1., vmin=0., cbar=True)
+sns.heatmap(idea_mappings[2], ax = axes[1,0], cmap='gray', vmax=1., vmin=0., cbar=True)
+sns.heatmap(idea_mappings[3], ax = axes[1,1], cmap='gray', vmax=1., vmin=0., cbar=True)
+plt.savefig('idea_mappings_all_agents.png',dpi=325)
+
+
 
 
 
