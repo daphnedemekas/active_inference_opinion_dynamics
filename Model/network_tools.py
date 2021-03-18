@@ -13,13 +13,13 @@ def create_multiagents(G, N , idea_levels = 2, num_H = 2, precision_params = Non
     agents_dict = {}
 
     if precision_params is None:
-        precision_params = [[3.0, 10.0] for i in range(N)] # min and max values of uniform distribution over precision parameters
+        precision_params = [[1, 10.0] for i in range(N)] # min and max values of uniform distribution over precision parameters
     
     if env_volatility is None:
-        env_volatility = [[0.5, 3.0] for i in range(N)]  # min and max values of uniform distribution over environmental volatility parameters
+        env_volatility = [[1, 10] for i in range(N)]  # min and max values of uniform distribution over environmental volatility parameters
     
     if belief_volatility is None:
-        belief_volatility = [[0.5, 3.0] for i in range(N)] # min and max values of uniform distribution over neighbour-belief volatility parameters
+        belief_volatility = [[1, 10] for i in range(N)] # min and max values of uniform distribution over neighbour-belief volatility parameters
     
     for i in G.nodes():
 

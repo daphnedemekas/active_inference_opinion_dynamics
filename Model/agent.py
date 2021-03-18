@@ -28,19 +28,20 @@ class Agent(object):
 
 
     def infer_states(self, timestep, observation):
+        empirical_prior = utils.obj_array(self.genmodel.num_factors)
 
-        if timestep == 0:
-            empirical_prior = utils.obj_array(self.genmodel.num_factors)
+        if timestep == True:
             for f in range(self.genmodel.num_factors):
                 empirical_prior[f] = spm_log(self.genmodel.D[f])
 
         else:
             for f, ns in enumerate(self.genmodel.num_states):
-                empirical_prior[f] = spm_log(self.B[f][:,:,self.action].dot(self.qs[f]))
+                empirical_prior[f] = spm_log(self.genmodel.B[f][:,:, int(self.action[f])].dot(self.qs[f]))
         
         qs = update_posterior_states(observation, self.genmodel.A, prior=empirical_prior, **self.inference_params)
 
         self.qs = qs
+
         
         return qs
 

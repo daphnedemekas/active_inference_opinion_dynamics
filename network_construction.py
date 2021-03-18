@@ -8,13 +8,13 @@ from Model.pymdp.maths import spm_dot, dot_likelihood, softmax
 import seaborn as sns
 from matplotlib import pyplot as plt
 
-N = 10 # total number of agents
+N = 5 # total number of agents
 idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)
 num_H = 2 #the number of hashtags, or observations that can shed light on the idea
 # num_H = 3 #the number of hashtags, or observations that can shed light on the idea
 
-# G = nx.complete_graph(N)
-G = nx.fast_gnp_random_graph(N, 0.5)
+G = nx.complete_graph(N)
+#G = nx.fast_gnp_random_graph(N, 0.5)
 
 # Method 1 for cleaning the graph: keep regenerating the graph as long as its not connected. once the graph is connected, we know everyone has at least one edge
 # while not nx.is_connected(G):
@@ -24,7 +24,7 @@ G = nx.fast_gnp_random_graph(N, 0.5)
 #G, _ = clip_edges(G, max_degree = 4)
 G = connect_edgeless_nodes(G)
 
-print(list(G.edges()))
+##print(list(G.edges()))
 
 G, agents_dict = create_multiagents(G, N)
 for n in range(N):
@@ -36,12 +36,23 @@ hashtags = {0: "#republican", 1: "#democrat"}
 #hashtags = {0: "#republican", 1: "#democrat"}
 
 def agent_loop(agent, observations = None, initial = False):  
-    if initial == True:
-        return agent.initial_action
-    else:
-        qs = agent.infer_states(0, tuple(observations))
-        policy = agent.infer_policies(qs)
-        action = agent.sample_action()
+    print("Observed tweet: " + str(observations))
+    qs = agent.infer_states(initial, tuple(observations))
+    print("updated belief" + str(qs[0]))
+    policy = agent.infer_policies(qs)
+    action = agent.sample_action()
+    print("What i tweeted: " + str(action[-2]))
+    print("Who i looked at" + str(action[-1]))
+    print()
+    who_i_looked_at = int(action[-1]+1)
+    what_they_tweeted = observations[int(action[-1])+1]
+    #print(agent.genmodel.A[1][what_they_tweeted,:,:,0,0,0])
+    print(agent.genmodel.A[1][what_they_tweeted,:,0,0,0,0])
+    print(agent.genmodel.A[1][what_they_tweeted,:,1,0,0,0])
+
+    print()
+    print()
+
     return action
 
 actions = []
@@ -82,10 +93,14 @@ for agent in agents:
 initial = True
 all_actions = []
 while timestep < 20:
+    print("TIMSTEP")
+    print(timestep)
     actions = [agent_loop(agents[i], observations[i], initial) for i in range(len(agents))]
-    all_actions.append(actions)
+    all_actions.append(actions)    
     initial = False
     for idx, agent in enumerate(agents):
+        for n in range(agent.genmodel.num_neighbours):
+            observations[idx][n+1] = 0
         my_tweet = int(actions[idx][-2])
         observations[idx][0] = my_tweet
         observed_neighbour = int(actions[idx][-1])
@@ -122,8 +137,8 @@ while timestep < 20:
             labels_dict[action_idx] = "R"
             colors_dict[action_idx] = "red"
 
-    nx.draw_networkx(G, labels = labels_dict, node_color=colors_dict.values())
-    plt.show()
+    #nx.draw_networkx(G, labels = labels_dict, node_color=colors_dict.values())
+    #plt.show()
         
     timestep += 1
 

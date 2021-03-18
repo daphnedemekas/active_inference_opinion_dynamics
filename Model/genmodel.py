@@ -43,7 +43,7 @@ class GenerativeModel(object):
             assert self.h_idea_mapping.shape == (self.num_H, self.idea_levels), "Your h_idea_mapping has the wrong shape. It should be (num_H, idea_levels)"
 
         if preference_shape is None:
-            self.preference_shape = "parabola"
+            self.preference_shape = "linear"
         if cohesion_exp is None:
             self.cohesion_exp = 2.0
         if cohesion_temp is None:
@@ -129,7 +129,7 @@ class GenerativeModel(object):
                     h_idea_mapping_scaled[:,truth_level] = softmax(self.precisions[truth_level] * self.h_idea_mapping[:,truth_level])
                         # augment the h->idea mapping matrix with a row of 0s on top to account for the the null observation (this is for the case when you are sampling the agent whose modality we're considering)
                     h_idea_with_null = np.zeros((o_dim,self.num_states[o_idx-1]))
-                    h_idea_with_null[1:,:] = np.copy(h_idea_mapping_scaled)
+                    h_idea_with_null[1:,:] = np.transpose(np.copy(h_idea_mapping_scaled))
 
                     # create the null matrix for the case when you're _not_ sampling the neighbour whose modality we're considering
                     null_matrix = np.zeros((o_dim,self.num_states[o_idx-1]))
@@ -145,6 +145,7 @@ class GenerativeModel(object):
                             
                             if (o_idx - 1) == neighbour_i: # this is the case when the observation modality in question `o_idx` corresponds to the modality of the neighbour we're sampling `who_i`               
                                 A[o_idx][tuple(A_indices)] = h_idea_with_null
+                                
                             else:
                                 A[o_idx][tuple(A_indices)] = null_matrix
 
@@ -167,7 +168,8 @@ class GenerativeModel(object):
                     A_indices.insert(0,slice(0,self.num_cohesion_levels+1))
                     combo = A_indices[(self.focal_belief_idx+1):(self.h_control_idx+1)] #the current combination of beliefs 
                     combo_id = np.where(np.all(belief_combos==combo, axis=1)) #find the index of this combination in belief_combos
-                    A[o_idx][tuple(A_indices)] = cohesion_levels[:,:,combo_id].flatten()
+                    A[o_idx][tuple(A_indices)] = np.ones(self.num_cohesion_levels) / self.num_cohesion_levels
+                    #A[o_idx][tuple(A_indices)] = cohesion_levels[:,:,combo_id].flatten()
         return A
 
 
@@ -229,7 +231,7 @@ class GenerativeModel(object):
                     C[o_idx] = np.linspace(-1.0, 1.0, o_dim) ** self.cohesion_exp
 
                 if self.preference_shape == "linear":
-                    C[o_idx] = np.absolute(np.linspace(-1.0, 1.0, o_dim))       
+                    C[o_idx] = 0.1*np.absolute(np.linspace(-1.0, 1.0, o_dim))       
                 
         return C
     
