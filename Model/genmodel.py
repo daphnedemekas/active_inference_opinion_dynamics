@@ -215,6 +215,7 @@ class GenerativeModel(object):
     # def generate_prior_preferences(self, preference_shape = "parabola", cohesion_exp = 2.0, cohesion_temp = 5.0):
 
         C = obj_array(self.num_modalities)
+        #self.preference_shape = "parabola"
 
         for o_idx, o_dim in enumerate(self.num_obs): 
             
@@ -247,6 +248,7 @@ class GenerativeModel(object):
                     D[f_idx] = np.ones(f_dim)/f_dim
                 
                 elif f_idx == self.h_control_idx:
+                    
                     D[f_idx] = onehot(initial_action[0],f_dim)
 
                 elif f_idx == self.who_idx: 

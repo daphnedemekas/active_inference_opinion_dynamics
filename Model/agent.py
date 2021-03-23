@@ -36,6 +36,7 @@ class Agent(object):
 
         else:
             for f, ns in enumerate(self.genmodel.num_states):
+
                 empirical_prior[f] = spm_log(self.genmodel.B[f][:,:, int(self.action[f])].dot(self.qs[f]))
         
         qs = update_posterior_states(observation, self.genmodel.A, prior=empirical_prior, **self.inference_params)

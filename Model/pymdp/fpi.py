@@ -102,7 +102,7 @@ def run_fpi(A, obs, n_observations, n_states, prior=None, num_iter=10, dF=1.0, d
     """
 
     if n_factors == 1:
-        qL = spm_dot(likelihood, qs, [0])
+        qL = spm_dot(A, qs, [0])
         return softmax(qL + prior[0])
 
     else:
