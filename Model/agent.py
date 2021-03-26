@@ -27,10 +27,10 @@ class Agent(object):
         self.initial_action = policy_params["initial_action"]
 
 
-    def infer_states(self, timestep, observation):
+    def infer_states(self, initial, observation):
         empirical_prior = utils.obj_array(self.genmodel.num_factors)
 
-        if timestep == True:
+        if initial == True:
             for f in range(self.genmodel.num_factors):
                 empirical_prior[f] = spm_log(self.genmodel.D[f])
 
