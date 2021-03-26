@@ -17,7 +17,7 @@ class Agent(object):
 
         self.genmodel = GenerativeModel(**neighbour_params, **idea_mapping_params, **policy_params, **C_params)
         self.set_starting_state_and_priors(policy_params["initial_action"])
-        self.action = np.zeros(len(self.genmodel.control_factor_idx))
+        self.action = np.zeros(len(self.genmodel.num_states))
         self.inference_params = {"num_iter":10, 
                                  "dF":1.0,
                                  "dF_tol":0.001}
