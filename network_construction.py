@@ -95,39 +95,40 @@ for agent in agents:
     falses.append(0)
 
 initial = True
-all_actions = []
 all_beliefs = []
+all_observed_tweets = []
 all_views = np.zeros(N)
-
-while timestep < 50:
-    print("TIMSTEP")
+T = 10
+while timestep < T:
     print(timestep)
-    actions = []
+    observed_tweets = []
     beliefs = []
-    for i in range(len(agents)):
-        action, belief = agent_loop(agents[i], observations[i], initial) 
-        actions.append(action)
-        beliefs.append(belief)
-    all_actions.append(actions)    
-    all_beliefs.append(beliefs)
-    initial = False
     for idx, agent in enumerate(agents):
+        action, belief = agent_loop(agents[idx], observations[idx], initial) 
+        beliefs.append(belief)
+        
+    for idx, agent in enumerate(agents):    
+        
+        
+        initial = False
         for n in range(agent.genmodel.num_neighbours):
             observations[idx][n+1] = 0
-        my_tweet = int(actions[idx][-2])
+        my_tweet = int(agent.actions[-1][-2])
         observations[idx][0] = my_tweet
-        observed_neighbour = int(actions[idx][-1])
+        observed_neighbour = int(agent.actions[-1][-1])
         #which actual agent is that?
         observed_agent = agent_neighbours[idx][observed_neighbour]
         all_views[observed_agent] += 1
-        observations[idx][observed_neighbour+1] = int(actions[observed_agent][-2]) + 1
+        observed_tweet = int(agents[observed_agent].actions[-1][-2]) + 1
+        observations[idx][observed_neighbour+1] = observed_tweet
+        agent.observations.append([observed_tweet])
 
         my_belief = np.argmax(idea_mappings[idx][my_tweet]) # p(true | h1) p(false | h1) so we just choose whether this agent beliefs the hashtag represents true or false 
         #TODO: we should use the distribution instead 
 
         if my_belief == 0:
             trues[idx] += 1
-            if my_tweet == int(actions[observed_agent][-2]):
+            if my_tweet == (observed_tweet-1):
                 true_affirmations[idx] += 1 #accumulate how many times we have all agreed on the idea being true
             cohesion_level = int((trues[idx] - true_affirmations[idx]) / trues[idx] * (num_cohesion_levels[idx]/2-1))
             #if i tweeted true, then my cohesion level is how much others have been agreeing with me
@@ -135,37 +136,51 @@ while timestep < 50:
 
         elif my_belief == 1:
             falses[idx] += 1
-            if my_tweet == int(actions[observed_agent][-2]):
+            if my_tweet == (observed_tweet-1):
                 false_affirmations[idx] += 1
             cohesion_level = int(false_affirmations[idx] / falses[idx] * (num_cohesion_levels[idx]/2-1)+num_cohesion_levels[idx]/2)
             #if i tweeted false, then my cohesion level is how much others have been agreeing with me
             # 5 is the most, 3 is the least 
         observations[idx][-1] = cohesion_level
 
-    if timestep == 49:
-        colors_dict = {}
-        for action_idx in range(len(actions)):
-            if actions[action_idx][-2] == 0:
-                colors_dict[action_idx] = "blue"
-            else:
-                colors_dict[action_idx] = "red"
+    # if timestep == 49:
+    #     colors_dict = {}
+    #     for action_idx in range(len(actions)):
+    #         if actions[action_idx][-2] == 0:
+    #             colors_dict[action_idx] = "blue"
+    #         else:
+    #             colors_dict[action_idx] = "red"
 
-        nx.draw_networkx(G, node_color=colors_dict.values())
-        plt.savefig('final_net_0.8.png',dpi=325)
-
+    #     nx.draw_networkx(G, node_color=colors_dict.values())
+    #     plt.savefig('final_net_0.8.png',dpi=325)
+    all_beliefs.append(beliefs)
         
     timestep += 1
 
 
-tweet_history = np.zeros((N, 50))
-belief_history = np.zeros((N,50))
+tweet_history = np.zeros((N, T))
+belief_history = np.zeros((N,T))
+observed_tweet_history = np.zeros((N,T))
 reds = []
 blues = []
 
-for t in range(50):
-    for n in G.nodes():
-        tweet_history[n,t] = all_actions[t][n][-2]
-        belief_history = all_beliefs[t][n][0]
+for t in range(T):
+    for n, agent in enumerate(agents):
+        tweet_history[n,t] = agent.actions[t][-2]
+        belief_history[n,t] = all_beliefs[t][n][0]
+        observed_tweet_history[n,t] = agent.observations[t][0]
+
+tweet_1_coordinates = np.where(observed_tweet_history==1)
+tweet_2_coordinates = np.where(observed_tweet_history==2)
+
+agent_idx_map = {7:0.0,6:1.0,5:2.0,4:3.0,3:4.0,2:5.0,1:6.0,0:7.0}
+new_coordinates_tweet1 = np.zeros_like(tweet_1_coordinates[0])
+new_coordinates_tweet2 = np.zeros_like(tweet_2_coordinates[0])
+
+for i in range(len(tweet_1_coordinates[0])):
+    new_coordinates_tweet1[i] = agent_idx_map[int(tweet_1_coordinates[0][i])]
+for i in range(len(tweet_2_coordinates[0])):
+    new_coordinates_tweet2[i] = agent_idx_map[int(tweet_2_coordinates[0][i])]
 
 
 for agent in all_beliefs:
@@ -179,7 +194,8 @@ plt.figure(figsize=(14, 8))
 
 sizes_r = []
 for s in reds:
-  map = {5:1,4:2,3:3,2:4,1:5,0:6}
+  map = {0:6,1:5,2:4,3:3,4:2,5:1}
+
   sizes_r.append(map.get(int(s*10)))
 
 sizes_b = []
@@ -190,10 +206,14 @@ for s in blues:
 
 
 sns.heatmap(belief_history, cmap='gray', vmax=1., vmin=0., cbar=True)
+plt.scatter(tweet_1_coordinates[1]+0.5,new_coordinates_tweet1,c='b',s=50)
+plt.scatter(tweet_2_coordinates[1]+0.5,new_coordinates_tweet2,c='r',s=50)
 plt.savefig('belief_history_06.png',dpi=325)
 
 
 sns.heatmap(tweet_history, cmap='gray', vmax=1., vmin=0., cbar=True)
+plt.scatter(tweet_1_coordinates[1]+0.5,new_coordinates_tweet1,c='b',s=50)
+plt.scatter(tweet_2_coordinates[1]+0.5,new_coordinates_tweet2,c='r',s=50)
 plt.savefig('tweet_history_06.png',dpi=325)
 
 plt.figure(figsize=(14, 8))

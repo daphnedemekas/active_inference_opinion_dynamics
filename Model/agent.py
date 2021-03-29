@@ -25,12 +25,14 @@ class Agent(object):
                                    "use_states_info_gain": True,
                                    "use_param_info_gain": False}
         self.initial_action = policy_params["initial_action"]
+        self.observations = []
+        self.actions = []
 
 
-    def infer_states(self, timestep, observation):
+    def infer_states(self, initial, observation):
         empirical_prior = utils.obj_array(self.genmodel.num_factors)
 
-        if timestep == True:
+        if initial == True:
             for f in range(self.genmodel.num_factors):
                 empirical_prior[f] = spm_log(self.genmodel.D[f])
 
@@ -42,6 +44,7 @@ class Agent(object):
         qs = update_posterior_states(observation, self.genmodel.A, prior=empirical_prior, **self.inference_params)
 
         self.qs = qs
+
 
         
         return qs
@@ -60,6 +63,7 @@ class Agent(object):
 
         action = sample_action(self.q_pi, self.genmodel.policies, self.genmodel.num_states, sampling_type = 'marginal_action') #how does this work? 
         self.action = action
+        self.actions.append(action[-2:])
         return action
 
     def set_starting_state_and_priors(self, initial_action):
