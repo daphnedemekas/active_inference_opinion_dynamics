@@ -1,6 +1,6 @@
 import numpy as np 
 import itertools
-from .pymdp.utils import obj_array, obj_array_uniform, insert_multiple, softmax, onehot
+from .pymdp.utils import obj_array, obj_array_uniform, insert_multiple, softmax, onehot, reduce_A_matrix
 
 class GenerativeModel(object):
 
@@ -224,6 +224,7 @@ class GenerativeModel(object):
                     combo_id = np.where(np.all(belief_combos==combo, axis=1)) #find the index of this combination in belief_combos
                     A[o_idx][tuple(A_indices)] = np.ones(self.num_cohesion_levels) / self.num_cohesion_levels
                     #A[o_idx][tuple(A_indices)] = cohesion_levels[:,:,combo_id].flatten()
+        A, _ = reduce_A_matrix(A)
         return A
 
 
@@ -360,14 +361,14 @@ class GenerativeModel(object):
         policy_mapping = np.zeros((num_policies, self.idea_levels))
         
         if self.belief2tweet_mapping is None:
-            self.belief2tweet_mapping = self.h_idea_mapping
+            self.belief2tweet_mapping = np.eye(self.num_H, self.idea_levels)
             #self.belief2tweet_mapping = np.random.uniform(low = 1, high = 9, size=(self.num_H , self.idea_levels))
         else:
             assert self.belief2tweet_mapping.shape == (self.num_H , self.idea_levels), "Your belief2tweet_mapping has the wrong shape. It should be (self.num_H , self.idea_levels)"
-        self.belief2tweet_mapping = self.belief2tweet_mapping / self.belief2tweet_mapping.sum(axis=0)
+        #self.belief2tweet_mapping = self.belief2tweet_mapping / self.belief2tweet_mapping.sum(axis=0)
         array_policies = np.array(self.policies).squeeze()
-        for policy_idx, policy in enumerate(array_policies):
-            for action_idx in range(self.num_H):
+        for policy_idx, policy in enumerate(array_policies): #iterate over an array which contains all the possible combinations of policies 
+            for action_idx in range(self.num_H): #iterate over the hashtags 
                 normalising_constant = (array_policies[:,self.h_control_idx] == action_idx).sum()
                 if policy[self.h_control_idx] == action_idx:
                     policy_mapping[policy_idx,:] = self.belief2tweet_mapping[action_idx,:] / normalising_constant
@@ -385,5 +386,4 @@ class GenerativeModel(object):
     
     def get_policy_prior(self, qs_f):
         E = self.policy_mapping.dot(qs_f)
-
         return E

@@ -7,14 +7,17 @@ from Model.pymdp.utils import obj_array, index_list_to_onehots, sample
 from Model.pymdp.maths import spm_dot, dot_likelihood, softmax
 import seaborn as sns
 from matplotlib import pyplot as plt
+import time
 
-N = 8 # total number of agents
+
+start = time.time()
+
+N = 7 # total number of agents
 idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)
 num_H = 2 #the number of hashtags, or observations that can shed light on the idea
-# num_H = 3 #the number of hashtags, or observations that can shed light on the idea
 
-#G = nx.complete_graph(N)
-G = nx.fast_gnp_random_graph(N, 0.6)
+G = nx.complete_graph(N)
+#G = nx.fast_gnp_random_graph(N, 0.6)
 
 # Method 1 for cleaning the graph: keep regenerating the graph as long as its not connected. once the graph is connected, we know everyone has at least one edge
 #while not nx.is_connected(G):
@@ -36,27 +39,18 @@ hashtags = {0: "#democrat", 1: "#republican"}
 #hashtags = {0: "#republican", 1: "#democrat"}
 
 def agent_loop(agent, observations = None, initial = False):  
-    #print("Observed tweet: " + str(observations))
     qs = agent.infer_states(initial, tuple(observations))
-    #print("updated belief" + str(qs[0]))
     policy = agent.infer_policies(qs)
     action = agent.sample_action()
-    #print("ACTION")
-    #print(action)
     action = action[-2:]
-    #print("What i tweeted: " + str(action[-2]))
-    #print("Who i looked at" + str(action[-1]))
-    #print()
     who_i_looked_at = int(action[-1]+1)
     what_they_tweeted = observations[int(action[-1])+1]
-    #print(agent.genmodel.A[1][what_they_tweeted,:,:,0,0,0])
-    #print(agent.genmodel.A[1][what_they_tweeted,:,0,0,0,0])
-    #print(agent.genmodel.A[1][what_they_tweeted,:,1,0,0,0])
-
 
     if initial == True:
         action = agent.initial_action
 
+    now = time.time()
+    print("agent loop finished - time passed is" + str(now-start))
     return action, qs[0]
 
 actions = []
@@ -98,7 +92,7 @@ initial = True
 all_beliefs = []
 all_observed_tweets = []
 all_views = np.zeros(N)
-T = 10
+T = 50
 while timestep < T:
     print(timestep)
     observed_tweets = []
@@ -227,6 +221,8 @@ plt.savefig('scatter_06.png',dpi=325)
 
 plt.figure(figsize=(14, 8))
 
+end = time.time()
+print("total time passed is" + str(end-start))
 #sns.barplot(range(N), all_views)
 #plt.savefig('views_0.6.png',dpi=325)
 

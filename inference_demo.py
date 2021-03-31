@@ -15,9 +15,8 @@ idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g
 num_H = 2 #the number of hashtags, or observations that can shed light on the idea
 
 h_idea_mapping = np.eye(num_H)
-h_idea_mapping[:,0] = softmax(h_idea_mapping[:,0]*1.0)
-h_idea_mapping[:,1] = softmax(h_idea_mapping[:,1]*1.0)
-
+h_idea_mapping[:,0] = softmax(h_idea_mapping[:,0]*0.1)
+h_idea_mapping[:,1] = softmax(h_idea_mapping[:,1]*0.1)
 agent_params = {
 
             "neighbour_params" : {

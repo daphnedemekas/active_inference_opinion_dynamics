@@ -13,19 +13,20 @@ from matplotlib import pyplot as plt
 #%%
 idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)
 num_H = 2 #the number of hashtags, or observations that can shed light on the idea
-num_neighbours = 2 
+num_neighbours = 3
 h_idea_mapping = np.eye(num_H)
 h_idea_mapping[:,0] = softmax(h_idea_mapping[:,0]*0.1)
 h_idea_mapping[:,1] = softmax(h_idea_mapping[:,1]*0.1)
-
 agent_params = {
 
             "neighbour_params" : {
                 # "precisions" : np.random.uniform(low=0.3, high=3.0, size=(2,)),
                 "precisions" : np.array([1.0,10.0]),
                 "num_neighbours" : 2,
-                "env_volatility": np.random.uniform(low = 5.0, high = 10.0),
-                "belief_volatility": np.random.uniform(low=5.0, high = 10.0, size=(2,))
+                "env_volatility": np.random.uniform(low = 5.0, high = 6.0),
+                #"belief_volatility": np.random.uniform(low=9.0, high = 10.0, size=(2,))
+                "belief_volatility": np.random.uniform(low=9.0, high = 10.0, size=(2,))
+
                 },
 
             "idea_mapping_params" : {
@@ -85,7 +86,7 @@ for t in range(1,T):
 
     # agent.qs = qs
 
-    agent.infer_states(False,observation)
+    qs = agent.infer_states(False,observation)
 
     q_pi = agent.infer_policies(qs)
     neighbour_sampling_probs[t,0] = q_pi[0] + q_pi[2]
@@ -105,6 +106,7 @@ for t in range(1,T):
 
         what_im_reading = int(neighbour_1_tweets[t])
         who_im_inspecting = 1
+
         what_im_tweeting = int(action[-2])
 
         observation = (what_im_tweeting, 0, what_im_reading, what_im_tweeting, who_im_inspecting)

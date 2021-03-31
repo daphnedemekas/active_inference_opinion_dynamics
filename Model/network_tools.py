@@ -16,10 +16,10 @@ def create_multiagents(G, N , idea_levels = 2, num_H = 2, precision_params = Non
         precision_params = [[0.3, 3.0] for i in range(N)] # min and max values of uniform distribution over precision parameters
     
     if env_volatility is None:
-        env_volatility = [[0.3, 3.0] for i in range(N)]  # min and max values of uniform distribution over environmental volatility parameters
-    
+        env_volatility = np.random.uniform(low = 5.0, high = 6.0)  # min and max values of uniform distribution over environmental volatility parameters
+
     if belief_volatility is None:
-        belief_volatility = [[0.3, 3.0] for i in range(N)] # min and max values of uniform distribution over neighbour-belief volatility parameters
+        belief_volatility = np.random.uniform(low=9.0, high = 10.0, size=(2,)) # min and max values of uniform distribution over neighbour-belief volatility parameters
     
     for i in G.nodes():
 
@@ -29,10 +29,10 @@ def create_multiagents(G, N , idea_levels = 2, num_H = 2, precision_params = Non
         agent_i_params = {
 
             "neighbour_params" : {
-                "precisions" : np.random.uniform(low=precision_params[i][0], high=precision_params[i][1], size=(num_neighbours,)),
+                "precisions" : np.array([1.0,10.0]),
                 "num_neighbours" : num_neighbours,
-                "env_volatility": np.random.uniform(low = env_volatility[i][0], high = env_volatility[i][1]),
-                "belief_volatility": np.random.uniform(low=belief_volatility[i][0], high=belief_volatility[i][1], size=(num_neighbours,))
+                "env_volatility": np.random.uniform(low = 5.0, high = 6.0),
+                "belief_volatility": np.random.uniform(low=9.0, high = 10.0, size=(num_neighbours,))
                 },
 
             "idea_mapping_params" : {

@@ -293,8 +293,7 @@ def calc_free_energy(qs, prior, n_factors, likelihood=None):
         free_energy -= accuracy
     return free_energy
 
-
-def spm_MDP_G(agent, x, is_test = False):
+def spm_MDP_G(agent, x):
     """
     Calculates the Bayesian surprise in the same way as spm_MDP_G.m does in 
     the original matlab code.
@@ -318,64 +317,80 @@ def spm_MDP_G(agent, x, is_test = False):
         about hidden states x, were it to be observed. 
     """
     # Probability distribution over the hidden causes: i.e., Q(x)
+    #qx_old = spm_cross(x)
     A = agent.genmodel.A
     nf = len(agent.genmodel.control_factor_idx)
     n_states = agent.genmodel.num_states
-    qx = spm_cross(x)
+    qx2 = np.zeros(tuple(n_states))
+    qx_values = spm_cross(x[:-nf])
+    indices = [slice(0,(n_states[-1]*2)-1 ) for i in range(agent.genmodel.num_neighbours+1)] + [int(x[-2][-1])] + [int(x[-1][-1])]
+    qx2[tuple(indices)] = qx_values
+    #qx = spm_cross(x)
+    qx = qx2
+
     G = 0
     qo = 0
     idx = np.array(np.where(qx > np.exp(-16))).T
+    #print(idx)
+    iterator = 0
     if utils.is_arr_of_arr(A):
         # Accumulate expectation of entropy: i.e., E[lnP(o|x)]
         for i in idx:
+            iterator += 1
             nonzeros = []
+            values = []
             shape = []
-            A = agent.genmodel.A
             # Probability over outcomes for this combination of causes
-            po = np.ones(1)
-            po_test = np.ones(1)
+            old_po = np.ones(1)
+            new_p = np.ones(1)
+            #s = np.ones(1)
+            #s = agent.sparse.copy()
             for g in range(agent.genmodel.num_modalities):
                 index_vector = [slice(0, A[g].shape[0])] + list(i)
+                #s = sparse_cross(s, A[g][tuple(index_vector)])
+
+                #s = np.outer(s, A[g][tuple(index_vector)])
+
                 ag = (A[g][tuple(index_vector)])
+
                 nonzeros.append(np.nonzero(ag))
                 shape.append(ag.shape[0])
-                p_nonzero = np.nonzero(po)
-                einsum = np.array(np.einsum('i,j->ij', po[p_nonzero], ag).flatten())
-                po = np.array(einsum.flatten())
-                
-                #if is_test:
-                 #   po_test = spm_cross(po_test, A[g][tuple(index_vector)])
-
-            indexlength = len(po)
+                p_nonzero = np.nonzero(new_p)
+                einsum = np.einsum('i,j->ij', new_p[p_nonzero], ag)# + np.einsum('ki,kj->ij', ag, new_p[p_nonzero])
+                new_p = np.array(einsum.flatten())
+                values = new_p
+            indexlength = len(values)
             my_indices = []
-            
-            #construct the indices with which to place the values
             for nz in nonzeros:
                 nz = list(nz[0])
-                num_zeros = len(nz)
-                if num_zeros == 1:
+                length = len(nz)
+                if length == 1:
                     my_indices.append(np.array(nz*indexlength))
-                elif num_zeros == 2:
+                elif length == 2:
                     my_indices.append(np.array([nz[0]]*int(indexlength/2) + [nz[1]]*int(indexlength/2)))
-                elif num_zeros == indexlength/2:
+                elif length == indexlength/2:
                     my_indices.append(np.array(nz*2))
-                elif num_zeros == indexlength:
+                elif length == indexlength:
                     my_indices.append(np.array(nz))
                 else:
-                    print("not taking into account the case of " + str(length) + " zeros")
+                    #print(nz)
+                    print("Check your indices")
+                    print(indexlength)
+                    print(length)
+                    #print(np.nonzero(old_po))
                     raise
-            
-            po_full = np.zeros(tuple(shape))
-            po_full[tuple(my_indices)] = po
-
-            #if is_test:
-            #    if not np.array_equal(po_full, po_test):
-            #        print("spm_MDP_G is not outputting the correct probability over outcomes. Maybe use spm_MDP_old instead.")
-            #        raise
-
-            po = (po_full).ravel()
+            indices = tuple(indices)
+            #print("mine")
+            #print(my_indices)
+            po2 = np.zeros(tuple(shape))
+            po2[tuple(my_indices)] = values
+            po = po2
+            po = po.ravel()
+            #s = s.flatten()
+            #po = s
             qo += qx[tuple(i)] * po
             G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
+            #G += qx[tuple(i)] * (po.data).dot(np.log(po.data + np.exp(-16)))
 
     else:
         for i in idx:
@@ -386,7 +401,9 @@ def spm_MDP_G(agent, x, is_test = False):
             qo += qx[tuple(i)] * po
             G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
     # Subtract negative entropy of expectations: i.e., E[lnQ(o)]
+    #G = G - qo.dot(np.log(qo + np.exp(-16)))  # type: ignore
 
+    #G = G - (qo.data).dot(spm_log(qo.data))  # type: ignore
     G = G - qo.dot(spm_log(qo))
     
     return G
@@ -396,68 +413,68 @@ def spm_MDP_G(agent, x, is_test = False):
 
 
 
-def spm_MDP_G_old(agent, x):
-    """
-    Calculates the Bayesian surprise in the same way as spm_MDP_G.m does in 
-    the original matlab code.
+# def spm_MDP_G(A, x):
+#     """
+#     Calculates the Bayesian surprise in the same way as spm_MDP_G.m does in 
+#     the original matlab code.
     
-    Parameters
-    ----------
-    A (numpy ndarray or array-object):
-        array assigning likelihoods of observations/outcomes under the various 
-        hidden state configurations
+#     Parameters
+#     ----------
+#     A (numpy ndarray or array-object):
+#         array assigning likelihoods of observations/outcomes under the various 
+#         hidden state configurations
     
-    x (numpy ndarray or array-object):
-        Categorical distribution presenting probabilities of hidden states 
-        (this can also be interpreted as the predictive density over hidden 
-        states/causes if you're calculating the expected Bayesian surprise)
+#     x (numpy ndarray or array-object):
+#         Categorical distribution presenting probabilities of hidden states 
+#         (this can also be interpreted as the predictive density over hidden 
+#         states/causes if you're calculating the expected Bayesian surprise)
         
-    Returns
-    -------
-    G (float):
-        the (expected or not) Bayesian surprise under the density specified by x --
-        namely, this scores how much an expected observation would update beliefs 
-        about hidden states x, were it to be observed. 
-    """
+#     Returns
+#     -------
+#     G (float):
+#         the (expected or not) Bayesian surprise under the density specified by x --
+#         namely, this scores how much an expected observation would update beliefs 
+#         about hidden states x, were it to be observed. 
+#     """
 
-    # if A.dtype == "object":
-    #     Ng = len(A)
-    #     AOA_flag = True
-    # else:
-    #     Ng = 1
-    #     AOA_flag = False
-    A = agent.genmodel.A
-    _, _, Ng, _ = utils.get_model_dimensions(A=A)
+#     # if A.dtype == "object":
+#     #     Ng = len(A)
+#     #     AOA_flag = True
+#     # else:
+#     #     Ng = 1
+#     #     AOA_flag = False
 
-    # Probability distribution over the hidden causes: i.e., Q(x)
-    qx = spm_cross(x)
-    G = 0
-    qo = 0
-    idx = np.array(np.where(qx > np.exp(-16))).T
+#     _, _, Ng, _ = utils.get_model_dimensions(A=A)
 
-    if utils.is_arr_of_arr(A):
-        # Accumulate expectation of entropy: i.e., E[lnP(o|x)]
-        for i in idx:
-            # Probability over outcomes for this combination of causes
-            po = np.ones(1)
-            for g in range(Ng):
-                index_vector = [slice(0, A[g].shape[0])] + list(i)
-                po = spm_cross(po, A[g][tuple(index_vector)])
+#     # Probability distribution over the hidden causes: i.e., Q(x)
+#     qx = spm_cross(x)
+#     G = 0
+#     qo = 0
+#     idx = np.array(np.where(qx > np.exp(-16))).T
 
-            po = po.ravel()
-            qo += qx[tuple(i)] * po
-            G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
-    else:
-        for i in idx:
-            po = np.ones(1)
-            index_vector = [slice(0, A.shape[0])] + list(i)
-            po = spm_cross(po, A[tuple(index_vector)])
-            po = po.ravel()
-            qo += qx[tuple(i)] * po
-            G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
+#     if utils.is_arr_of_arr(A):
+#         # Accumulate expectation of entropy: i.e., E[lnP(o|x)]
+#         for i in idx:
+#             # Probability over outcomes for this combination of causes
+#             po = np.ones(1)
+#             for g in range(Ng):
+#                 index_vector = [slice(0, A[g].shape[0])] + list(i)
+#                 po = spm_cross(po, A[g][tuple(index_vector)])
 
-    # Subtract negative entropy of expectations: i.e., E[lnQ(o)]
-    # G = G - qo.dot(np.log(qo + np.exp(-16)))  # type: ignore
-    G = G - qo.dot(spm_log(qo))  # type: ignore
+#             po = po.ravel()
+#             qo += qx[tuple(i)] * po
+#             G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
+#     else:
+#         for i in idx:
+#             po = np.ones(1)
+#             index_vector = [slice(0, A.shape[0])] + list(i)
+#             po = spm_cross(po, A[tuple(index_vector)])
+#             po = po.ravel()
+#             qo += qx[tuple(i)] * po
+#             G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
 
-    return G
+#     # Subtract negative entropy of expectations: i.e., E[lnQ(o)]
+#     # G = G - qo.dot(np.log(qo + np.exp(-16)))  # type: ignore
+#     G = G - qo.dot(spm_log(qo))  # type: ignore
+
+#     return G

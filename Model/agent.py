@@ -1,10 +1,11 @@
 import numpy as np
 from .genmodel import GenerativeModel
-from .pymdp.inference import update_posterior_states
+from .pymdp.inference import update_posterior_states2
+
 from .pymdp.control import *
 from .pymdp.maths import spm_log
 from .pymdp import utils
-
+import sparse 
 class Agent(object):
 
     def __init__(
@@ -27,6 +28,9 @@ class Agent(object):
         self.initial_action = policy_params["initial_action"]
         self.observations = []
         self.actions = []
+        self.ncf_B = None
+        self.c_B = None
+        self.sparse = sparse.COO([[0]],[1], shape = (1,))
 
 
     def infer_states(self, initial, observation):
@@ -40,21 +44,21 @@ class Agent(object):
             for f, ns in enumerate(self.genmodel.num_states):
 
                 empirical_prior[f] = spm_log(self.genmodel.B[f][:,:, int(self.action[f])].dot(self.qs[f]))
-        
-        qs = update_posterior_states(observation, self.genmodel.A, prior=empirical_prior, **self.inference_params)
+        #qs = update_posterior_states(observation, self.genmodel.A, prior=empirical_prior, **self.inference_params)
+        qs = update_posterior_states2(self, observation, prior=empirical_prior)
 
         self.qs = qs
 
-
-        
         return qs
 
 
     def infer_policies(self, qs):
 
+        self.genmodel.E = self.genmodel.get_policy_prior(qs[0]) #this generates an E matrix which is a preference over what to tweet depending on what you believe. This so far has no preference over who to look at. 
+        q_pi, neg_efe = update_posterior_policies2(self)
+        #q_pi, neg_efe = update_posterior_policies(self.qs, self.genmodel.A, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
 
-        self.genmodel.E = self.genmodel.get_policy_prior(qs[0]) 
-        q_pi, neg_efe = update_posterior_policies(self.qs, self.genmodel.A, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
+        #raise
         self.q_pi = q_pi
         self.neg_efe = neg_efe
         return q_pi
