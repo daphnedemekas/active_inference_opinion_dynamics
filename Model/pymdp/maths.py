@@ -6,7 +6,6 @@ __author__: Conor Heins, Alexander Tschantz, Brennan Klein
 import numpy as np
 from . import utils
 from scipy import special
-import sparse
 
 
 EPS_VAL = 1e-16 # global constant for use in spm_log() function
@@ -318,7 +317,7 @@ def spm_MDP_G(agent, x, is_test = False):
         about hidden states x, were it to be observed. 
     """
     # Probability distribution over the hidden causes: i.e., Q(x)
-    A = agent.genmodel.A
+    A = agent.genmodel.reduced_A
     nf = len(agent.genmodel.control_factor_idx)
     n_states = agent.genmodel.num_states
     qx = spm_cross(x)
@@ -426,7 +425,7 @@ def spm_MDP_G_old(agent, x):
     # else:
     #     Ng = 1
     #     AOA_flag = False
-    A = agent.genmodel.A
+    A = agent.genmodel.reduced_A
     _, _, Ng, _ = utils.get_model_dimensions(A=A)
 
     # Probability distribution over the hidden causes: i.e., Q(x)

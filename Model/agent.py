@@ -5,7 +5,6 @@ from .pymdp.inference import update_posterior_states2
 from .pymdp.control import *
 from .pymdp.maths import spm_log
 from .pymdp import utils
-import sparse 
 class Agent(object):
 
     def __init__(
@@ -30,7 +29,6 @@ class Agent(object):
         self.actions = []
         self.ncf_B = None
         self.c_B = None
-        self.sparse = sparse.COO([[0]],[1], shape = (1,))
 
 
     def infer_states(self, initial, observation):

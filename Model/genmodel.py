@@ -224,7 +224,7 @@ class GenerativeModel(object):
                     combo_id = np.where(np.all(belief_combos==combo, axis=1)) #find the index of this combination in belief_combos
                     A[o_idx][tuple(A_indices)] = np.ones(self.num_cohesion_levels) / self.num_cohesion_levels
                     #A[o_idx][tuple(A_indices)] = cohesion_levels[:,:,combo_id].flatten()
-        A, _ = reduce_A_matrix(A)
+        self.reduced_A, _ = reduce_A_matrix(A)
         return A
 
 
