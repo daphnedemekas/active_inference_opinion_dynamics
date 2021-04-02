@@ -295,12 +295,12 @@ def calc_free_energy(qs, prior, n_factors, likelihood=None):
 def spm_MDP_G(A, x, is_test = False):
     # Probability distribution over the hidden causes: i.e., Q(x)
 
-    #A = agent.genmodel.reduced_A
     _, _, Ng, _ = utils.get_model_dimensions(A=A)
 
     qx = spm_cross(x)
     G = 0
     qo = 0
+    #qo_test = 0
     idx = np.array(np.where(qx > np.exp(-16))).T
 
     if utils.is_arr_of_arr(A):
@@ -310,7 +310,7 @@ def spm_MDP_G(A, x, is_test = False):
             shape = []
             # Probability over outcomes for this combination of causes
             po = np.ones(1)
-            po_test = np.ones(1)
+            #po_test = np.ones(1)
             for g in range(Ng):
                 index_vector = [slice(0, A[g].shape[0])] + list(i)
                 ag = (A[g][tuple(index_vector)])
@@ -319,68 +319,39 @@ def spm_MDP_G(A, x, is_test = False):
                 p_nonzero = np.nonzero(po)
                 einsum = np.array(np.einsum('i,j->ij', po[p_nonzero], ag).flatten())
                 po = np.array(einsum.flatten())
-                
                 #if is_test:
-                 #   po_test = spm_cross(po_test, A[g][tuple(index_vector)])
+                    #po_test = spm_cross(po_test, A[g][tuple(index_vector)])
 
             indexlength = len(po)
-            my_indices = []
-            #print(nonzeros)
-            #print(np.array(nonzeros).flatten().squeeze())
-            #construct the indices with which to place the values
-            
-            #[0],[1,2],[1,2,3],[1,2,3,4,5,6]
-            #[0,0,0,0,0,0],[1,1,1,2,2,2],[1,2,3,1,2,3],[1,2,3,4,5,6]
-            print("TEST")
-            print([np.repeat(nz[0], int(indexlength/len(nz[0]))) for nz in nonzeros])
-            
-            for nz in nonzeros:
-                nz = list(nz[0])
-                num_zeros = len(nz)
-                if num_zeros == 1:
-                    #print(np.array(list(nz)*indexlength))
-                    my_indices.append(np.array(nz*indexlength))
-                    #here we have only one nonzero value
-                    #do 2,2,2,2,2 for example
-                elif num_zeros == 2:
-                    my_indices.append(np.array([nz[0]]*int(indexlength/2) + [nz[1]]*int(indexlength/2)))
-                    #here we have 2 non zero values 
-                    #do 1,1,1,2,2,2
-                elif num_zeros == indexlength/2:
-                    my_indices.append(np.array(nz*2))
-                    #here we have exactly 1/2 of the nonzero valeus
-                    #do 1,2,3,1,2,3
-                elif num_zeros == indexlength:
-                    my_indices.append(np.array(nz))
-                    #here we have exactly the length so just becomes itself
-                else:
-                    print("not taking into account the case of " + str(length) + " zeros")
-                    raise
-            print("INDICES")
-            print(my_indices)
+            po_nonzero_indices = [np.repeat(nz, int(indexlength/len(nz[0]))) for nz in nonzeros[:-1]]
+            po_nonzero_indices.append(np.tile(nonzeros[-1],int(indexlength/len(nonzeros[-1][0]))))
+   
             po_full = np.zeros(tuple(shape))
-            po_full[tuple(my_indices)] = po
+            po_full[tuple(po_nonzero_indices)] = po
 
             #if is_test:
-            #    if not np.array_equal(po_full, po_test):
-            #        print("spm_MDP_G is not outputting the correct probability over outcomes. Maybe use spm_MDP_old instead.")
-            #        raise
+            #if not np.array_equal(po_full, po_test):
+            #    print("spm_MDP_G is not outputting the correct probability over outcomes. Maybe use spm_MDP_G_old instead.")
+            #    raise
 
             po = (po_full).ravel()
             qo += qx[tuple(i)] * po
             G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
-
     else:
         for i in idx:
             po = np.ones(1)
             index_vector = [slice(0, A.shape[0])] + list(i)
-            po = spm_cross(po, A[tuple(index_vector)])
+            ag = (A[tuple(index_vector)])
+            einsum = np.array(np.einsum('i,j->ij', po[np.nonzero(po)], ag).flatten())
+            po = np.array(einsum.flatten())
             po = po.ravel()
             qo += qx[tuple(i)] * po
             G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
     # Subtract negative entropy of expectations: i.e., E[lnQ(o)]
-
+    print("qo")
+    print(qo)
     G = G - qo.dot(spm_log(qo))
+
     return G
 
 
@@ -449,6 +420,7 @@ def spm_MDP_G_old(A, x):
 
     # Subtract negative entropy of expectations: i.e., E[lnQ(o)]
     # G = G - qo.dot(np.log(qo + np.exp(-16)))  # type: ignore
-    G = G - qo.dot(spm_log(qo))  # type: ignore
-
+    print("qo_old")
+    print(qo)
+    G = G - qo.dot(spm_log(qo))
     return G

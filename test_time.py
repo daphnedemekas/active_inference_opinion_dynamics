@@ -53,31 +53,50 @@ def get_params(n):
 
 times = []
 times_old = []
-neighbours = [2,5,10,15,20,30,50,100]
+full_a_times = []
+full_a_times_old = []
+neighbours = [2,5,10,15,16,18,20,25,30]
 
 for n in neighbours:
     print("neighbours "+ str(n))
     params = get_params(n)
     genmodel = GenerativeModel(**params['neighbour_params'], **params['idea_mapping_params'], **params['policy_params'], **params['C_params'])
-    #A = genmodel.A[1]
-    reduced_A = genmodel.reduced_A_test[1]
-    fake_qs = obj_array_uniform(reduced_A.shape[1:])
-    start = time.time()
-    G = spm_MDP_G(reduced_A, fake_qs)
-    end = time.time()
-    print(end-start)
-    times.append(end-start)
+    A = genmodel.A[1]
+    #reduced_A = genmodel.reduced_A_test[1]
+    fake_qs = obj_array_uniform(A.shape[1:])
     
     start = time.time()
-    G = spm_MDP_G_old(reduced_A, fake_qs)
+    G = spm_MDP_G_old(A, fake_qs)
     end = time.time()
     print(end-start)
     times_old.append(end-start)
+    start = time.time()
+    G = spm_MDP_G(A, fake_qs)
+    end = time.time()
+    print(end-start)
+    times.append(end-start)
+
+    #fake_qs = obj_array_uniform(reduced_A.shape[1:])
     
-plt.plot(neighbours, times, label = "new spm_MDP_G")
-plt.plot(neighbours, times_old, label = "old_spm_MDP_G")
-plt.title("Comparing SPM_MDP_G with reduced A modality 1")
+    #start = time.time()
+    #G = spm_MDP_G_old(reduced_A, fake_qs)
+    #end = time.time()
+    #print(end-start)
+    #full_a_times_old.append(end-start)
+    #start = time.time()
+    #G = spm_MDP_G(reduced_A, fake_qs)
+    #end = time.time()
+    #print(end-start)
+    #full_a_times.append(end-start)
+
+
+plt.plot(neighbours, times, label = "new spm_MDP_G", color = "lightblue")
+plt.plot(neighbours, times_old, label = "old_spm_MDP_G", color = "darkblue")
+
+#plt.plot(neighbours, times, label = "new spm_MDP_G FULL A", color = "limegreen")
+#plt.plot(neighbours, times_old, label = "old_spm_MDP_G FULL A", color = "darkgreen")
+plt.title("Comparing SPM_MDP_G with full A modality 1")
 plt.xlabel("Number of Neighbours")
 plt.ylabel("Time taken")
-plt.savefig("time_reduced_A_modality_1")
+plt.savefig("time_full_A_modality_1")
 plt.show()
