@@ -325,23 +325,39 @@ def spm_MDP_G(A, x, is_test = False):
 
             indexlength = len(po)
             my_indices = []
-            
+            #print(nonzeros)
+            #print(np.array(nonzeros).flatten().squeeze())
             #construct the indices with which to place the values
+            
+            #[0],[1,2],[1,2,3],[1,2,3,4,5,6]
+            #[0,0,0,0,0,0],[1,1,1,2,2,2],[1,2,3,1,2,3],[1,2,3,4,5,6]
+            print("TEST")
+            print([np.repeat(nz[0], int(indexlength/len(nz[0]))) for nz in nonzeros])
+            
             for nz in nonzeros:
                 nz = list(nz[0])
                 num_zeros = len(nz)
                 if num_zeros == 1:
+                    #print(np.array(list(nz)*indexlength))
                     my_indices.append(np.array(nz*indexlength))
+                    #here we have only one nonzero value
+                    #do 2,2,2,2,2 for example
                 elif num_zeros == 2:
                     my_indices.append(np.array([nz[0]]*int(indexlength/2) + [nz[1]]*int(indexlength/2)))
+                    #here we have 2 non zero values 
+                    #do 1,1,1,2,2,2
                 elif num_zeros == indexlength/2:
                     my_indices.append(np.array(nz*2))
+                    #here we have exactly 1/2 of the nonzero valeus
+                    #do 1,2,3,1,2,3
                 elif num_zeros == indexlength:
                     my_indices.append(np.array(nz))
+                    #here we have exactly the length so just becomes itself
                 else:
                     print("not taking into account the case of " + str(length) + " zeros")
                     raise
-            
+            print("INDICES")
+            print(my_indices)
             po_full = np.zeros(tuple(shape))
             po_full[tuple(my_indices)] = po
 

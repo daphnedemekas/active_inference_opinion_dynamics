@@ -18,6 +18,7 @@ h_idea_mapping = np.eye(num_H)
 h_idea_mapping[:,0] = softmax(h_idea_mapping[:,0]*0.1)
 h_idea_mapping[:,1] = softmax(h_idea_mapping[:,1]*0.1)
 
+                        
 def get_params(n):
     agent_params = {
 
@@ -52,14 +53,14 @@ def get_params(n):
 
 times = []
 times_old = []
-neighbours = [2,5,10,11,12,13,14,15,20,30]
+neighbours = [2,5,10,15,20,30,50,100]
 
 for n in neighbours:
     print("neighbours "+ str(n))
     params = get_params(n)
     genmodel = GenerativeModel(**params['neighbour_params'], **params['idea_mapping_params'], **params['policy_params'], **params['C_params'])
     #A = genmodel.A[1]
-    reduced_A = genmodel.reduced_A[1]
+    reduced_A = genmodel.reduced_A_test[1]
     fake_qs = obj_array_uniform(reduced_A.shape[1:])
     start = time.time()
     G = spm_MDP_G(reduced_A, fake_qs)
