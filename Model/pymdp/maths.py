@@ -292,48 +292,26 @@ def calc_free_energy(qs, prior, n_factors, likelihood=None):
         free_energy -= accuracy
     return free_energy
 
-
-def spm_MDP_G(agent, x, is_test = False):
-    """
-    Calculates the Bayesian surprise in the same way as spm_MDP_G.m does in 
-    the original matlab code.
-    
-    Parameters
-    ----------
-    A (numpy ndarray or array-object):
-        array assigning likelihoods of observations/outcomes under the various 
-        hidden state configurations
-    
-    x (numpy ndarray or array-object):
-        Categorical distribution presenting probabilities of hidden states 
-        (this can also be interpreted as the predictive density over hidden 
-        states/causes if you're calculating the expected Bayesian surprise)
-        
-    Returns
-    -------
-    G (float):
-        the (expected or not) Bayesian surprise under the density specified by x --
-        namely, this scores how much an expected observation would update beliefs 
-        about hidden states x, were it to be observed. 
-    """
+def spm_MDP_G(A, x, is_test = False):
     # Probability distribution over the hidden causes: i.e., Q(x)
-    A = agent.genmodel.reduced_A
-    nf = len(agent.genmodel.control_factor_idx)
-    n_states = agent.genmodel.num_states
+
+    #A = agent.genmodel.reduced_A
+    _, _, Ng, _ = utils.get_model_dimensions(A=A)
+
     qx = spm_cross(x)
     G = 0
     qo = 0
     idx = np.array(np.where(qx > np.exp(-16))).T
+
     if utils.is_arr_of_arr(A):
         # Accumulate expectation of entropy: i.e., E[lnP(o|x)]
         for i in idx:
             nonzeros = []
             shape = []
-            A = agent.genmodel.A
             # Probability over outcomes for this combination of causes
             po = np.ones(1)
             po_test = np.ones(1)
-            for g in range(agent.genmodel.num_modalities):
+            for g in range(Ng):
                 index_vector = [slice(0, A[g].shape[0])] + list(i)
                 ag = (A[g][tuple(index_vector)])
                 nonzeros.append(np.nonzero(ag))
@@ -387,15 +365,13 @@ def spm_MDP_G(agent, x, is_test = False):
     # Subtract negative entropy of expectations: i.e., E[lnQ(o)]
 
     G = G - qo.dot(spm_log(qo))
-    
     return G
 
 
 
 
 
-
-def spm_MDP_G_old(agent, x):
+def spm_MDP_G_old(A, x):
     """
     Calculates the Bayesian surprise in the same way as spm_MDP_G.m does in 
     the original matlab code.
@@ -425,7 +401,7 @@ def spm_MDP_G_old(agent, x):
     # else:
     #     Ng = 1
     #     AOA_flag = False
-    A = agent.genmodel.reduced_A
+
     _, _, Ng, _ = utils.get_model_dimensions(A=A)
 
     # Probability distribution over the hidden causes: i.e., Q(x)

@@ -353,9 +353,6 @@ def calc_states_info_gain(agent, qs_pi):
     states_surprise [scalar]:
         Surprise (about states) expected under the policy in question
     """
-
-    A = agent.genmodel.A
-
     if isinstance(qs_pi, list):
         n_steps = len(qs_pi)
         for t in range(n_steps):
@@ -366,7 +363,7 @@ def calc_states_info_gain(agent, qs_pi):
 
     states_surprise = 0
     for t in range(n_steps):
-        states_surprise += spm_MDP_G_old(agent, qs_pi[t])
+        states_surprise += spm_MDP_G(agent.genmodel.reduced_A, qs_pi[t])
 
     return states_surprise
 
