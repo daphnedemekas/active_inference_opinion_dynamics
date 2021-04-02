@@ -90,7 +90,7 @@ class GenerativeModel(object):
         self.control_factor_idx = [self.h_control_idx, self.who_idx]
         
         #self.policies = self.generate_policies()
-        #self.A = self.generate_likelihood()
+        self.A = self.generate_likelihood()
         #self.B = self.generate_transition()
         #self.C = self.generate_prior_preferences()
         
