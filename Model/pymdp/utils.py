@@ -42,6 +42,17 @@ def obj_array_uniform(shape_list):
         arr[i] = np.ones(shape)/shape
     return arr
 
+def obj_array_random(shape_list):
+    """ 
+    Creates a numpy object array whose sub-arrays are random Categorical
+    distributions with shapes given by shape_list[i]
+    """
+    arr = np.empty(len(shape_list), dtype=object)
+    for i, shape in enumerate(shape_list):
+        arr[i] = np.random.rand(shape)
+        arr[i] /= arr[i].sum()
+    return arr
+
 def index_list_to_onehots(index_list, dim_list):
     if isinstance(index_list, tuple) or isinstance(index_list,list):
         arr_arr = np.empty(len(index_list), dtype=object)
