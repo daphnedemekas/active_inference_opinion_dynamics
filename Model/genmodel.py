@@ -89,14 +89,14 @@ class GenerativeModel(object):
 
         self.control_factor_idx = [self.h_control_idx, self.who_idx]
         
-        #self.policies = self.generate_policies()
-        #self.A = self.generate_likelihood()
-        #self.B = self.generate_transition()
-        #self.C = self.generate_prior_preferences()
+        self.policies = self.generate_policies()
+        self.A = self.generate_likelihood()
+        self.B = self.generate_transition()
+        self.C = self.generate_prior_preferences()
         
         self.A_for_testing = self.generate_likelihood_for_testing()
 
-        #self.policy_mapping = self.generate_policy_mapping()
+        self.policy_mapping = self.generate_policy_mapping()
     def generate_likelihood(self):
 
         #initialize the A matrix 

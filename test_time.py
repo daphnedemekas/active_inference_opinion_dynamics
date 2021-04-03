@@ -53,16 +53,16 @@ def get_params(n):
 
 times = []
 times_old = []
-full_a_times = []
-full_a_times_old = []
-neighbours = [2,5,10,15,16]
+reduced_a_times = []
+reduced_a_times_old = []
+neighbours = [2,5,10]
 
 for n in neighbours:
     print("neighbours "+ str(n))
     params = get_params(n)
     genmodel = GenerativeModel(**params['neighbour_params'], **params['idea_mapping_params'], **params['policy_params'], **params['C_params'])
     A = genmodel.A[1]
-    reduced_A = genmodel.reduced_A_test[1]
+    reduced_A, _ = reduce_A_matrix(A)
     fake_qs = obj_array_uniform(A.shape[1:])
     
     start = time.time()
@@ -90,8 +90,8 @@ for n in neighbours:
     reduced_a_times.append(end-start)
 
 
-plt.plot(neighbours, times, label = "new spm_MDP_G", color = "lightblue")
-plt.plot(neighbours, times_old, label = "old_spm_MDP_G", color = "darkblue")
+#plt.plot(neighbours, times, label = "new spm_MDP_G", color = "lightblue")
+#plt.plot(neighbours, times_old, label = "old_spm_MDP_G", color = "darkblue")
 
 plt.plot(neighbours, reduced_a_times, label = "new spm_MDP_G REDUCED A", color = "limegreen")
 plt.plot(neighbours, reduced_a_times_old, label = "old_spm_MDP_G REDUCED A", color = "darkgreen")
