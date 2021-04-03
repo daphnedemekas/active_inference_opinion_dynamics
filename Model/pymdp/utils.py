@@ -204,3 +204,34 @@ def softmax(dist):
         output = np.exp(output)
         output = output / np.sum(output, axis=0)
         return output
+
+def reduce_a_matrix(A):
+    """
+    Utility function for throwing away dimensions (lagging dimensions, hidden state factors)
+    that are independent of the observation
+    """
+
+    o_dim, num_states = A.shape[0], A.shape[1:]
+    idx_vec_s = [slice(0, o_dim)]  + [slice(ns) for _, ns in enumerate(num_states)]
+
+    original_factor_idx = []
+    excluded_factor_idx = [] # the indices of the hidden state factors that are independent of the observation and thus marginalized away
+    for factor_i, ns in enumerate(num_states):
+
+        level_counter = 0
+        break_flag = False
+        while level_counter < ns and break_flag is False:
+            idx_vec_i = idx_vec_s.copy()
+            idx_vec_i[factor_i+1] = slice(level_counter,level_counter+1,None)
+            if not np.isclose(A.mean(axis=factor_i+1), A[tuple(idx_vec_i)].squeeze()).all():
+                break_flag = True # this means they're not independent
+                original_factor_idx.append(factor_i)
+            else:
+                level_counter += 1
+        
+        if break_flag is False:
+            excluded_factor_idx.append(factor_i)
+    
+    A_reduced = A.mean(axis=tuple(excluded_factor_idx)).squeeze()
+
+    return A_reduced, original_factor_idx

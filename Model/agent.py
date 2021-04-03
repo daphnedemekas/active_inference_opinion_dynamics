@@ -16,31 +16,33 @@ class Agent(object):
         ):            
 
         self.genmodel = GenerativeModel(**neighbour_params, **idea_mapping_params, **policy_params, **C_params)
-        self.set_starting_state_and_priors(policy_params["starting_state"])
-        self.action = np.zeros(len(self.genmodel.control_factor_idx))
+        self.set_starting_state_and_priors(policy_params["initial_action"])
+        self.action = np.zeros(len(self.genmodel.num_states))
         self.inference_params = {"num_iter":10, 
                                  "dF":1.0,
                                  "dF_tol":0.001}
         self.policy_hyperparams = {"use_utility": True,
                                    "use_states_info_gain": True,
                                    "use_param_info_gain": False}
-        self.starting_state = policy_params["starting_state"]
+        self.initial_action = policy_params["initial_action"]
 
 
-    def infer_states(self, timestep, observation):
+    def infer_states(self, initial, observation):
+        empirical_prior = utils.obj_array(self.genmodel.num_factors)
 
-        if timestep == 0:
-            empirical_prior = utils.obj_array(self.genmodel.num_factors)
+        if initial == True:
             for f in range(self.genmodel.num_factors):
                 empirical_prior[f] = spm_log(self.genmodel.D[f])
 
         else:
             for f, ns in enumerate(self.genmodel.num_states):
-                empirical_prior[f] = spm_log(self.B[f][:,:,self.action].dot(self.qs[f]))
+
+                empirical_prior[f] = spm_log(self.genmodel.B[f][:,:, int(self.action[f])].dot(self.qs[f]))
         
         qs = update_posterior_states(observation, self.genmodel.A, prior=empirical_prior, **self.inference_params)
 
         self.qs = qs
+
         
         return qs
 
@@ -60,7 +62,7 @@ class Agent(object):
         self.action = action
         return action
 
-    def set_starting_state_and_priors(self, starting_state):
-        self.genmodel.D = self.genmodel.generate_prior_states(starting_state = starting_state)
+    def set_starting_state_and_priors(self, initial_action):
+        self.genmodel.D = self.genmodel.generate_prior_states(initial_action = initial_action)
 
 

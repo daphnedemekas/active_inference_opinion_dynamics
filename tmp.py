@@ -41,6 +41,8 @@ C = genmodel.generate_prior_preferences()
 E = genmodel.generate_policy_mapping()
 
 num_states = genmodel.num_states
+print("LOOK")
+print(A[4][0,0,0,:])
 print(idea_levels)
 # MY PARAMETERS 
 neighbour_params = {

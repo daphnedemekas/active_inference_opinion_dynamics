@@ -65,6 +65,40 @@ def spm_dot(X, x, dims_to_omit=None):
 
     return Y
 
+def spm_dot_torch():
+
+    # Construct dims to perform dot product on
+    if utils.is_arr_of_arr(x):
+        dims = (np.arange(0, len(x)) + X.ndim - len(x)).astype(int)
+    else:
+        dims = np.array([1], dtype=int)
+        x = utils.to_arr_of_arr(x)
+
+    # delete ignored dims
+    if dims_to_omit is not None:
+        if not isinstance(dims_to_omit, list):
+            raise ValueError("`dims_to_omit` must be a `list` of `int`")
+        dims = np.delete(dims, dims_to_omit)
+        if len(x) == 1:
+            x = np.empty([0], dtype=object)
+        else:
+            x = np.delete(x, dims_to_omit)
+
+    # compute dot product
+    for d in range(len(x)):
+        s = np.ones(np.ndim(X), dtype=int)
+        s[dims[d]] = np.shape(x[d])[0]
+        X = X * x[d].view(tuple(s))
+
+    Y = np.sum(X, axis=tuple(dims.astype(int))).squeeze()
+
+    # check to see if `Y` is a scalar
+    if np.prod(Y.shape) <= 1.0:
+        Y = Y.item()
+        Y = torch.Tensor([Y])
+
+    return Y
+
 def spm_dot_old(X, x, dims_to_omit=None, obs_mode=False):
     """ Dot product of a multidimensional array with `x`. The dimensions in `dims_to_omit` 
     will not be summed across during the dot product
