@@ -307,6 +307,66 @@ def calc_free_energy(qs, prior, n_factors, likelihood=None):
         free_energy -= accuracy
     return free_energy
 
+def spm_MDP_G_optim(A, x, is_test = False):
+    # Probability distribution over the hidden causes: i.e., Q(x)
+
+    _, _, Ng, _ = utils.get_model_dimensions(A=A)
+
+    qx = spm_cross(x)
+    G = 0
+    qo = 0
+    #qo_test = 0
+    idx = np.array(np.where(qx > np.exp(-16))).T
+
+    if utils.is_arr_of_arr(A):
+        # Accumulate expectation of entropy: i.e., E[lnP(o|x)]
+        for i in idx:
+            nonzeros = []
+            shape = []
+            # Probability over outcomes for this combination of causes
+            po = np.ones(1)
+            #po_test = np.ones(1)
+            for g in range(Ng):
+                index_vector = [slice(0, A[g].shape[0])] + list(i)
+                ag = (A[g][tuple(index_vector)])
+                nonzeros.append(np.nonzero(ag))
+                shape.append(ag.shape[0])
+                p_nonzero = np.nonzero(po)
+                einsum = np.array(np.einsum('i,j->ij', po[p_nonzero], ag).flatten())
+                po = np.array(einsum.flatten())
+                #if is_test:
+                    #po_test = spm_cross(po_test, A[g][tuple(index_vector)])
+
+            indexlength = len(po)
+            po_nonzero_indices = [np.repeat(nz, int(indexlength/len(nz[0]))) for nz in nonzeros[:-1]]
+            po_nonzero_indices.append(np.tile(nonzeros[-1],int(indexlength/len(nonzeros[-1][0]))))
+   
+            po_full = np.zeros(tuple(shape))
+            po_full[tuple(po_nonzero_indices)] = po
+
+            #if is_test:
+            #if not np.array_equal(po_full, po_test):
+            #    print("spm_MDP_G is not outputting the correct probability over outcomes. Maybe use spm_MDP_G_old instead.")
+            #    raise
+
+            po = (po_full).ravel()
+            qo += qx[tuple(i)] * po
+            G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
+    else:
+        for i in idx:
+            po = np.ones(1)
+            index_vector = [slice(0, A.shape[0])] + list(i)
+            ag = (A[tuple(index_vector)])
+            einsum = np.array(np.einsum('i,j->ij', po[np.nonzero(po)], ag).flatten())
+            po = np.array(einsum.flatten())
+            po = po.ravel()
+            qo += qx[tuple(i)] * po
+            G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
+    # Subtract negative entropy of expectations: i.e., E[lnQ(o)]
+    G = G - qo.dot(spm_log(qo))
+
+    return G
+
 
 def spm_MDP_G(A, x):
     """
@@ -331,13 +391,6 @@ def spm_MDP_G(A, x):
         namely, this scores how much an expected observation would update beliefs 
         about hidden states x, were it to be observed. 
     """
-
-    # if A.dtype == "object":
-    #     Ng = len(A)
-    #     AOA_flag = True
-    # else:
-    #     Ng = 1
-    #     AOA_flag = False
 
     _, _, Ng, _ = utils.get_model_dimensions(A=A)
 
@@ -369,7 +422,6 @@ def spm_MDP_G(A, x):
             G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
 
     # Subtract negative entropy of expectations: i.e., E[lnQ(o)]
-    # G = G - qo.dot(np.log(qo + np.exp(-16)))  # type: ignore
     G = G - qo.dot(spm_log(qo))  # type: ignore
 
     return G
