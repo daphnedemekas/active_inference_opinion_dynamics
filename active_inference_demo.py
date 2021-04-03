@@ -3,7 +3,7 @@ import numpy as np
 from Model.genmodel import GenerativeModel
 from Model.agent import Agent
 import networkx as nx
-from Model.pymdp.utils import obj_array, index_list_to_onehots, sample
+from Model.pymdp.utils import obj_array, index_list_to_onehots, sample, reduce_a_matrix
 from Model.pymdp.maths import softmax, spm_log
 from Model.pymdp.inference import update_posterior_states
 
