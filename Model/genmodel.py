@@ -1,6 +1,6 @@
 import numpy as np 
 import itertools
-from .pymdp.utils import obj_array, obj_array_uniform, insert_multiple, softmax, onehot
+from .pymdp.utils import obj_array, obj_array_uniform, insert_multiple, softmax, onehot, reduce_a_matrix
 
 class GenerativeModel(object):
 
@@ -25,8 +25,10 @@ class GenerativeModel(object):
         cohesion_exp = None,
         cohesion_temp = None,
 
-        env_volatility = None,
-        belief_volatility = None
+        env_determinism = None,
+        belief_determinism = None,
+
+        reduce_A = False
 
 
     ):
@@ -54,18 +56,18 @@ class GenerativeModel(object):
         self.num_neighbours = num_neighbours
         self.num_cohesion_levels = 2 * (self.num_neighbours+1)
 
-        self.env_volatility = env_volatility
-        if self.env_volatility is None:
-            self.env_volatility = np.random.uniform(low=0.5, high=3.0)
+        self.env_determinism = env_determinism
+        if self.env_determinism is None:
+            self.env_determinism = np.random.uniform(low=0.5, high=3.0)
         else:
-            assert np.isscalar(self.env_volatility), "Your env_volatility has the wrong shape. It should be a scalar"
+            assert np.isscalar(self.env_determinism), "Your env_determinism has the wrong shape. It should be a scalar"
 
 
-        self.belief_volatility = belief_volatility   
-        if self.belief_volatility is None:
-            self.belief_volatility = np.random.uniform(low=0.5, high=3.0, size=(num_neighbours,))
+        self.belief_determinism = belief_determinism   
+        if self.belief_determinism is None:
+            self.belief_determinism = np.random.uniform(low=0.5, high=3.0, size=(num_neighbours,))
         else:
-            assert self.belief_volatility.shape == (num_neighbours,), "Your belief_volatility has the wrong shape. It should be (num_neighbours,)"
+            assert self.belief_determinism.shape == (num_neighbours,), "Your belief_determinism has the wrong shape. It should be (num_neighbours,)"
 
 
         self.belief2tweet_mapping = belief2tweet_mapping 
@@ -91,6 +93,13 @@ class GenerativeModel(object):
         
         self.policies = self.generate_policies()
         self.A = self.generate_likelihood()
+        if reduce_A:
+            self.A_reduced = obj_array(self.num_modalities)
+            self.informative_dims = []
+            for g in range(self.num_modalities):
+                self.A_reduced[g], factor_idx = reduce_a_matrix(self.A[g])
+                self.informative_dims.append(factor_idx)
+        
         self.B = self.generate_transition()
         self.C = self.generate_prior_preferences()
 
@@ -236,13 +245,13 @@ class GenerativeModel(object):
 
             if f_idx == self.focal_belief_idx:
                 transition_identity = np.eye(f_dim, f_dim)
-                B[f_idx] = np.expand_dims(softmax(transition_identity * self.env_volatility), axis = 2)
+                B[f_idx] = np.expand_dims(softmax(transition_identity * self.env_determinism), axis = 2)
             
             if f_idx in self.neighbour_belief_idx: #the first N+1 hidden state factors are variations of the identity matrix based on belief volatiliy
                 
                 transition_identity = np.eye(f_dim, f_dim)
                 #expand dimension so we can fit with the length of the policy arrays 
-                B[f_idx] = np.expand_dims(softmax(transition_identity * self.belief_volatility[f_idx-1]), axis = 2)
+                B[f_idx] = np.expand_dims(softmax(transition_identity * self.belief_determinism[f_idx-1]), axis = 2)
             
             if f_idx == self.h_control_idx: #for the hashtag control state we have rows of ones corresponding to the next state
 
