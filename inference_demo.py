@@ -24,8 +24,8 @@ agent_params = {
                 # "precisions" : np.random.uniform(low=0.3, high=3.0, size=(2,)),
                 "precisions" : np.array([5.0,5.0]),
                 "num_neighbours" : 2,
-                "env_volatility": np.random.uniform(low = 5.0, high = 10.0),
-                "belief_volatility": np.random.uniform(low=5.0, high = 10.0, size=(2,))
+                "env_determinism": np.random.uniform(low = 5.0, high = 10.0),
+                "belief_determinism": np.random.uniform(low=5.0, high = 10.0, size=(2,))
                 },
 
             "idea_mapping_params" : {

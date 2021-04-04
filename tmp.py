@@ -31,9 +31,9 @@ idea_levels = 2
 
 h_control_mapping = np.eye(num_H)
 
-volatility_levels = np.random.uniform(low=0.5, high=3.0, size=(num_neighbours+1,)) # in theory, the first hidden state factor (my beliefs) should be parameterised based on the focal agent's beliefs _about the inherent stochasticity_ of the world,
+determinism_levels = np.random.uniform(low=0.5, high=3.0, size=(num_neighbours+1,)) # in theory, the first hidden state factor (my beliefs) should be parameterised based on the focal agent's beliefs _about the inherent stochasticity_ of the world,
 
-genmodel = GenerativeModel(true_false_precisions, num_neighbours, num_H, idea_levels, volatility_levels = volatility_levels)
+genmodel = GenerativeModel(true_false_precisions, num_neighbours, num_H, idea_levels, determinism_levels = determinism_levels)
 
 A = genmodel.generate_likelihood()
 B = genmodel.generate_transition()
@@ -48,7 +48,7 @@ print(idea_levels)
 neighbour_params = {
     "precisions" : true_false_precisions,
     "num_neighbours" : num_neighbours,
-    "volatility_levels": volatility_levels
+    "determinism_levels": determinism_levels
     }
 
 idea_mapping_params = {

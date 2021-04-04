@@ -5,7 +5,7 @@ import random
 from .agent import Agent
 
 
-def create_multiagents(G, N , idea_levels = 2, num_H = 2, precision_params = None, env_volatility = None, belief_volatility = None):
+def create_multiagents(G, N , idea_levels = 2, num_H = 2, precision_params = None, env_determinism = None, belief_determinism = None):
     """
     Populates a networkx graph object G with N active inference agents
     """
@@ -15,11 +15,11 @@ def create_multiagents(G, N , idea_levels = 2, num_H = 2, precision_params = Non
     if precision_params is None:
         precision_params = [[0.3, 3.0] for i in range(N)] # min and max values of uniform distribution over precision parameters
     
-    if env_volatility is None:
-        env_volatility = [[5, 10] for i in range(N)]  # min and max values of uniform distribution over environmental volatility parameters
+    if env_determinism is None:
+        env_determinism = [[5, 10] for i in range(N)]  # min and max values of uniform distribution over environmental determinism parameters
     
-    if belief_volatility is None:
-        belief_volatility = [[5, 10] for i in range(N)] # min and max values of uniform distribution over neighbour-belief volatility parameters
+    if belief_determinism is None:
+        belief_determinism = [[5, 10] for i in range(N)] # min and max values of uniform distribution over neighbour-belief determinism parameters
     
     for i in G.nodes():
 
@@ -31,8 +31,8 @@ def create_multiagents(G, N , idea_levels = 2, num_H = 2, precision_params = Non
             "neighbour_params" : {
                 "precisions" : np.random.uniform(low=precision_params[i][0], high=precision_params[i][1], size=(num_neighbours,)),
                 "num_neighbours" : num_neighbours,
-                "env_volatility": np.random.uniform(low = env_volatility[i][0], high = env_volatility[i][1]),
-                "belief_volatility": np.random.uniform(low=belief_volatility[i][0], high=belief_volatility[i][1], size=(num_neighbours,))
+                "env_determinism": np.random.uniform(low = env_determinism[i][0], high = env_determinism[i][1]),
+                "belief_determinism": np.random.uniform(low=belief_determinism[i][0], high=belief_determinism[i][1], size=(num_neighbours,))
                 },
 
             "idea_mapping_params" : {

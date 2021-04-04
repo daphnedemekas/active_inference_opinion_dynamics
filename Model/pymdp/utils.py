@@ -241,7 +241,7 @@ def reduce_a_matrix(A):
                 level_counter += 1
         
         if break_flag is False:
-            excluded_factor_idx.append(factor_i)
+            excluded_factor_idx.append(factor_i+1)
     
     A_reduced = A.mean(axis=tuple(excluded_factor_idx)).squeeze()
 

@@ -21,11 +21,11 @@ h_idea_mapping[:,1] = softmax(h_idea_mapping[:,1]*0.1)
 agent_params = {
 
             "neighbour_params" : {
-                # "precisions" : np.random.uniform(low=0.3, high=3.0, size=(2,)),
-                "precisions" : np.array([1.0,10.0]),
+                "precisions" : np.random.uniform(low=0.3, high=3.0, size=(2,)),
+                # "precisions" : np.array([1.0,10.0]),
                 "num_neighbours" : 2,
-                "env_volatility": np.random.uniform(low = 5.0, high = 10.0),
-                "belief_volatility": np.random.uniform(low=5.0, high = 10.0, size=(2,))
+                "env_determinism": np.random.uniform(low = 3.0, high = 6.0),
+                "belief_determinism": np.random.uniform(low= 9.0, high = 10.0, size=(2,))
                 },
 
             "idea_mapping_params" : {
@@ -46,7 +46,31 @@ agent_params = {
                 }
         }
 
-agent = Agent(**agent_params)
+agent = Agent(**agent_params,reduce_A=True)
+
+# A_n = agent.genmodel.A[1]
+# o_dim, num_states = A_n.shape[0], A_n.shape[1:]
+# idx_vec_s = [slice(0, o_dim)]  + [slice(ns) for _, ns in enumerate(agent.genmodel.num_states)]
+
+# original_factor_idx = []
+# excluded_factor_idx = [] # the indices of the hidden state factors that are independent of the observation and thus marginalized away
+# for factor_i, ns in enumerate(agent.genmodel.num_states):
+
+#     level_counter = 0
+#     break_flag = False
+#     while level_counter < ns and break_flag is False:
+#         idx_vec_i = idx_vec_s.copy()
+#         idx_vec_i[factor_i+1] = slice(level_counter,level_counter+1,None)
+#         if not np.isclose(A_n.mean(axis=factor_i+1), A_n[tuple(idx_vec_i)].squeeze()).all():
+#             break_flag = True # this means they're not independent
+#             original_factor_idx.append(factor_i)
+#         else:
+#             level_counter += 1
+    
+#     if break_flag is False:
+#         excluded_factor_idx.append(factor_i+1)
+
+# A_reduced = A.mean(axis=tuple(excluded_factor_idx)).squeeze()
 
 T = 100
 

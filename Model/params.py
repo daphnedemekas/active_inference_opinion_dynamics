@@ -39,7 +39,7 @@ h_control_mapping = np.eye(num_H)
 """
  QUESTIONS TO BE ADDRESSED  -- HOW TO INITIALIZE AGENTS 
  1.  What does the range of precisions signify? higher precisions versus lower precisions? bigger range versus smaller range?
- 2.  What about volatility levels? higher volatility -- expecting those neighbours to be less stubborn 
+ 2.  What about determinism levels? higher determinism -- expecting those neighbours to be less stubborn 
  3.  What is the effect of the starting state?
  4. For the C params -- higher exponent should make agents more prone to agreeing -- positive exponent should make them indifferent to the idea level they are agreeing on (symmetric)
  5. belief2tweetmapping should probably have some relation to h_idea_mapping? it maps what beliefs correspond to a higher / lower probability of tweeting a certain hashtag. need some function that creates both, perhaps?
@@ -52,7 +52,7 @@ mia_params = {
     "neighbour_params" : {
         "precisions" : np.random.uniform(low=3.0, high=10.0, size=(num_neighbours,)),
         "num_neighbours" : num_neighbours,
-        "volatility_levels": np.random.uniform(low=0.5, high=3.0, size=(num_neighbours+1,))
+        "determinism_levels": np.random.uniform(low=0.5, high=3.0, size=(num_neighbours+1,))
         },
 
     "idea_mapping_params" : {
@@ -79,7 +79,7 @@ vincent_params = {
     "neighbour_params"  : {
         "precisions" : np.random.uniform(low=3.0, high=10.0, size=(num_neighbours,)),
         "num_neighbours" : num_neighbours ,
-        "volatility_levels": np.random.uniform(low=0.5, high=3.0, size=(num_neighbours+1,))
+        "determinism_levels": np.random.uniform(low=0.5, high=3.0, size=(num_neighbours+1,))
         },
 
     "idea_mapping_params" : {
@@ -105,7 +105,7 @@ jules_params = {
     "neighbour_params" : {
         "precisions" : np.random.uniform(low=3.0, high=10.0, size=(num_neighbours,)),
         "num_neighbours" : num_neighbours,
-        "volatility_levels": np.random.uniform(low=0.5, high=3.0, size=(num_neighbours+1,))
+        "determinism_levels": np.random.uniform(low=0.5, high=3.0, size=(num_neighbours+1,))
         },
 
     "idea_mapping_params" : {
