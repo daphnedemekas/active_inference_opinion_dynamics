@@ -12,10 +12,11 @@ class Agent(object):
         neighbour_params,
         idea_mapping_params,
         policy_params,
-        C_params       
+        C_params,
+        reduce_A = False,   
         ):            
 
-        self.genmodel = GenerativeModel(**neighbour_params, **idea_mapping_params, **policy_params, **C_params)
+        self.genmodel = GenerativeModel(reduce_A = reduce_A, **neighbour_params, **idea_mapping_params, **policy_params, **C_params)
         self.set_starting_state_and_priors(policy_params["initial_action"])
         self.action = np.zeros(len(self.genmodel.num_states))
         self.inference_params = {"num_iter":10, 
@@ -49,9 +50,12 @@ class Agent(object):
 
     def infer_policies(self, qs):
 
-
         self.genmodel.E = self.genmodel.get_policy_prior(qs[0]) 
-        q_pi, neg_efe = update_posterior_policies(self.qs, self.genmodel.A, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
+
+        if hasattr(self.genmodel,'A_reduced'):
+            q_pi, neg_efe = update_posterior_policies_reduced(self.qs, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
+        else:
+            q_pi, neg_efe = update_posterior_policies(self.qs, self.genmodel.A, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
         self.q_pi = q_pi
         self.neg_efe = neg_efe
         return q_pi

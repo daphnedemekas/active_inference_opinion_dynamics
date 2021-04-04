@@ -101,6 +101,103 @@ def update_posterior_policies(
     
     return q_pi, neg_efe
 
+def update_posterior_policies_reduced(
+    qs,
+    A_reduced,
+    informative_dims,
+    B,
+    C,
+    E,
+    policies,
+    use_utility=True,
+    use_states_info_gain=True,
+    use_param_info_gain=False,
+    pA=None,
+    pB=None,
+    gamma=16.0):
+    """ Updates the posterior beliefs about policies based on expected free energy prior. Uses reduced A matrix
+        to speed up computation time.
+
+        Parameters
+        ----------
+        - `qs` [1D numpy array, array-of-arrays, or Categorical (either single- or multi-factor)]:
+            Current marginal beliefs about hidden state factors
+        - `A_reduced` [numpy ndarray, array-of-arrays (in case of multiple modalities), or Categorical 
+                (both single and multi-modality)]:
+            Observation likelihood model (beliefs about the likelihood mapping entertained by the agent)
+        - `informative_dims` [list of lists]:
+            This is a list of length `num_modalities` where each sub-list contains the indices of the hidden
+            state factors that have an informative relationship to observations for that modality.
+        - `B` [numpy ndarray, array-of-arrays (in case of multiple hidden state factors), or Categorical 
+                (both single and multi-factor)]:
+                Transition likelihood model (beliefs about the likelihood mapping entertained by the agent)
+        - `C` [numpy 1D-array, array-of-arrays (in case of multiple modalities), or Categorical 
+                (both single and multi-modality)]:
+            Prior beliefs about outcomes (prior preferences)
+        - `policies` [list of tuples]:
+            A list of all the possible policies, each expressed as a tuple of indices, where a given 
+            index corresponds to an action on a particular hidden state factor e.g. policies[1][2] yields the 
+            index of the action under policy 1 that affects hidden state factor 2
+        - `use_utility` [bool]:
+            Whether to calculate utility term, i.e how much expected observation confer with prior expectations
+        - `use_states_info_gain` [bool]:
+            Whether to calculate state information gain
+        - `use_param_info_gain` [bool]:
+            Whether to calculate parameter information gain @NOTE requires pA or pB to be specified 
+        - `pA` [numpy ndarray, array-of-arrays (in case of multiple modalities), or Dirichlet 
+                (both single and multi-modality)]:
+            Prior dirichlet parameters for A. Defaults to none, in which case info gain w.r.t. Dirichlet 
+            parameters over A is skipped.
+        - `pB` [numpy ndarray, array-of-arrays (in case of multiple hidden state factors), or 
+            Dirichlet (both single and multi-factor)]:
+            Prior dirichlet parameters for B. Defaults to none, in which case info gain w.r.t. 
+            Dirichlet parameters over A is skipped.
+        - `gamma` [float, defaults to 16.0]:
+            Precision over policies, used as the inverse temperature parameter of a softmax transformation 
+            of the expected free energies of each policy
+       
+        Returns
+        --------
+        - `qp` [1D numpy array or Categorical]:
+            Posterior beliefs about policies, defined here as a softmax function of the 
+            expected free energies of policies
+        - `efe` - [1D numpy array or Categorical]:
+            The expected free energies of policies
+
+    """
+    n_policies = len(policies)
+    neg_efe = np.zeros(n_policies) 
+    q_pi = np.zeros((n_policies, 1))
+
+    num_modalities = len(A_reduced)
+
+    qo_pi = utils.obj_array(num_modalities)
+
+    for idx, policy in enumerate(policies):
+        qs_pi = get_expected_states(qs, B, policy)
+        
+        # initialise expected observations
+        
+        for g in range(num_modalities):
+            if not informative_dims[g]:
+                qo_pi[g] = A_reduced[g]
+            else:
+                qo_pi[g] = spm_dot(A_reduced[g], qs_pi[informative_dims[g]])
+
+        if use_utility:
+            neg_efe[idx] += calc_expected_utility(qo_pi, C)
+
+        if use_states_info_gain:
+            for g in range(num_modalities):
+                if informative_dims[g]:
+                    neg_efe[idx] += spm_MDP_G(A_reduced[g], qs_pi[informative_dims[g]])
+
+    q_pi = softmax(gamma*neg_efe + E)
+
+    q_pi = q_pi / q_pi.sum(axis=0)  # type: ignore
+    
+    return q_pi, neg_efe
+
 
 def get_expected_states(qs, B, policy, return_numpy=False):
     """
