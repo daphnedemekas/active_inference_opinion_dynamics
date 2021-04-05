@@ -658,7 +658,7 @@ def sample_action(q_pi, policies, n_states, sampling_type="marginal_action"):
 
     elif sampling_type == "posterior_sample":
         
-        policy_index = np.where(np.random.multinomial(1,q_pi))[0][0]
+        policy_index = utils.sample(q_pi)
         selected_policy = policies[policy_index]
 
     else:
