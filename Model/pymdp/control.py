@@ -657,8 +657,8 @@ def sample_action(q_pi, policies, n_states, sampling_type="marginal_action", alp
         selected_policy = np.zeros(n_factors)
         for factor_i in range(n_factors):
             # selected_policy[factor_i] = np.where(np.random.multinomial(1,action_marginals[factor_i]))[0][0]
-            # selected_policy[factor_i] = np.argmax(action_marginals[factor_i])
-            selected_policy[factor_i] = utils.sample(softmax(alpha*action_marginals[factor_i]))
+            selected_policy[factor_i] = np.argmax(action_marginals[factor_i])
+            # selected_policy[factor_i] = utils.sample(softmax(alpha*action_marginals[factor_i]))
 
     elif sampling_type == "posterior_sample":
         
