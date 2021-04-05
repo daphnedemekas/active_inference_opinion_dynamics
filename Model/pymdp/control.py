@@ -613,24 +613,27 @@ def construct_policies(n_states, n_control=None, policy_len=1, control_fac_idx=N
         return policies
 
 
-def sample_action(q_pi, policies, n_states, sampling_type="marginal_action"):
+def sample_action(q_pi, policies, n_states, sampling_type="marginal_action", alpha = 1.0):
     """
     Samples action from posterior over policies, using one of two methods. 
     Parameters
     ----------
-    q_pi [1D numpy.ndarray or Categorical]:
+    `q_pi` [1D numpy.ndarray or Categorical]:
         Posterior beliefs about (possibly multi-step) policies.
-    policies [list of numpy ndarrays]:
+    `policies` [list of numpy ndarrays]:
         List of arrays that indicate the policies under consideration. Each element 
         within the list is a matrix that stores the 
         the indices of the actions  upon the separate hidden state factors, at 
         each timestep (n_step x n_states)
-    n_states [list of integers]:
+    `n_states` [list of integers]:
         List of the dimensionalities of the different (controllable)) hidden state factors
-    sampling_type [string, 'marginal_action' or 'posterior_sample']:
+    `sampling_type` [string, 'marginal_action' or 'posterior_sample']:
         Indicates whether the sampled action for a given hidden state factor is given by 
         the evidence for that action, marginalized across different policies ('marginal_action')
         or simply the action entailed by a sample from the posterior over policies
+    `alpha` [Float]:
+        Inverse temperature / precision parameter of action sampling in case that
+        `sampling_type` == "marginal_action"
     Returns
     ----------
     selected_policy [1D numpy ndarray]:
@@ -654,7 +657,8 @@ def sample_action(q_pi, policies, n_states, sampling_type="marginal_action"):
         selected_policy = np.zeros(n_factors)
         for factor_i in range(n_factors):
             # selected_policy[factor_i] = np.where(np.random.multinomial(1,action_marginals[factor_i]))[0][0]
-            selected_policy[factor_i] = np.argmax(action_marginals[factor_i])
+            # selected_policy[factor_i] = np.argmax(action_marginals[factor_i])
+            selected_policy[factor_i] = utils.sample(softmax(alpha*action_marginals[factor_i]))
 
     elif sampling_type == "posterior_sample":
         
