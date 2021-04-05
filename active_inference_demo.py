@@ -3,6 +3,7 @@ import numpy as np
 from Model.genmodel import GenerativeModel
 from Model.agent import Agent
 import networkx as nx
+from Model.pymdp import utils
 from Model.pymdp.utils import obj_array, index_list_to_onehots, sample, reduce_a_matrix
 from Model.pymdp.maths import softmax, spm_log
 from Model.pymdp.inference import update_posterior_states
@@ -10,7 +11,7 @@ from Model.pymdp.inference import update_posterior_states
 import seaborn as sns
 from matplotlib import pyplot as plt
 
-#%%
+# %% Set up generative model
 idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)
 num_H = 2 #the number of hashtags, or observations that can shed light on the idea
 num_neighbours = 2 
@@ -21,11 +22,11 @@ h_idea_mapping[:,1] = softmax(h_idea_mapping[:,1]*0.1)
 agent_params = {
 
             "neighbour_params" : {
-                "precisions" : np.random.uniform(low=0.3, high=3.0, size=(2,)),
-                # "precisions" : np.array([1.0,10.0]),
+                # "precisions" : np.random.uniform(low=0.3, high=3.0, size=(2,)),
+                "precisions" : 3.0 * np.ones(idea_levels),
                 "num_neighbours" : 2,
-                "env_determinism": np.random.uniform(low = 3.0, high = 6.0),
-                "belief_determinism": np.random.uniform(low= 9.0, high = 10.0, size=(2,))
+                "env_determinism": 1.0,
+                "belief_determinism": np.array([5.0, 5.0])
                 },
 
             "idea_mapping_params" : {
@@ -36,7 +37,7 @@ agent_params = {
 
             "policy_params" : {
                 "initial_action" : [np.random.randint(num_H), np.random.randint(2)],
-                "belief2tweet_mapping" : None
+                "belief2tweet_mapping" : np.eye(num_H),
                 },
 
             "C_params" : {
@@ -48,46 +49,25 @@ agent_params = {
 
 agent = Agent(**agent_params,reduce_A=True)
 
-# A_n = agent.genmodel.A[1]
-# o_dim, num_states = A_n.shape[0], A_n.shape[1:]
-# idx_vec_s = [slice(0, o_dim)]  + [slice(ns) for _, ns in enumerate(agent.genmodel.num_states)]
-
-# original_factor_idx = []
-# excluded_factor_idx = [] # the indices of the hidden state factors that are independent of the observation and thus marginalized away
-# for factor_i, ns in enumerate(agent.genmodel.num_states):
-
-#     level_counter = 0
-#     break_flag = False
-#     while level_counter < ns and break_flag is False:
-#         idx_vec_i = idx_vec_s.copy()
-#         idx_vec_i[factor_i+1] = slice(level_counter,level_counter+1,None)
-#         if not np.isclose(A_n.mean(axis=factor_i+1), A_n[tuple(idx_vec_i)].squeeze()).all():
-#             break_flag = True # this means they're not independent
-#             original_factor_idx.append(factor_i)
-#         else:
-#             level_counter += 1
-    
-#     if break_flag is False:
-#         excluded_factor_idx.append(factor_i+1)
-
-# A_reduced = A.mean(axis=tuple(excluded_factor_idx)).squeeze()
-
 T = 100
 
 neighbour_0_tweets = 1*np.ones(T) # neighbour 1 tweets a bunch of Hashtag 1's
 neighbour_1_tweets = 2*np.ones(T) # neighbour 2 tweets a bunch of Hashtag 2's
 
-my_first_neighbour = 1
-my_first_tweet = 1
+my_first_neighbour = np.where(agent.genmodel.D[-1])[0][0]
+my_first_tweet = sample(agent.genmodel.belief2tweet_mapping.dot(agent.genmodel.D[-2]))
 
-# observation = (my_first_tweet, int(neighbour_0_tweets[0]), 0, my_first_tweet, my_first_neighbour)
-observation = (my_first_tweet, 0, int(neighbour_1_tweets[0]), my_first_tweet, my_first_neighbour)
+if my_first_neighbour == 0:
+    observation = (my_first_tweet, int(neighbour_0_tweets[0]), 0, my_first_tweet, my_first_neighbour)
+elif my_first_neighbour == 1:
+    observation = (my_first_tweet, 0, int(neighbour_1_tweets[0]), my_first_tweet, my_first_neighbour)
 
 history_of_idea_beliefs = np.zeros((T,idea_levels)) # history of my own posterior over the truth/falsity of the idea
 history_of_beliefs_about_other = np.zeros((T,agent.genmodel.num_states[1],num_neighbours)) # histoyr of my posterior beliefs about the beliefs of my two neighbours about the truth/falsity of the idea
 
 qs = agent.infer_states(True, observation)
 
+# %%
 history_of_idea_beliefs[0,:] = qs[0]
 history_of_beliefs_about_other[0,:,0] = qs[1]
 history_of_beliefs_about_other[0,:,1] = qs[2]
@@ -98,6 +78,7 @@ history_of_who_im_looking_at = np.zeros(T)
 history_of_who_im_looking_at[0] = my_first_neighbour
 
 neighbour_sampling_probs = np.zeros((T, 2))
+
 # %%
 for t in range(1,T):
 
@@ -112,8 +93,8 @@ for t in range(1,T):
     agent.infer_states(False,observation)
 
     q_pi = agent.infer_policies(qs)
-    neighbour_sampling_probs[t,0] = q_pi[0] + q_pi[2]
-    neighbour_sampling_probs[t,1] = q_pi[1] + q_pi[3]
+    neighbour_sampling_probs[t,0] = q_pi[0] + q_pi[2] # add the probabilities of policies corresponding to sampling neighbour 0
+    neighbour_sampling_probs[t,1] = q_pi[1] + q_pi[3] # add the probabilities of policies corresponding to sampling neighbour 1
 
     action = agent.sample_action()
 
@@ -148,9 +129,9 @@ plt.plot(history_of_beliefs_about_other[:,0,1],label='My beliefs about Neighbour
 # plt.plot(neighbour_sampling_probs[:,0],label='Probabiliy of sampling neighbour 1')
 # plt.plot(neighbour_sampling_probs[:,1],label='Probabiliy of sampling neighbour 2')
 
-plt.scatter(np.arange(T)[history_of_who_im_looking_at == 0], 0.75*np.ones(T)[history_of_who_im_looking_at==0], c = 'red')
-plt.scatter(np.arange(T)[history_of_who_im_looking_at == 1], 0.25*np.ones(T)[history_of_who_im_looking_at==1], c = 'green')
+# plt.scatter(np.arange(T)[history_of_who_im_looking_at == 0], 0.75*np.ones(T)[history_of_who_im_looking_at==0], c = 'red')
+# plt.scatter(np.arange(T)[history_of_who_im_looking_at == 1], 0.25*np.ones(T)[history_of_who_im_looking_at==1], c = 'green')
 
 plt.legend(fontsize=18)
-plt.savefig('self_vs_other_beliefs_with_actions.png')
+# plt.savefig('self_vs_other_beliefs_with_actions.png')
 # %%
