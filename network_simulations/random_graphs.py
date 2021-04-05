@@ -1,6 +1,13 @@
 #### Script for running opinion dynamics simulations for different settings of the p parameter of the Erdos-Renyi random graph
 
 # %% Imports
+import os
+import sys
+import pathlib
+import copy
+
+sys.path.append(str(pathlib.Path(__file__).parent.parent)) # puts main repo folder into path, so that you can import things like `Model.pymdp...`
+
 import numpy as np
 import networkx as nx
 from Model.agent import Agent
@@ -66,19 +73,20 @@ def initialize_observation_buffer(G, agents):
     N = G.number_of_nodes()
 
     observation_buffer = utils.obj_array(N)
-    agent_neighbours = [None] * N
+    agent_neighbours_global = [None] * N
 
     for agent_id, agent in enumerate(agents):
 
         agent_neighbours_global[agent_id] = list(nx.neighbors(G, agent_id))
 
         initial_obs_agent_i = [0] * agent.genmodel.num_modalities
-        initial_obs_agent_i[0] = agent.initial_action[0] # what I'm tweeting
+        initial_obs_agent_i[0] = int(agent.initial_action[0]) # what I'm tweeting
+        initial_obs_agent_i[-1] = int(agent.initial_action[-1]) # my last observation is who I'm sampling
 
         which_neighbour_local = agent.initial_action[1]
         which_neighbour_global = agent_neighbours_global[agent_id][which_neighbour_local] # convert from 'local' (focal-agent-relative) neighbour index to global (network-relative) index
 
-        initial_obs_agent_i[which_neighbour_local+1] = agents[which_neighbour_global].initial_actions[0] # my neighbour's tweet is my observation in the (neighbour+1)-th modality
+        initial_obs_agent_i[which_neighbour_local+1] = int(agents[which_neighbour_global].initial_action[0]) # my neighbour's tweet is my observation in the (neighbour+1)-th modality
 
         observation_buffer[agent_id] = initial_obs_agent_i
     
@@ -99,38 +107,40 @@ def multi_agent_loop(G, agents, T, observation_buffer, agent_neighbours_global):
         # First loop over agents: Do belief-updating (inference) and action selection
         if t == 0:
 
-            for agent_idx, agent in enumerate(agents):
-                agent.infer_states(True, tuple(observation_buffer[agent_idx]))
-                agent.infer_policies()
+            for agent_id, agent in enumerate(agents):
+                qs = agent.infer_states(True, tuple(observation_buffer[agent_id]))
+                agent.infer_policies(qs)
                 action = agent.sample_action()
-                all_actions[t,agent_idx] = action[-2:] # we only store the last two control factor actions (what I'm tweeting and who I'm looking at)
-                all_beliefs[t,agent_idx] = copy.deepcopy(agent.qs) # deepcopy perhaps not needed here
+                all_actions[t,agent_id] = action[-2:] # we only store the last two control factor actions (what I'm tweeting and who I'm looking at)
+                all_beliefs[t,agent_id] = copy.deepcopy(qs) # deepcopy perhaps not needed here
 
         else:
 
-            for agent_idx, agent in enumerate(agents):
+            for agent_id, agent in enumerate(agents):
 
-                qs = agent.infer_states(False, tuple(observation_buffer[agent_idx]))
-                agent.infer_policies()
+                qs = agent.infer_states(False, tuple(observation_buffer[agent_id]))
+                agent.infer_policies(qs)
                 action = agent.sample_action()
-                all_actions[t,agent_idx] = action[-2:] # we only store the last two control factor actions (what I'm tweeting and who I'm looking at)
-                all_beliefs[t,agent_idx] = copy.deepcopy(agent.qs) # deepcopy perhaps not needed here
+                all_actions[t,agent_id] = action[-2:] # we only store the last two control factor actions (what I'm tweeting and who I'm looking at)
+                all_beliefs[t,agent_id] = copy.deepcopy(qs) # deepcopy perhaps not needed here
         
-        # Second loop over agents: based on what actions everyone selected, now get actions
+        # Second loop over agents: 
+        # Based on what hashtags everyone chose to tweet and what other neighbours everyone chose to look at, now collect next set of observations
 
         for agent_id, agent in enumerate(agents):
 
             obs_agent_i = [0] * agent.genmodel.num_modalities
-            obs_agent_i[0] = agent.action[-2] # what I'm tweeting
+            obs_agent_i[0] = int(agent.action[-2]) # what I'm tweeting
+            obs_agent_i[-1] = int(agent.action[-1]) # who I'm sampling
 
-            which_neighbour_local = agent.action[-1]
+            which_neighbour_local = int(agent.action[-1])
             which_neighbour_global = agent_neighbours_global[agent_id][which_neighbour_local] # convert from 'local' (focal-agent-relative) neighbour index to global (network-relative) index
 
-            obs_agent_i[which_neighbour_local+1] = agents[which_neighbour_global].action[-2] # my neighbour's tweet is my observation in the (neighbour+1)-th modality
+            obs_agent_i[which_neighbour_local+1] = int(agents[which_neighbour_global].action[-2]) # my neighbour's tweet is my observation in the (neighbour+1)-th modality
 
             observation_buffer[agent_id] = obs_agent_i
     
-        return G, agents, all_observations, all_beliefs, all_actions
+    return G, agents, all_observations, all_beliefs, all_actions
        
 
 # %% Run the parameter sweep
@@ -161,6 +171,28 @@ for param_idx, p in enumerate(p_vec):
 
         G, agents, observation_hist, belief_hist, action_hist = multi_agent_loop(G, agents, T, observation_buffer, agent_neighbours_global)
 
+# %% Debugging test
 
+T = 25          # number of timesteps in the simulation
+N = 8           # total number of agents in network
+idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)
+num_H = 2       # the number of hashtags, or observations/tweet contents that each agent can tweet & observe from other agents
 
+h_idea_mapping_base = maths.softmax(np.eye(num_H) * 1.0)
+belief2tweet_mapping = np.eye(num_H)
+
+p = 0.2
+
+G = nx.fast_gnp_random_graph(N,p) # create the graph for this trial & condition
+
+if not nx.is_connected(G):
+    G = connect_edgeless_nodes(G) # make sure graph is connected
+
+G, agents = initialize_graph_and_agents(G, num_H, idea_levels, h_idea_mapping_base, belief2tweet_mapping)
+
+observation_buffer, agent_neighbours_global = initialize_observation_buffer(G, agents)
+
+G, agents, observation_hist, belief_hist, action_hist = multi_agent_loop(G, agents, T, observation_buffer, agent_neighbours_global)
         
+
+# %%
