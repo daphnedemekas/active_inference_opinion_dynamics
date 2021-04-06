@@ -613,7 +613,7 @@ def construct_policies(n_states, n_control=None, policy_len=1, control_fac_idx=N
         return policies
 
 
-def sample_action(q_pi, policies, n_states, sampling_type="marginal_action", alpha = 1.0):
+def sample_action(q_pi, policies, n_states, control_indices, sampling_type="marginal_action", alpha = 1.0):
     """
     Samples action from posterior over policies, using one of two methods. 
     Parameters
@@ -639,9 +639,9 @@ def sample_action(q_pi, policies, n_states, sampling_type="marginal_action", alp
     selected_policy [1D numpy ndarray]:
         Numpy array containing the indices of the actions along each control factor
     """
-
+    control_factors = [n_states[i] for i in control_indices]
     n_factors = len(n_states)
-
+    n_control_factors = len(control_factors)
     if sampling_type == "marginal_action":
 
         action_marginals = utils.obj_array(n_factors)
@@ -652,13 +652,16 @@ def sample_action(q_pi, policies, n_states, sampling_type="marginal_action", alp
         for pol_idx, policy in enumerate(policies):
             for t in range(policy.shape[0]):
                 for factor_i, action_i in enumerate(policy[t, :]):
-                    action_marginals[factor_i][action_i] += q_pi[pol_idx]
 
+                    action_marginals[factor_i][action_i] += q_pi[pol_idx]
+        print("action marginals")
+        print(action_marginals[-2:])
+        print()
         selected_policy = np.zeros(n_factors)
-        for factor_i in range(n_factors):
-            # selected_policy[factor_i] = np.where(np.random.multinomial(1,action_marginals[factor_i]))[0][0]
+        for factor_i in control_indices:
+            #selected_policy[factor_i] = np.where(np.random.multinomial(1,action_marginals[factor_i]))[0][0]
             selected_policy[factor_i] = np.argmax(action_marginals[factor_i])
-            # selected_policy[factor_i] = utils.sample(softmax(alpha*action_marginals[factor_i]))
+            #selected_policy[factor_i] = utils.sample(softmax(alpha*action_marginals[factor_i]))
 
     elif sampling_type == "posterior_sample":
         

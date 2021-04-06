@@ -106,6 +106,8 @@ class GenerativeModel(object):
 
         self.policy_mapping = self.generate_policy_mapping()
 
+        self.initial_action = initial_action 
+
     def generate_likelihood(self):
 
         #initialize the A matrix 
@@ -133,12 +135,11 @@ class GenerativeModel(object):
                     A[o_idx][tuple(A_indices)] = self.h_control_mapping
 
             if o_idx in self.neighbour_h_idx: # now we're considering one of the observation modalities corresponding to seeing my neighbour's tweets
-                
                 for truth_level in range(self.num_states[self.focal_belief_idx]): # the precision of the mapping is dependent on the truth value of the hidden state 
                                                                     # this reflects the idea that 
                     h_idea_mapping_scaled = np.copy(self.h_idea_mapping)
-                    h_idea_mapping_scaled[:,truth_level] = softmax(self.precisions[truth_level] * self.h_idea_mapping[:,truth_level])
-
+                    
+                    h_idea_mapping_scaled[:,truth_level] = softmax(self.precisions[o_idx-1,truth_level] * self.h_idea_mapping[:,truth_level])
                     idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
                     idx_vec_o[self.focal_belief_idx+1] = slice(truth_level,truth_level+1,None)
 
@@ -372,6 +373,13 @@ class GenerativeModel(object):
 
         h_idea_mapping = h_idea_mapping / h_idea_mapping.sum(axis=0)
 
+        #print(h_idea_mapping)
+        #print()
+        #h_idea_mapping = np.eye(self.num_H)
+        #h_idea_mapping[:,0] = softmax(h_idea_mapping[:,0]*1.0)
+        #h_idea_mapping[:,1] = softmax(h_idea_mapping[:,1]*1.0)
+        #print(h_idea_mapping)
+        #raise
         return h_idea_mapping
     
     def get_policy_prior(self, qs_f):
