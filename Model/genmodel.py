@@ -137,7 +137,7 @@ class GenerativeModel(object):
                 for truth_level in range(self.num_states[self.focal_belief_idx]): # the precision of the mapping is dependent on the truth value of the hidden state 
                                                                     # this reflects the idea that 
                     h_idea_mapping_scaled = np.copy(self.h_idea_mapping)
-                    h_idea_mapping_scaled[:,truth_level] = softmax(self.precisions[truth_level] * self.h_idea_mapping[:,truth_level])
+                    h_idea_mapping_scaled[:,truth_level] = softmax(self.precisions[o_idx-1, truth_level] * self.h_idea_mapping[:,truth_level])
 
                     idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
                     idx_vec_o[self.focal_belief_idx+1] = slice(truth_level,truth_level+1,None)

@@ -1,6 +1,12 @@
 #### Script for running opinion dynamics simulations for different settings of the p parameter of the Erdos-Renyi random graph
 
 # %% Imports
+
+import sys
+import pathlib
+
+sys.path.append(str(pathlib.Path(__file__).parent.parent))
+
 import numpy as np
 import networkx as nx
 from Model.agent import Agent
@@ -24,7 +30,7 @@ def initialize_graph_and_agents(G, num_H, idea_levels, h_idea_mapping, belief2tw
 
         #confirmation_bias_param = np.random.uniform(low=2.5, high=5.0) #confirmation bias params? one param per idea level but should be per neighbour
         per_neighbour_cb_params = np.random.uniform(low=4, high=7)*np.ones((num_neighbours, idea_levels))
-        env_det_param =  6#how determinstic the environmennt is in general
+        env_det_param =  6 #how determinstic the environmennt is in general
         belief_det_params = np.random.uniform(low=3.0, high=9.0, size=(num_neighbours,)) #how deterministic the nieghbours are specifically
         initial_tweet, initial_neighbour_to_sample = np.random.randint(num_H), np.random.randint(num_neighbours) 
         agent_i_params = {
@@ -92,40 +98,33 @@ def multi_agent_loop(G, agents, T, observation_buffer, agent_neighbours_global):
     all_actions = utils.obj_array( (T, N) )
     all_beliefs = utils.obj_array( (T, N) )
     all_observations = utils.obj_array( (T, N) )
-    for t in range(T):
-        print(str(t) + '/' + str(T))
 
-        print(t)
+    for t in range(T):
 
         all_observations[t,:] = copy.deepcopy(observation_buffer)
 
         # First loop over agents: Do belief-updating (inference) and action selection
         if t == 0:
 
-            for agent_idx, agent in enumerate(agents):
-                agent.infer_states(True, tuple(agent.observations))
-                agent.infer_policies()
+            for agent_id, agent in enumerate(agents):
+                qs = agent.infer_states(True, tuple(observation_buffer[agent_id]))
+                agent.infer_policies(qs)
                 action = agent.sample_action()
                 all_actions[t,agent_id] = np.copy(action[-2:]) # we only store the last two control factor actions (what I'm tweeting and who I'm looking at)
                 all_beliefs[t,agent_id] = copy.deepcopy(qs) # deepcopy perhaps not needed here
 
-                all_actions[t,agent_idx] = action[-2:] # we only store the last two control factor actions (what I'm tweeting and who I'm looking at)
-                all_beliefs[t,agent_idx] = copy.deepcopy(agent.qs) # deepcopy perhaps not needed here
         else:
 
-            for agent_idx, agent in enumerate(agents):
-                qs = agent.infer_states(False, tuple(agent.observations))
-                print("qs[0]")
-                print(qs[0])
-                print()
-                agent.infer_policies()
+            for agent_id, agent in enumerate(agents):
+                qs = agent.infer_states(False, tuple(observation_buffer[agent_id]))
+                agent.infer_policies(qs)
                 action = agent.sample_action()
                 all_actions[t,agent_id] = np.copy(action[-2:]) # we only store the last two control factor actions (what I'm tweeting and who I'm looking at)
                 all_beliefs[t,agent_id] = copy.deepcopy(qs) # deepcopy perhaps not needed here
         
         # Second loop over agents: based on what actions everyone selected, now get actions
 
-        observation_buffer = utils.obj_array(N)
+        observation_buffer = utils.obj_array(N) # reset the buffer
 
         for agent_id, agent in enumerate(agents):
 
@@ -145,21 +144,17 @@ def multi_agent_loop(G, agents, T, observation_buffer, agent_neighbours_global):
 
 # %% Run the parameter sweep
 
-T = 50          # number of timesteps in the simulation
-N = 6   # total number of agents in network
-idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)
-num_H = 2       # the number of hashtags, or observations/tweet contents that each agent can tweet & observe from other agents
+T = 10           # number of timesteps in the simulation
+N = 10           # total number of agents in network
+idea_levels = 2  # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)
+num_H = 2        # the number of hashtags, or observations/tweet contents that each agent can tweet & observe from other agents
 
-h_idea_mapping = maths.softmax(np.eye(num_H) * 0.1)
-#h_idea_mapping = np.eye(num_H)
-#h_idea_mapping[:,0] = maths.softmax(h_idea_mapping[:,0]*0.1)
-#h_idea_mapping[:,1] = maths.softmax(h_idea_mapping[:,1]*0.1)
-
+h_idea_mapping_base = maths.softmax(np.eye(num_H) * 1.0)
 
 belief2tweet_mapping = np.eye(num_H)
 
-p_vec = np.linspace(0.6,1,1) # different levels of random connection parameter in Erdos-Renyi random graphs
-num_trials = 1 # number of trials per level of the ER parameter
+p_vec = np.linspace(0.1,1,10) # different levels of random connection parameter in Erdos-Renyi random graphs
+num_trials = 10 # number of trials per level of the ER parameter
 
 for param_idx, p in enumerate(p_vec):
 
@@ -177,7 +172,6 @@ for param_idx, p in enumerate(p_vec):
             if not nx.is_connected(G):
                 G = connect_edgeless_nodes(G) # make sure graph is 
 
-
         G, agents = initialize_graph_and_agents(G, num_H, idea_levels, h_idea_mapping_base, belief2tweet_mapping, reduce_A = True)
 
         observation_buffer, agent_neighbours_global = initialize_observation_buffer(G, agents)
@@ -189,6 +183,10 @@ T = 25          # number of timesteps in the simulation
 N = 10      # total number of agents in network
 idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)
 num_H = 2       # the number of hashtags, or observations/tweet contents that each agent can tweet & observe from other agents
+
+h_idea_mapping_base = maths.softmax(np.eye(num_H) * 1.0)
+
+belief2tweet_mapping = np.eye(num_H)
 
 G = nx.complete_graph(N) # create the graph for this trial & condition
 
@@ -206,6 +204,8 @@ G = nx.complete_graph(N) # create the graph for this trial & condition
 
 G, agents = initialize_graph_and_agents(G, num_H, idea_levels, h_idea_mapping_base, belief2tweet_mapping, reduce_A = True)
 
+observation_buffer, agent_neighbours_global = initialize_observation_buffer(G, agents)
+
 G, agents, observation_hist, belief_hist, action_hist = multi_agent_loop(G, agents, T, observation_buffer, agent_neighbours_global)
 
 beliefs_idea_1 = np.zeros((T, N))
@@ -214,4 +214,5 @@ for t_idx in range(T):
         beliefs_idea_1[t_idx,n] = belief_hist[t_idx,n][0][0]
 
 plt.plot(beliefs_idea_1)
+
 # %%
