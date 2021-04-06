@@ -16,17 +16,17 @@ idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g
 num_H = 2 #the number of hashtags, or observations that can shed light on the idea
 num_neighbours = 2 
 h_idea_mapping = np.eye(num_H)
-h_idea_mapping[:,0] = softmax(h_idea_mapping[:,0]*1.0)
-h_idea_mapping[:,1] = softmax(h_idea_mapping[:,1]*1.0)
+h_idea_mapping[:,0] = softmax(h_idea_mapping[:,0]*0.1)
+h_idea_mapping[:,1] = softmax(h_idea_mapping[:,1]*0.1)
 
 agent_params = {
 
             "neighbour_params" : {
                 # "precisions" : np.random.uniform(low=0.3, high=3.0, size=(2,)),
-                "precisions" : np.array([3.0, 3.0]),
+                "precisions" : np.random.uniform(low=4, high=7)*np.ones((num_neighbours, idea_levels)),
                 "num_neighbours" : 2,
-                "env_determinism": 5.0,
-                "belief_determinism": np.array([6.0, 3.0])
+                "env_determinism": 9.0,
+                "belief_determinism": np.array([5.0, 6.0])
                 },
 
             "idea_mapping_params" : {
@@ -67,7 +67,6 @@ history_of_idea_beliefs = np.zeros((T,idea_levels)) # history of my own posterio
 history_of_beliefs_about_other = np.zeros((T,agent.genmodel.num_states[1],num_neighbours)) # histoyr of my posterior beliefs about the beliefs of my two neighbours about the truth/falsity of the idea
 
 qs = agent.infer_states(True, observation)
-
 # %%
 history_of_idea_beliefs[0,:] = qs[0]
 history_of_beliefs_about_other[0,:,0] = qs[1]
@@ -92,8 +91,7 @@ for t in range(1,T):
     # agent.qs = qs
 
     agent.infer_states(False,observation)
-
-    q_pi = agent.infer_policies(qs)
+    q_pi = agent.infer_policies()
     neighbour_sampling_probs[t,0] = q_pi[0] + q_pi[2] # add the probabilities of policies corresponding to sampling neighbour 0
     neighbour_sampling_probs[t,1] = q_pi[1] + q_pi[3] # add the probabilities of policies corresponding to sampling neighbour 1
 
@@ -134,6 +132,7 @@ plt.plot(history_of_beliefs_about_other[:,0,1],label='My beliefs about Neighbour
 # plt.scatter(np.arange(T)[history_of_who_im_looking_at == 1], 0.25*np.ones(T)[history_of_who_im_looking_at==1], c = 'green')
 
 plt.legend(fontsize=18)
+plt.show()
 # plt.savefig('self_vs_other_beliefs_with_actions.png')
 
 # %% Debugging the belief updating
