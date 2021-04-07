@@ -56,7 +56,13 @@ def multi_agent_loop(T, agents, agent_neighbours_local):
 
 
 
-def make_plots(all_actions, agent_own_beliefs,p,T):
+def plot_beliefs_over_time(all_actions, agent_own_beliefs, p,T):
+
+    def color_dict(value):
+            if value < 0.5:
+                return "blue"
+            else:
+                return "red"
 
     for a in range(N):
         data = agent_own_beliefs[a][:,0]
@@ -65,10 +71,13 @@ def make_plots(all_actions, agent_own_beliefs,p,T):
     plt.title("Connectedness of graph: " +str(p))
     plt.ylabel("Belief that idea is True")
     plt.xlabel("Time")
-    plt.show()
 
 def KL_div(array1_0, array1_1, array2_0, array2_1):
     return array1_0 * np.log(array1_0 / array2_0) + array1_1 * np.log(array1_1 / array2_1)
+
+def plot_KLD_similarity_matrix(KLD_intra_beliefs):
+
+    plt.imshow(KLD_intra_beliefs[:,:,-1], cmap = 'gray')
 
 def inference_loop(G,N): #just goes until you get a graph that has the right connectedness
     try:
@@ -126,6 +135,7 @@ def get_action_metrics(all_actions, N,T):
     all_actions = np.array(all_actions) # shape is T, N, 2
     agent_actions_per_timestep = np.array([[action[0] for action in all_actions[:,a]] for a in range(N)]) # (N,T,2)
     
+    print(agent_actions_per_timestep)
     agent_tweet_proportions = np.zeros((N,2))
 
     for a in range(N):
@@ -153,12 +163,17 @@ if __name__ == '__main__':
             
             G = nx.fast_gnp_random_graph(N,p) # create the graph for this trial & condition
 
+            #this performs the multiagent inference
             all_actions, all_beliefs, all_observations, agents, agent_neighbours = inference_loop(G,N)
 
+            #collect metrics
             agent_beliefs, KLD_inter_beliefs, KLD_intra_beliefs, belief_proportions, belief_differences_normalised, _, _ = get_belief_metrics(all_beliefs, agents, agent_neighbours,T)
-            make_plots(all_actions, agent_beliefs,p,T)
-            
             tweet_proportions = get_action_metrics(all_actions, N, T)
-            print(tweet_proportions)
-            #plt.imshow(KLD_intra_beliefs[:,:,-1], cmap = 'gray')
+
+            #make plots 
+            plot_beliefs_over_time(all_actions, agent_beliefs, p, T)
             #plt.show()
+            plot_KLD_similarity_matrix(KLD_intra_beliefs)
+            #plt.show()
+
+
