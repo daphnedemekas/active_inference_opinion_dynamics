@@ -97,7 +97,7 @@ def generate_likelihood(h_idea_mapping, h_control_mapping, precisions, num_neigh
             for truth_level in range(num_states[focal_belief_idx]): # the precision of the mapping is dependent on the truth value of the hidden state 
                                                                     # this reflects the idea that 
                 h_idea_mapping_scaled = np.copy(h_idea_mapping)
-                h_idea_mapping_scaled[:,truth_level] = softmax(precisions[truth_level] * h_idea_mapping[:,truth_level])
+                h_idea_mapping_scaled[:,truth_level] = softmax(precisions[o_idx, truth_level] * h_idea_mapping[:,truth_level])
 
                 idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
                 idx_vec_o[focal_belief_idx+1] = slice(truth_level,truth_level+1,None)

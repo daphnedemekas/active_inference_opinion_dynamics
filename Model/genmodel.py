@@ -1,6 +1,6 @@
 import numpy as np 
 import itertools
-from .pymdp.utils import obj_array, obj_array_uniform, insert_multiple, softmax, onehot
+from .pymdp.utils import obj_array, obj_array_uniform, insert_multiple, softmax, onehot, reduce_a_matrix
 
 class GenerativeModel(object):
 
@@ -25,8 +25,10 @@ class GenerativeModel(object):
         cohesion_exp = None,
         cohesion_temp = None,
 
-        env_volatility = None,
-        belief_volatility = None
+        env_determinism = None,
+        belief_determinism = None,
+
+        reduce_A = False
 
 
     ):
@@ -54,32 +56,33 @@ class GenerativeModel(object):
         self.num_neighbours = num_neighbours
         self.num_cohesion_levels = 2 * (self.num_neighbours+1)
 
-        self.env_volatility = env_volatility
-        if self.env_volatility is None:
-            self.env_volatility = np.random.uniform(low=0.5, high=3.0)
+        self.env_determinism = env_determinism
+        if self.env_determinism is None:
+            self.env_determinism = np.random.uniform(low=0.5, high=3.0)
         else:
-            assert np.isscalar(self.env_volatility), "Your env_volatility has the wrong shape. It should be a scalar"
+            assert np.isscalar(self.env_determinism), "Your env_determinism has the wrong shape. It should be a scalar"
 
 
-        self.belief_volatility = belief_volatility   
-        if self.belief_volatility is None:
-            self.belief_volatility = np.random.uniform(low=0.5, high=3.0, size=(num_neighbours,))
+        self.belief_determinism = belief_determinism   
+        if self.belief_determinism is None:
+            self.belief_determinism = np.random.uniform(low=0.5, high=3.0, size=(num_neighbours,))
         else:
-            assert self.belief_volatility.shape == (num_neighbours,), "Your belief_volatility has the wrong shape. It should be (num_neighbours,)"
+            assert self.belief_determinism.shape == (num_neighbours,), "Your belief_determinism has the wrong shape. It should be (num_neighbours,)"
 
 
         self.belief2tweet_mapping = belief2tweet_mapping 
         self.h_control_mapping = np.eye(self.num_H)
-        self.num_obs = [self.num_H] + (self.num_neighbours) * [self.num_H+1] + [self.num_cohesion_levels] # list that contains the dimensionalities of each sensory   
+        # self.num_obs = [self.num_H] + (self.num_neighbours) * [self.num_H+1] + [self.num_neighbours] + [self.num_cohesion_levels] # list that contains the dimensionalities of each sensory   
+        self.num_obs = [self.num_H] + (self.num_neighbours) * [self.num_H+1] + [self.num_neighbours]                               # list that contains the dimensionalities of each sensory   
 
         self.num_modalities = len(self.num_obs) # total number of observation modalities
         self.num_states = (1+ self.num_neighbours) * [self.idea_levels] + [self.num_H] + [self.num_neighbours]
         self.num_factors = len(self.num_states) # total number of hidden state factors
 
-
         self.focal_h_idx = 0 # index of the observation modality corresponding to my observing my own hashtags
         self.neighbour_h_idx = [(self.focal_h_idx + n + 1) for n in range(self.num_neighbours)] # indices of the observation modalities corresponding to observation of my neighbours' hashtags
-        self.cohesion_idx = self.neighbour_h_idx[-1] + 1 # index of the observation modality corresponding to seeing the level of discrepancy you have with your neighbours 
+        self.who_obs_idx = self.neighbour_h_idx[-1] + 1 # index of the observation modality corresponding to the observation of one's own sampling action
+        # self.cohesion_idx = self.who_obs_idx + 1 # index of the observation modality corresponding to seeing the level of discrepancy you have with your neighbours 
 
         # create variables to name the hidden state factor indices
         self.focal_belief_idx = 0
@@ -91,10 +94,19 @@ class GenerativeModel(object):
         
         self.policies = self.generate_policies()
         self.A = self.generate_likelihood()
+        if reduce_A:
+            self.A_reduced = obj_array(self.num_modalities)
+            self.informative_dims = []
+            for g in range(self.num_modalities):
+                self.A_reduced[g], factor_idx = reduce_a_matrix(self.A[g])
+                self.informative_dims.append(factor_idx)
+        
         self.B = self.generate_transition()
         self.C = self.generate_prior_preferences()
 
         self.policy_mapping = self.generate_policy_mapping()
+
+        self.initial_action = initial_action 
 
     def generate_likelihood(self):
 
@@ -110,11 +122,11 @@ class GenerativeModel(object):
         #iterate over the sensory modalities 
         for o_idx, o_dim in enumerate(self.num_obs):
             #begin with modality 1
-            if o_idx == self.focal_h_idx: #this happens for 0 == 0 -- we are in the 0th sensory modality (my beliefs about H) 
+            if o_idx == self.focal_h_idx: #this happens for o_idx == 0 -- we are in the 0th sensory modality (my beliefs about H) 
 
                 h_obs = self.num_H #we only observe the two hashtags, not the null observation
-                dimensions = [h_obs] + [self.idea_levels] + [self.idea_levels]*self.num_neighbours + [self.num_H] + [self.num_neighbours] #this is the shape of the modality
-                fill_indices = [0,self.h_control_idx+1] # these are the dimensions we need to fill for this modality
+                dimensions = [h_obs] + self.num_states #this is the shape of the modality-specific A matrix A[o_idx]
+                fill_indices = [0,self.h_control_idx+1] # these are indices of the dimensions we need to fill for this modality
                 fill_dimensions = np.delete(dimensions, fill_indices) 
                 
                 for item in itertools.product(*[list(range(d)) for d in fill_dimensions]):
@@ -123,12 +135,11 @@ class GenerativeModel(object):
                     A[o_idx][tuple(A_indices)] = self.h_control_mapping
 
             if o_idx in self.neighbour_h_idx: # now we're considering one of the observation modalities corresponding to seeing my neighbour's tweets
-                
                 for truth_level in range(self.num_states[self.focal_belief_idx]): # the precision of the mapping is dependent on the truth value of the hidden state 
                                                                     # this reflects the idea that 
                     h_idea_mapping_scaled = np.copy(self.h_idea_mapping)
-                    h_idea_mapping_scaled[:,truth_level] = softmax(self.precisions[truth_level] * self.h_idea_mapping[:,truth_level])
-
+                    
+                    h_idea_mapping_scaled[:,truth_level] = softmax(self.precisions[o_idx-1,truth_level] * self.h_idea_mapping[:,truth_level])
                     idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
                     idx_vec_o[self.focal_belief_idx+1] = slice(truth_level,truth_level+1,None)
 
@@ -173,57 +184,43 @@ class GenerativeModel(object):
                             null_matrix_reshaped = np.reshape(null_matrix,reshape_vector)
                             A[o_idx][tuple(idx_vec_o)] = np.tile(null_matrix_reshaped, tuple(broadcast_dims_specific))
 
+            if o_idx == self.who_obs_idx:   
 
-                # h_obs_with_null = self.num_H + 1 # we now have the null observation 
-                # dimensions = [h_obs_with_null] + [self.idea_levels] + [self.idea_levels]*self.num_neighbours + [self.num_H] + [self.num_neighbours]
+                sampling_A = np.eye(self.num_obs[self.who_obs_idx])
 
-                # for truth_level in range(self.num_states[self.focal_belief_idx]): # the precision of the mapping is dependent on the truth value of the hidden state 
-                #     h_idea_mapping_scaled = np.copy(self.h_idea_mapping)
-                #     h_idea_mapping_scaled[:,truth_level] = softmax(self.precisions[truth_level] * self.h_idea_mapping[:,truth_level])
-                #         # augment the h->idea mapping matrix with a row of 0s on top to account for the the null observation (this is for the case when you are sampling the agent whose modality we're considering)
-                #     h_idea_with_null = np.zeros((o_dim,self.num_states[o_idx-1]))
-                #     # h_idea_with_null[1:,:] = np.transpose(np.copy(h_idea_mapping_scaled))
-                #     h_idea_with_null[1:,:] = np.copy(h_idea_mapping_scaled)
+                who_obs = self.num_obs[self.who_obs_idx]
 
-                #     # create the null matrix for the case when you're _not_ sampling the neighbour whose modality we're considering
-                #     null_matrix = np.zeros((o_dim,self.num_states[o_idx-1]))
-                #     null_matrix[0,:] = np.ones(self.num_states[o_idx-1]) # every observation is the 'null' observation because we're sampling someone else
-                    
-                #     for neighbour_i in range(self.num_states[self.who_idx]): 
-                #         fill_indices = [0, self.focal_belief_idx + 1, self.neighbour_h_idx[neighbour_i]+1, self.who_idx+1]
-                #         fill_dimensions = np.delete(dimensions,tuple(fill_indices)) #the fill dimensions are those which we need to iterate over
-                        
-                #         for item in itertools.product(*[list(range(d)) for d in fill_dimensions]):
-                #             slice_ = list(item) #now we specify the values of the indices for this specific combination of truth value, neighbour and who_idx
-                #             A_indices = insert_multiple(slice_, fill_indices, [slice(0,h_obs_with_null), truth_level, slice(0,self.idea_levels), neighbour_i ]) #here we insert the correct values for the fill indices for this slice                    
-                            
-                #             if (o_idx - 1) == neighbour_i: # this is the case when the observation modality in question `o_idx` corresponds to the modality of the neighbour we're sampling `who_i`               
-                #                 A[o_idx][tuple(A_indices)] = h_idea_with_null
-                                
-                #             else:
-                #                 A[o_idx][tuple(A_indices)] = null_matrix
-
-            if o_idx == self.cohesion_idx: #this is the final modality for observing the cohesion of the group's beliefs with respect to my own beliefs
-                dimensions = [self.num_cohesion_levels] + [self.idea_levels] + [self.idea_levels]*self.num_neighbours + [self.num_H] + [self.num_neighbours]
-                belief_combos = np.array(list(itertools.product([0, 1], repeat=self.num_neighbours+1))) #all combinations of low, medium high cohesiveness beliefs
-                pop_sum = belief_combos[:,1:].sum(axis=1)
-                cohesion_levels = np.zeros( (2, self.num_neighbours+1, belief_combos.shape[0] ) )
-                thresholds = np.linspace(0,1,self.num_neighbours+2)
+                dimensions = [who_obs] + self.num_states #this is the shape of the modality-specific A matrix A[o_idx]
+                fill_indices = [0,self.who_idx+1] # these are the indices of the dimensions we need to fill for this modality
+                fill_dimensions = np.delete(dimensions, fill_indices) 
                 
-                for truth_level in range(self.num_states[self.focal_belief_idx]): #map the possible combinations to different levels of cohesion 
-                    for t_idx in range(len(thresholds[0:-1])):
-                        idx = np.logical_and( (belief_combos[:,0]==truth_level), np.logical_and((pop_sum >= thresholds[t_idx]*self.num_neighbours), (pop_sum <= thresholds[t_idx+1]*self.num_neighbours) ) )
-                        cohesion_levels[truth_level,t_idx,idx] = 1.0 
-
-                fill_dimensions = np.delete(dimensions,0) #only need to fill the first dimension
-
                 for item in itertools.product(*[list(range(d)) for d in fill_dimensions]):
-                    A_indices = list(item)
-                    A_indices.insert(0,slice(0,self.num_cohesion_levels+1))
-                    combo = A_indices[(self.focal_belief_idx+1):(self.h_control_idx+1)] #the current combination of beliefs 
-                    combo_id = np.where(np.all(belief_combos==combo, axis=1)) #find the index of this combination in belief_combos
-                    A[o_idx][tuple(A_indices)] = np.ones(self.num_cohesion_levels) / self.num_cohesion_levels
-                    #A[o_idx][tuple(A_indices)] = cohesion_levels[:,:,combo_id].flatten()
+                    slice_ = list(item)
+                    A_indices = insert_multiple(slice_, fill_indices, [slice(0,who_obs), slice(0,self.num_states[self.who_idx])]) #here we insert the correct values for the fill indices for this slice                    
+                    A[o_idx][tuple(A_indices)] = sampling_A
+
+
+            # if o_idx == self.cohesion_idx: #this is the final modality for observing the cohesion of the group's beliefs with respect to my own beliefs
+            #     dimensions = [self.num_cohesion_levels] + [self.idea_levels] + [self.idea_levels]*self.num_neighbours + [self.num_H] + [self.num_neighbours]
+            #     belief_combos = np.array(list(itertools.product([0, 1], repeat=self.num_neighbours+1))) #all combinations of low, medium high cohesiveness beliefs
+            #     pop_sum = belief_combos[:,1:].sum(axis=1)
+            #     cohesion_levels = np.zeros( (2, self.num_neighbours+1, belief_combos.shape[0] ) )
+            #     thresholds = np.linspace(0,1,self.num_neighbours+2)
+                
+            #     for truth_level in range(self.num_states[self.focal_belief_idx]): #map the possible combinations to different levels of cohesion 
+            #         for t_idx in range(len(thresholds[0:-1])):
+            #             idx = np.logical_and( (belief_combos[:,0]==truth_level), np.logical_and((pop_sum >= thresholds[t_idx]*self.num_neighbours), (pop_sum <= thresholds[t_idx+1]*self.num_neighbours) ) )
+            #             cohesion_levels[truth_level,t_idx,idx] = 1.0 
+
+            #     fill_dimensions = np.delete(dimensions,0) #only need to fill the first dimension
+
+            #     for item in itertools.product(*[list(range(d)) for d in fill_dimensions]):
+            #         A_indices = list(item)
+            #         A_indices.insert(0,slice(0,self.num_cohesion_levels+1))
+            #         combo = A_indices[(self.focal_belief_idx+1):(self.h_control_idx+1)] #the current combination of beliefs 
+            #         combo_id = np.where(np.all(belief_combos==combo, axis=1)) #find the index of this combination in belief_combos
+            #         A[o_idx][tuple(A_indices)] = np.ones(self.num_cohesion_levels) / self.num_cohesion_levels
+            #         #A[o_idx][tuple(A_indices)] = cohesion_levels[:,:,combo_id].flatten()
         return A
 
 
@@ -236,13 +233,13 @@ class GenerativeModel(object):
 
             if f_idx == self.focal_belief_idx:
                 transition_identity = np.eye(f_dim, f_dim)
-                B[f_idx] = np.expand_dims(softmax(transition_identity * self.env_volatility), axis = 2)
+                B[f_idx] = np.expand_dims(softmax(transition_identity * self.env_determinism), axis = 2)
             
             if f_idx in self.neighbour_belief_idx: #the first N+1 hidden state factors are variations of the identity matrix based on belief volatiliy
                 
                 transition_identity = np.eye(f_dim, f_dim)
                 #expand dimension so we can fit with the length of the policy arrays 
-                B[f_idx] = np.expand_dims(softmax(transition_identity * self.belief_volatility[f_idx-1]), axis = 2)
+                B[f_idx] = np.expand_dims(softmax(transition_identity * self.belief_determinism[f_idx-1]), axis = 2)
             
             if f_idx == self.h_control_idx: #for the hashtag control state we have rows of ones corresponding to the next state
 
@@ -261,32 +258,27 @@ class GenerativeModel(object):
 
     
         return B
-    
-    #these are prior preferences over observations so
-    #what i would like to see (cohesion, other beliefs)
+
     def generate_prior_preferences(self):
 
-    # def generate_prior_preferences(self, preference_shape = "parabola", cohesion_exp = 2.0, cohesion_temp = 5.0):
-
         C = obj_array(self.num_modalities)
-        #self.preference_shape = "parabola"
 
         for o_idx, o_dim in enumerate(self.num_obs): 
             
             C[o_idx] = np.zeros(o_dim)
 
-            if o_idx == self.cohesion_idx:
+            # if o_idx == self.cohesion_idx:
 
-                if self.preference_shape == "one_hot":
-                    C[o_idx][0] = 1.0
-                    C[o_idx][-1] = 1.0
-                    C[o_idx] = softmax(cohesion_temp*C[o_idx])
+            #     if self.preference_shape == "one_hot":
+            #         C[o_idx][0] = 1.0
+            #         C[o_idx][-1] = 1.0
+            #         C[o_idx] = softmax(cohesion_temp*C[o_idx])
 
-                if self.preference_shape == "parabola":
-                    C[o_idx] = np.linspace(-1.0, 1.0, o_dim) ** self.cohesion_exp
+            #     if self.preference_shape == "parabola":
+            #         C[o_idx] = np.linspace(-1.0, 1.0, o_dim) ** self.cohesion_exp
 
-                if self.preference_shape == "linear":
-                    C[o_idx] = 0.1*np.absolute(np.linspace(-1.0, 1.0, o_dim))       
+            #     if self.preference_shape == "linear":
+            #         C[o_idx] = 0.1*np.absolute(np.linspace(-1.0, 1.0, o_dim))       
                 
         return C
     
@@ -360,7 +352,7 @@ class GenerativeModel(object):
         policy_mapping = np.zeros((num_policies, self.idea_levels))
         
         if self.belief2tweet_mapping is None:
-            self.belief2tweet_mapping = self.h_idea_mapping
+            self.belief2tweet_mapping = np.eye(self.num_H, self.idea_levels)
             #self.belief2tweet_mapping = np.random.uniform(low = 1, high = 9, size=(self.num_H , self.idea_levels))
         else:
             assert self.belief2tweet_mapping.shape == (self.num_H , self.idea_levels), "Your belief2tweet_mapping has the wrong shape. It should be (self.num_H , self.idea_levels)"
@@ -371,7 +363,6 @@ class GenerativeModel(object):
                 normalising_constant = (array_policies[:,self.h_control_idx] == action_idx).sum()
                 if policy[self.h_control_idx] == action_idx:
                     policy_mapping[policy_idx,:] = self.belief2tweet_mapping[action_idx,:] / normalising_constant
-        #self.policy_mapping = policy_mapping
         return policy_mapping
     
     
@@ -381,6 +372,13 @@ class GenerativeModel(object):
 
         h_idea_mapping = h_idea_mapping / h_idea_mapping.sum(axis=0)
 
+        #print(h_idea_mapping)
+        #print()
+        #h_idea_mapping = np.eye(self.num_H)
+        #h_idea_mapping[:,0] = softmax(h_idea_mapping[:,0]*1.0)
+        #h_idea_mapping[:,1] = softmax(h_idea_mapping[:,1]*1.0)
+        #print(h_idea_mapping)
+        #raise
         return h_idea_mapping
     
     def get_policy_prior(self, qs_f):

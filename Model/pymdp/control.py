@@ -9,7 +9,7 @@ __author__: Conor Heins, Alexander Tschantz, Brennan Klein
 
 import itertools 
 import numpy as np
-from .maths import softmax, spm_dot, spm_wnorm, spm_MDP_G
+from .maths import softmax, spm_dot, spm_wnorm, spm_MDP_G_optim
 from . import utils
 import copy 
 
@@ -94,6 +94,103 @@ def update_posterior_policies(
         #         neg_efe[idx] += calc_pA_info_gain(pA, qo_pi, qs_pi)
         #     if pB is not None:
         #         neg_efe[idx] += calc_pB_info_gain(pB, qs_pi, qs, policy)
+
+    q_pi = softmax(gamma*neg_efe + E)
+
+    q_pi = q_pi / q_pi.sum(axis=0)  # type: ignore
+    
+    return q_pi, neg_efe
+
+def update_posterior_policies_reduced(
+    qs,
+    A_reduced,
+    informative_dims,
+    B,
+    C,
+    E,
+    policies,
+    use_utility=True,
+    use_states_info_gain=True,
+    use_param_info_gain=False,
+    pA=None,
+    pB=None,
+    gamma=16.0):
+    """ Updates the posterior beliefs about policies based on expected free energy prior. Uses reduced A matrix
+        to speed up computation time.
+
+        Parameters
+        ----------
+        - `qs` [1D numpy array, array-of-arrays, or Categorical (either single- or multi-factor)]:
+            Current marginal beliefs about hidden state factors
+        - `A_reduced` [numpy ndarray, array-of-arrays (in case of multiple modalities), or Categorical 
+                (both single and multi-modality)]:
+            Observation likelihood model (beliefs about the likelihood mapping entertained by the agent)
+        - `informative_dims` [list of lists]:
+            This is a list of length `num_modalities` where each sub-list contains the indices of the hidden
+            state factors that have an informative relationship to observations for that modality.
+        - `B` [numpy ndarray, array-of-arrays (in case of multiple hidden state factors), or Categorical 
+                (both single and multi-factor)]:
+                Transition likelihood model (beliefs about the likelihood mapping entertained by the agent)
+        - `C` [numpy 1D-array, array-of-arrays (in case of multiple modalities), or Categorical 
+                (both single and multi-modality)]:
+            Prior beliefs about outcomes (prior preferences)
+        - `policies` [list of tuples]:
+            A list of all the possible policies, each expressed as a tuple of indices, where a given 
+            index corresponds to an action on a particular hidden state factor e.g. policies[1][2] yields the 
+            index of the action under policy 1 that affects hidden state factor 2
+        - `use_utility` [bool]:
+            Whether to calculate utility term, i.e how much expected observation confer with prior expectations
+        - `use_states_info_gain` [bool]:
+            Whether to calculate state information gain
+        - `use_param_info_gain` [bool]:
+            Whether to calculate parameter information gain @NOTE requires pA or pB to be specified 
+        - `pA` [numpy ndarray, array-of-arrays (in case of multiple modalities), or Dirichlet 
+                (both single and multi-modality)]:
+            Prior dirichlet parameters for A. Defaults to none, in which case info gain w.r.t. Dirichlet 
+            parameters over A is skipped.
+        - `pB` [numpy ndarray, array-of-arrays (in case of multiple hidden state factors), or 
+            Dirichlet (both single and multi-factor)]:
+            Prior dirichlet parameters for B. Defaults to none, in which case info gain w.r.t. 
+            Dirichlet parameters over A is skipped.
+        - `gamma` [float, defaults to 16.0]:
+            Precision over policies, used as the inverse temperature parameter of a softmax transformation 
+            of the expected free energies of each policy
+       
+        Returns
+        --------
+        - `qp` [1D numpy array or Categorical]:
+            Posterior beliefs about policies, defined here as a softmax function of the 
+            expected free energies of policies
+        - `efe` - [1D numpy array or Categorical]:
+            The expected free energies of policies
+
+    """
+    n_policies = len(policies)
+    neg_efe = np.zeros(n_policies) 
+    q_pi = np.zeros((n_policies, 1))
+
+    num_modalities = len(A_reduced)
+
+    qo_pi = utils.obj_array(num_modalities)
+
+    for idx, policy in enumerate(policies):
+        qs_pi = get_expected_states(qs, B, policy)
+        
+        # initialise expected observations
+        
+        for g in range(num_modalities):
+            if not informative_dims[g]:
+                qo_pi[g] = A_reduced[g]
+            else:
+                qo_pi[g] = spm_dot(A_reduced[g], qs_pi[informative_dims[g]])
+
+        if use_utility:
+            neg_efe[idx] += calc_expected_utility(qo_pi, C)
+
+        if use_states_info_gain:
+            for g in range(num_modalities):
+                if informative_dims[g]:
+                    neg_efe[idx] += spm_MDP_G_optim(A_reduced[g], qs_pi[informative_dims[g]])
 
     q_pi = softmax(gamma*neg_efe + E)
 
@@ -307,7 +404,7 @@ def calc_states_info_gain(A, qs_pi):
 
     states_surprise = 0
     for t in range(n_steps):
-        states_surprise += spm_MDP_G(A, qs_pi[t])
+        states_surprise += spm_MDP_G_optim(A, qs_pi[t])
 
     return states_surprise
 
@@ -516,32 +613,35 @@ def construct_policies(n_states, n_control=None, policy_len=1, control_fac_idx=N
         return policies
 
 
-def sample_action(q_pi, policies, n_states, sampling_type="marginal_action"):
+def sample_action(q_pi, policies, n_states, control_indices, sampling_type="marginal_action", alpha = 1.0):
     """
     Samples action from posterior over policies, using one of two methods. 
     Parameters
     ----------
-    q_pi [1D numpy.ndarray or Categorical]:
+    `q_pi` [1D numpy.ndarray or Categorical]:
         Posterior beliefs about (possibly multi-step) policies.
-    policies [list of numpy ndarrays]:
+    `policies` [list of numpy ndarrays]:
         List of arrays that indicate the policies under consideration. Each element 
         within the list is a matrix that stores the 
         the indices of the actions  upon the separate hidden state factors, at 
         each timestep (n_step x n_states)
-    n_states [list of integers]:
+    `n_states` [list of integers]:
         List of the dimensionalities of the different (controllable)) hidden state factors
-    sampling_type [string, 'marginal_action' or 'posterior_sample']:
+    `sampling_type` [string, 'marginal_action' or 'posterior_sample']:
         Indicates whether the sampled action for a given hidden state factor is given by 
         the evidence for that action, marginalized across different policies ('marginal_action')
         or simply the action entailed by a sample from the posterior over policies
+    `alpha` [Float]:
+        Inverse temperature / precision parameter of action sampling in case that
+        `sampling_type` == "marginal_action"
     Returns
     ----------
     selected_policy [1D numpy ndarray]:
         Numpy array containing the indices of the actions along each control factor
     """
-
+    control_factors = [n_states[i] for i in control_indices]
     n_factors = len(n_states)
-
+    n_control_factors = len(control_factors)
     if sampling_type == "marginal_action":
 
         action_marginals = utils.obj_array(n_factors)
@@ -552,16 +652,17 @@ def sample_action(q_pi, policies, n_states, sampling_type="marginal_action"):
         for pol_idx, policy in enumerate(policies):
             for t in range(policy.shape[0]):
                 for factor_i, action_i in enumerate(policy[t, :]):
-                    action_marginals[factor_i][action_i] += q_pi[pol_idx]
 
+                    action_marginals[factor_i][action_i] += q_pi[pol_idx]
         selected_policy = np.zeros(n_factors)
-        for factor_i in range(n_factors):
-            # selected_policy[factor_i] = np.where(np.random.multinomial(1,action_marginals[factor_i]))[0][0]
+        for factor_i in control_indices:
+            #selected_policy[factor_i] = np.where(np.random.multinomial(1,action_marginals[factor_i]))[0][0]
             selected_policy[factor_i] = np.argmax(action_marginals[factor_i])
+            #selected_policy[factor_i] = utils.sample(softmax(alpha*action_marginals[factor_i]))
 
     elif sampling_type == "posterior_sample":
         
-        policy_index = np.where(np.random.multinomial(1,q_pi))[0][0]
+        policy_index = utils.sample(q_pi)
         selected_policy = policies[policy_index]
 
     else:

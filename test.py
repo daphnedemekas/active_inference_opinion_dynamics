@@ -16,13 +16,13 @@ idea_levels = 2
 true_false_precisions = np.random.uniform(low=3.0, high=10.0, size=(num_neighbours,))
 h_control_mapping = np.eye(num_H)
 
-volatility_levels = np.random.uniform(low=0.5, high=3.0, size=(num_neighbours+1,)) # in theory, the first hidden state factor (my beliefs) should be parameterised based on the focal agent's beliefs _about the inherent stochasticity_ of the world,
+determinism_levels = np.random.uniform(low=0.5, high=3.0, size=(num_neighbours+1,)) # in theory, the first hidden state factor (my beliefs) should be parameterised based on the focal agent's beliefs _about the inherent stochasticity_ of the world,
 
 # MY PARAMETERS 
 neighbour_params = {
     "precisions" : true_false_precisions,
     "num_neighbours" : num_neighbours,
-    "volatility_levels": volatility_levels
+    "determinism_levels": determinism_levels
     }
 
 idea_mapping_params = {
