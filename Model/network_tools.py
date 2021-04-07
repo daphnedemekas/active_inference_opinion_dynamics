@@ -19,7 +19,7 @@ def create_multiagents(G, N , idea_levels = 2, num_H = 2, precision_params = Non
         env_determinism = 8  # min and max values of uniform distribution over environmental determinism parameters
     
     if belief_determinism is None:
-        belief_determinism = np.random.uniform(low=4.0, high=5.0, size=(N,)) # min and max values of uniform distribution over neighbour-belief determinism parameters
+        belief_determinism = np.random.uniform(low=5.0, high=6.0, size=(N,)) # min and max values of uniform distribution over neighbour-belief determinism parameters
     
     for i in G.nodes():
 

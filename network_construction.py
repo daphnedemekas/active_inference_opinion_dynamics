@@ -29,7 +29,7 @@ def multi_agent_loop(T, agents, agent_neighbours_local):
     all_observations = obj_array((T,N))
 
     for t in range(T):
-        #print(str(t) + "/" + str(T))
+        print(str(t) + "/" + str(T))
         actions = []
         for i in range(len(agents)):
             action, belief = agent_loop(agents[i], observation_t[i], initial)
@@ -76,8 +76,20 @@ def KL_div(array1_0, array1_1, array2_0, array2_1):
     return array1_0 * np.log(array1_0 / array2_0) + array1_1 * np.log(array1_1 / array2_1)
 
 def plot_KLD_similarity_matrix(KLD_intra_beliefs):
-
+    plt.title("Belief similarity matrix")
     plt.imshow(KLD_intra_beliefs[:,:,-1], cmap = 'gray')
+
+def plot_tweet_similarity_matrix(tweet_cohesion_matrix):
+    plt.title("Average tweet similarity matrix")
+    plt.imshow(tweet_cohesion_matrix, cmap = 'gray')
+
+def plot_proportions(tweets, beliefs):
+    sns.heatmap(tweets, cmap = "gray", xticklabels = ["hashtag1", "hashtag2"])
+    plt.title("Tweet proportions per agent")
+    plt.show()
+    sns.heatmap(beliefs, cmap = "gray", xticklabels = ["idea1", "idea2"])
+    plt.title("Belief proportions per agent")
+    plt.show()
 
 def inference_loop(G,N): #just goes until you get a graph that has the right connectedness
     try:
@@ -103,11 +115,11 @@ def get_belief_metrics(all_beliefs, agents, agent_neighbours,T):
     #KL_divergences between agents' beliefs
     KLD_intra_beliefs = np.zeros((N,N,T))
 
-    for a in range(len(agents)):
-        agent_p = []
-        for i, n in enumerate(agent_neighbours[a]):
-            all_neighbour_perceptions[a,i] = np.array([belief[n] for belief in all_beliefs[:,a]])
-            KLD_inter_beliefs[a,i] = KL_div(all_neighbour_perceptions[a,i][:,0], all_neighbour_perceptions[a,i][:,1], agent_own_beliefs_per_timestep[a][:,0] , agent_own_beliefs_per_timestep[a][:,1])
+    #for a in range(len(agents)):
+    #    agent_p = []
+    #    for i, n in enumerate(agent_neighbours[a]):
+    #        all_neighbour_perceptions[a,i] = np.array([belief[n] for belief in all_beliefs[:,a]])
+    #        KLD_inter_beliefs[a,i] = KL_div(all_neighbour_perceptions[a,i][:,0], all_neighbour_perceptions[a,i][:,1], agent_own_beliefs_per_timestep[a][:,0] , agent_own_beliefs_per_timestep[a][:,1])
 
     for a in range(len(agents)):
         for n in range(len(agents)):
@@ -117,25 +129,31 @@ def get_belief_metrics(all_beliefs, agents, agent_neighbours,T):
     agent_who_idx_beliefs_per_timestep = [[belief[-1] for belief in all_beliefs[:,a]] for a in range(N)] # (N,T,2)
 
     #proportion of agents believing in idea 1 at the final timestep 
-    final_timestep_beliefs = [0 if agent_own_beliefs_per_timestep[:,-1][a][0] < 0.5 else 1 for a in range(N)]
-    idea_1_believers = sum(final_timestep_beliefs) 
-    idea_0_believers = len(final_timestep_beliefs) - idea_1_believers
-    belief_proportions = [idea_0_believers/N, idea_1_believers/N]
 
+    agent_belief_proportions = np.zeros((N,2))
+
+    for a in range(N):
+        idea1 = sum(agent_own_beliefs_per_timestep[a][:,0])
+        idea2 = len(agent_own_beliefs_per_timestep[a]) - idea1
+        agent_belief_proportions[a] = [idea1/T, idea2/T]
     #rate of change of belief per agent
     #MAKE THESE KL DIVERGENCES
     difference_of_beliefs_per_timestep = np.diff(agent_own_beliefs_per_timestep)
     belief_differences = [np.sum(b) for b in difference_of_beliefs_per_timestep]
     belief_differences_normalised = belief_differences / np.sum(np.abs(np.array(belief_differences)))
 
-    return agent_own_beliefs_per_timestep, KLD_inter_beliefs, KLD_intra_beliefs, belief_proportions, belief_differences_normalised, agent_hashtag_beliefs_per_timestep, agent_who_idx_beliefs_per_timestep
+    return agent_own_beliefs_per_timestep, KLD_inter_beliefs, KLD_intra_beliefs, agent_belief_proportions, belief_differences_normalised, agent_hashtag_beliefs_per_timestep, agent_who_idx_beliefs_per_timestep
 
 
 def get_action_metrics(all_actions, N,T):
     all_actions = np.array(all_actions) # shape is T, N, 2
     agent_actions_per_timestep = np.array([[action[0] for action in all_actions[:,a]] for a in range(N)]) # (N,T,2)
     
-    print(agent_actions_per_timestep)
+    tweet_cohesion_matrix = np.zeros((N,N))
+    for a in range(N):
+        for n in range(N):
+            tweet_cohesion_matrix[a,n] = np.average(agent_actions_per_timestep[:,a] - agent_actions_per_timestep[:,n])
+
     agent_tweet_proportions = np.zeros((N,2))
 
     for a in range(N):
@@ -143,15 +161,15 @@ def get_action_metrics(all_actions, N,T):
         hashtag2 = len(agent_actions_per_timestep[a]) - hashtag1
         agent_tweet_proportions[a] = [hashtag1/T, hashtag2/T]
 
-    return agent_tweet_proportions
+    return agent_tweet_proportions, tweet_cohesion_matrix
 
 if __name__ == '__main__':
 
-    N = 4 # total number of agents
+    N = 8 # total number of agents
     idea_levels = 2 
     num_H = 2
 
-    p_vec = np.linspace(0.7,1,1) # different levels of random connection parameter in Erdos-Renyi random graphs
+    p_vec = np.linspace(0.4,1,1) # different levels of random connection parameter in Erdos-Renyi random graphs
     num_trials = 1 # number of trials per level of the ER parameter
     T = 50
 
@@ -168,12 +186,15 @@ if __name__ == '__main__':
 
             #collect metrics
             agent_beliefs, KLD_inter_beliefs, KLD_intra_beliefs, belief_proportions, belief_differences_normalised, _, _ = get_belief_metrics(all_beliefs, agents, agent_neighbours,T)
-            tweet_proportions = get_action_metrics(all_actions, N, T)
+            tweet_proportions, tweet_cohesion_matrix = get_action_metrics(all_actions, N, T)
 
             #make plots 
             plot_beliefs_over_time(all_actions, agent_beliefs, p, T)
-            #plt.show()
+            plt.show()
             plot_KLD_similarity_matrix(KLD_intra_beliefs)
-            #plt.show()
+            plt.show()
+            plot_tweet_similarity_matrix(tweet_cohesion_matrix)
+            plt.show()
+            plot_proportions(tweet_proportions, belief_proportions)
 
 
