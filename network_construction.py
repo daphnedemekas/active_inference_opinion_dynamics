@@ -12,8 +12,7 @@ import time
 def agent_loop(agent, observations = None, initial = False, initial_action = None):  
     qs = agent.infer_states(initial, tuple(observations))
     policy = agent.infer_policies()
-    action = agent.sample_action()
-    action = action[-2:]
+    action = agent.sample_action()[-2:]
     who_i_looked_at = int(action[-1]+1)
     what_they_tweeted = observations[int(action[-1])+1]
 
@@ -21,32 +20,20 @@ def agent_loop(agent, observations = None, initial = False, initial_action = Non
         action = agent.action
     return action, qs
 
-def multi_agent_loop(T, agents, agent_neighbours):
-    actions = []
-    timestep = 0
-    action = None
-    observations = []
-
-    for agent in agents:
-        obs = []
-        obs.append(None)
-        for n in range(agent.genmodel.num_neighbours):
-            obs.append(0)
-        obs.append(None)
-        observations.append(obs)
+def multi_agent_loop(T, agents, agent_neighbours_local):
+    observation_t = [[None] * agent.genmodel.num_modalities for agent in agents] 
 
     initial = True
     all_actions = obj_array((T,N,))
     all_beliefs = obj_array((T,N))
     all_observations = obj_array((T,N))
-    #all_views = np.zeros(N)
 
     for t in range(T):
         #print(str(t) + "/" + str(T))
         actions = []
         for i in range(len(agents)):
-            action, belief = agent_loop(agents[i], observations[i], initial)
-            all_actions[t,i] = action[-2:]
+            action, belief = agent_loop(agents[i], observation_t[i], initial)
+            all_actions[t,i] = action
             all_beliefs[t,i] = belief
             actions.append(action)
 
@@ -54,14 +41,14 @@ def multi_agent_loop(T, agents, agent_neighbours):
 
         for idx, agent in enumerate(agents):
             for n in range(agent.genmodel.num_neighbours):
-                observations[idx][n+1] = 0
+                observation_t[idx][n+1] = 0
             my_tweet = int(actions[idx][-2])
-            observations[idx][0] = my_tweet
+            observation_t[idx][0] = my_tweet
             observed_neighbour = int(actions[idx][-1])
-            observed_agent = agent_neighbours[idx][observed_neighbour]
-            observations[idx][observed_neighbour+1] = int(actions[observed_agent][-2]) + 1
-            observations[idx][-1] = int(actions[idx][-1]) 
-        all_observations[t,:] = observations
+            observed_agent = agent_neighbours_local[idx][observed_neighbour]
+            observation_t[idx][observed_neighbour+1] = int(actions[observed_agent][-2]) + 1
+            observation_t[idx][-1] = int(actions[idx][-1]) 
+        all_observations[t,:] = observation_t
 
         #if timestep == 5 or timestep == 20 or timestep == 10 or timestep == 25 or timestep == 30 :
         #    make_plots(all_actions, all_beliefs,p,timestep)
@@ -70,17 +57,7 @@ def multi_agent_loop(T, agents, agent_neighbours):
 
 
 def make_plots(all_actions, agent_own_beliefs,p,T):
-    tweet_history = np.zeros((N, T))
 
-    def color_dict(value):
-        if value < 0.5:
-            return "blue"
-        else:
-            return "red"
-
-    for t in range(T):
-        for n in G.nodes():
-            tweet_history[n,t] = all_actions[t][n][-2]
     for a in range(N):
         data = agent_own_beliefs[a][:,0]
         plt.plot(data, color = color_dict(data[-1]), label = "beliefs in idea 1")
@@ -90,13 +67,10 @@ def make_plots(all_actions, agent_own_beliefs,p,T):
     plt.xlabel("Time")
     plt.show()
 
-    #sns.heatmap(tweet_history, cmap='gray', vmax=1., vmin=0., cbar=True)
-    #plt.show()
-
 def KL_div(array1_0, array1_1, array2_0, array2_1):
     return array1_0 * np.log(array1_0 / array2_0) + array1_1 * np.log(array1_1 / array2_1)
 
-def inference_loop(G,N):
+def inference_loop(G,N): #just goes until you get a graph that has the right connectedness
     try:
         G = nx.fast_gnp_random_graph(N,p)
         G, agents_dict, agents, agent_neighbours = create_multiagents(G, N)
@@ -145,7 +119,7 @@ def get_belief_metrics(all_beliefs, agents, agent_neighbours,T):
     belief_differences = [np.sum(b) for b in difference_of_beliefs_per_timestep]
     belief_differences_normalised = belief_differences / np.sum(np.abs(np.array(belief_differences)))
 
-    return KLD_inter_beliefs, KLD_intra_beliefs, belief_proportions, belief_differences_normalised, agent_hashtag_beliefs_per_timestep, agent_who_idx_beliefs_per_timestep
+    return agent_own_beliefs_per_timestep, KLD_inter_beliefs, KLD_intra_beliefs, belief_proportions, belief_differences_normalised, agent_hashtag_beliefs_per_timestep, agent_who_idx_beliefs_per_timestep
 
 
 def get_action_metrics(all_actions, N,T):
@@ -181,8 +155,8 @@ if __name__ == '__main__':
 
             all_actions, all_beliefs, all_observations, agents, agent_neighbours = inference_loop(G,N)
 
-            KLD_inter_beliefs, KLD_intra_beliefs, belief_proportions, belief_differences_normalised, _, _ = get_belief_metrics(all_beliefs, agents, agent_neighbours,T)
-            #make_plots(all_actions, agent_own_beliefs_per_timestep,p,T)
+            agent_beliefs, KLD_inter_beliefs, KLD_intra_beliefs, belief_proportions, belief_differences_normalised, _, _ = get_belief_metrics(all_beliefs, agents, agent_neighbours,T)
+            make_plots(all_actions, agent_beliefs,p,T)
             
             tweet_proportions = get_action_metrics(all_actions, N, T)
             print(tweet_proportions)
