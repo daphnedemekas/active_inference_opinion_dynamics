@@ -153,7 +153,7 @@ def get_action_metrics(all_actions, N,T):
 
             sampled_agent = int(agent_view_per_timestep[a,t]) #who did they sample 
             agent_sample_proportions[t,a,sampled_agent] = agent_sample_proportions[t-1,a,sampled_agent] + 1 
-        agent_sample_proportions[t] = agent_sample_proportions[t] / t
+        agent_sample_proportions[t] = agent_sample_proportions[t] / np.sum(agent_sample_proportions[t])
 
     return agent_tweet_proportions, tweet_cohesion_matrix, agent_sample_proportions
 
@@ -180,23 +180,21 @@ def plot_proportions(tweets, beliefs, samples):
     tweet_proportions = []
     sampled_neighbours = []
     for t in range(T)[2:-2:2]:
-        plt.figure(t)
         sns.heatmap(tweets[t], cmap = "gray", xticklabels = ["hashtag1", "hashtag2"], vmin = 0, vmax = 1)
         plt.title("Tweet proportions per agent")
         plt.savefig('TP, t = ' + str(t) + '.png')
 
         tweet_proportions.append('TP, t = ' + str(t) + '.png')
-
-    plt.show()
+        plt.clf()
 
     for t in range(T)[2:-2:2]:
-        plt.figure(t)
         sns.heatmap(samples[t], cmap = "gray", vmin = 0, vmax = 0.2)
         plt.title("Sampled Neighbours per agent")
         plt.savefig('SN, t = ' + str(t) + '.png')
 
         sampled_neighbours.append('SN, t = ' + str(t) + '.png')
-          
+        plt.clf()
+
     return tweet_proportions, sampled_neighbours
     #sns.heatmap(beliefs, cmap = "gray", xticklabels = ["idea1", "idea2"])
     #plt.title("Belief proportions per agent")
@@ -204,13 +202,13 @@ def plot_proportions(tweets, beliefs, samples):
 
 if __name__ == '__main__':
 
-    N = 8 # total number of agents
+    N = 16 # total number of agents
     idea_levels = 2 
     num_H = 2
 
-    p_vec = np.linspace(0.6,1,1) # different levels of random connection parameter in Erdos-Renyi random graphs
+    p_vec = np.linspace(0.4,1,1) # different levels of random connection parameter in Erdos-Renyi random graphs
     num_trials = 1 # number of trials per level of the ER parameter
-    T = 150
+    T = 100
     #fig, axs = plt.subplots(len(p_vec)/2, len(p_vec)/2)
     for param_idx, p in enumerate(p_vec):
         print("p is" + str(p))
@@ -228,11 +226,11 @@ if __name__ == '__main__':
         
             #make plots 
             belief_plot_images = plot_beliefs_over_time(all_actions, agent_beliefs, p, T)
-            plt.show()
+            plt.clf()
             KLD_images = plot_KLD_similarity_matrix(KLD_intra_beliefs)
-            plt.show()
+            plt.clf()
             tweet_sim_images = plot_tweet_similarity_matrix(tweet_cohesion_matrix)
-            plt.show()
+            plt.clf()
             tweet_proportions, sampled_neighbours = plot_proportions(tweet_proportions, belief_proportions, agent_sample_proportions)
 
     with imageio.get_writer('belief_plot.gif', mode='I') as writer:
