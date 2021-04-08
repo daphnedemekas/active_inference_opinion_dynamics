@@ -62,11 +62,11 @@ def plot_beliefs_over_time(all_actions, agent_own_beliefs, p,T):
     belief_plot_images = []
     def color_dict(value):
             if value < 0.5:
-                return "blue"
+                return "darkblue"
             else:
-                return "red"
+                return "coral"
     #time_steps = [2,4,6,10,14,16,20,24,26,28,32,35,40,42,46,48,49,50,52,54,56,60,64,66,70,74,76,78,82,85,90,92,96,98,99,100]
-    for t in range(T)[2:-1:2]:
+    for t in range(T)[2:-1:5]:
         for a in range(N):
             data = agent_own_beliefs[a][:t,0]
             plt.plot(data, color = color_dict(data[-1]), label = "beliefs in idea 1")
@@ -181,15 +181,17 @@ def plot_proportions(tweets, beliefs, samples):
     sampled_neighbours = []
     for t in range(T)[2:-2:2]:
         plt.figure(t)
-        sns.heatmap(tweets[t], cmap = "gray", xticklabels = ["hashtag1", "hashtag2"])
+        sns.heatmap(tweets[t], cmap = "gray", xticklabels = ["hashtag1", "hashtag2"], vmin = 0, vmax = 1)
         plt.title("Tweet proportions per agent")
         plt.savefig('TP, t = ' + str(t) + '.png')
 
         tweet_proportions.append('TP, t = ' + str(t) + '.png')
+
     plt.show()
+
     for t in range(T)[2:-2:2]:
         plt.figure(t)
-        sns.heatmap(samples[t], cmap = "gray")
+        sns.heatmap(samples[t], cmap = "gray", vmin = 0, vmax = 0.2)
         plt.title("Sampled Neighbours per agent")
         plt.savefig('SN, t = ' + str(t) + '.png')
 
@@ -208,7 +210,7 @@ if __name__ == '__main__':
 
     p_vec = np.linspace(0.6,1,1) # different levels of random connection parameter in Erdos-Renyi random graphs
     num_trials = 1 # number of trials per level of the ER parameter
-    T = 100
+    T = 150
     #fig, axs = plt.subplots(len(p_vec)/2, len(p_vec)/2)
     for param_idx, p in enumerate(p_vec):
         print("p is" + str(p))
