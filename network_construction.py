@@ -153,7 +153,7 @@ def get_action_metrics(all_actions, N,T):
 
             sampled_agent = int(agent_view_per_timestep[a,t]) #who did they sample 
             agent_sample_proportions[t,a,sampled_agent] = agent_sample_proportions[t-1,a,sampled_agent] + 1 
-        agent_sample_proportions[t] = agent_sample_proportions[t] / t
+        agent_sample_proportions[t] = agent_sample_proportions[t] / np.sum(agent_sample_proportions[t])
 
     return agent_tweet_proportions, tweet_cohesion_matrix, agent_sample_proportions
 
