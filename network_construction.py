@@ -8,6 +8,8 @@ from Model.pymdp.maths import spm_dot, dot_likelihood, softmax
 import seaborn as sns
 from matplotlib import pyplot as plt
 import time
+import os 
+import imageio
 
 def agent_loop(agent, observations = None, initial = False, initial_action = None):  
     qs = agent.infer_states(initial, tuple(observations))
@@ -57,39 +59,28 @@ def multi_agent_loop(T, agents, agent_neighbours_local):
 
 
 def plot_beliefs_over_time(all_actions, agent_own_beliefs, p,T):
-
+    belief_plot_images = []
     def color_dict(value):
             if value < 0.5:
                 return "blue"
             else:
                 return "red"
-
-    for a in range(N):
-        data = agent_own_beliefs[a][:,0]
-        plt.plot(data, color = color_dict(data[-1]), label = "beliefs in idea 1")
-
-    plt.title("Connectedness of graph: " +str(p))
-    plt.ylabel("Belief that idea is True")
-    plt.xlabel("Time")
+    #time_steps = [2,4,6,10,14,16,20,24,26,28,32,35,40,42,46,48,49,50,52,54,56,60,64,66,70,74,76,78,82,85,90,92,96,98,99,100]
+    for t in range(T)[2:-1:2]:
+        for a in range(N):
+            data = agent_own_beliefs[a][:t,0]
+            plt.plot(data, color = color_dict(data[-1]), label = "beliefs in idea 1")
+            plt.ylim(0,1)
+        plt.title("Connectedness of graph: " +str(p))
+        plt.ylabel("Belief that idea is True")
+        plt.xlabel("Time")
+        plt.savefig('beliefs, t = ' + str(t) + '.png')
+        belief_plot_images.append('beliefs, t = ' + str(t) + '.png')
+        #plt.show()
+    return belief_plot_images
 
 def KL_div(array1_0, array1_1, array2_0, array2_1):
     return array1_0 * np.log(array1_0 / array2_0) + array1_1 * np.log(array1_1 / array2_1)
-
-def plot_KLD_similarity_matrix(KLD_intra_beliefs):
-    plt.title("Belief similarity matrix")
-    plt.imshow(KLD_intra_beliefs[:,:,-1], cmap = 'gray')
-
-def plot_tweet_similarity_matrix(tweet_cohesion_matrix):
-    plt.title("Average tweet similarity matrix")
-    plt.imshow(tweet_cohesion_matrix, cmap = 'gray')
-
-def plot_proportions(tweets, beliefs):
-    sns.heatmap(tweets, cmap = "gray", xticklabels = ["hashtag1", "hashtag2"])
-    plt.title("Tweet proportions per agent")
-    plt.show()
-    sns.heatmap(beliefs, cmap = "gray", xticklabels = ["idea1", "idea2"])
-    plt.title("Belief proportions per agent")
-    plt.show()
 
 def inference_loop(G,N): #just goes until you get a graph that has the right connectedness
     try:
@@ -129,39 +120,65 @@ def get_belief_metrics(all_beliefs, agents, agent_neighbours,T):
     agent_who_idx_beliefs_per_timestep = [[belief[-1] for belief in all_beliefs[:,a]] for a in range(N)] # (N,T,2)
 
     #proportion of agents believing in idea 1 at the final timestep 
-
     agent_belief_proportions = np.zeros((N,2))
 
     for a in range(N):
         idea1 = sum(agent_own_beliefs_per_timestep[a][:,0])
         idea2 = len(agent_own_beliefs_per_timestep[a]) - idea1
         agent_belief_proportions[a] = [idea1/T, idea2/T]
-    #rate of change of belief per agent
-    #MAKE THESE KL DIVERGENCES
-    difference_of_beliefs_per_timestep = np.diff(agent_own_beliefs_per_timestep)
-    belief_differences = [np.sum(b) for b in difference_of_beliefs_per_timestep]
-    belief_differences_normalised = belief_differences / np.sum(np.abs(np.array(belief_differences)))
 
-    return agent_own_beliefs_per_timestep, KLD_inter_beliefs, KLD_intra_beliefs, agent_belief_proportions, belief_differences_normalised, agent_hashtag_beliefs_per_timestep, agent_who_idx_beliefs_per_timestep
+    return agent_own_beliefs_per_timestep, KLD_inter_beliefs, KLD_intra_beliefs, agent_belief_proportions, agent_hashtag_beliefs_per_timestep, agent_who_idx_beliefs_per_timestep
 
 
 def get_action_metrics(all_actions, N,T):
     all_actions = np.array(all_actions) # shape is T, N, 2
     agent_actions_per_timestep = np.array([[action[0] for action in all_actions[:,a]] for a in range(N)]) # (N,T,2)
+    tweet_cohesion_matrix = np.zeros((T,N,N))
     
-    tweet_cohesion_matrix = np.zeros((N,N))
     for a in range(N):
         for n in range(N):
-            tweet_cohesion_matrix[a,n] = np.average(agent_actions_per_timestep[:,a] - agent_actions_per_timestep[:,n])
+            tweet_cohesion_matrix[:,a,n] = agent_actions_per_timestep[a] - agent_actions_per_timestep[n]
+    agent_tweet_proportions = np.zeros((T,N,2))
 
-    agent_tweet_proportions = np.zeros((N,2))
-
-    for a in range(N):
-        hashtag1 = sum(agent_actions_per_timestep[a])
-        hashtag2 = len(agent_actions_per_timestep[a]) - hashtag1
-        agent_tweet_proportions[a] = [hashtag1/T, hashtag2/T]
-
+    for t in range(T)[1:]:
+        for a in range(N):
+            hashtag1 = sum(agent_actions_per_timestep[a,:t])
+            hashtag2 = len(agent_actions_per_timestep[a,:t]) - hashtag1
+            agent_tweet_proportions[t,a] = [hashtag1/t, hashtag2/t]
     return agent_tweet_proportions, tweet_cohesion_matrix
+
+def plot_KLD_similarity_matrix(KLD_intra_beliefs):
+    KLD_plot_images = []
+    #time_steps = [2,4,6,10,14,16,20,24,26,28,32,35,40,42,46,48,49,50,52,54,56,60,64,66,70,74,76,78,82,85,90,92,96,98,99]
+    for t in range(T)[2:-1:2]:
+        plt.imshow(KLD_intra_beliefs[:,:,t], cmap = 'gray')
+        plt.title("Belief similarity matrix")
+        plt.savefig('KLD, t = ' + str(t) + '.png')
+        KLD_plot_images.append('KLD, t = ' + str(t) + '.png')
+    return KLD_plot_images
+
+def plot_tweet_similarity_matrix(tweet_cohesion_matrix):
+    tweet_sim_images = []
+    for t in range(T)[2:-1:2]:
+        plt.imshow(tweet_cohesion_matrix[t], cmap = 'gray')
+        plt.title("Tweet similarity matrix")
+        plt.savefig('TSM, t = ' + str(t) + '.png')
+        tweet_sim_images.append('TSM, t = ' + str(t) + '.png')
+    return tweet_sim_images
+
+def plot_proportions(tweets, beliefs):
+    tweet_proportions = []
+    for t in range(T)[2:-2:2]:
+        plt.figure(t)
+        sns.heatmap(tweets[t], cmap = "gray", xticklabels = ["hashtag1", "hashtag2"])
+        plt.title("Tweet proportions per agent")
+        plt.savefig('TP, t = ' + str(t) + '.png')
+
+        tweet_proportions.append('TP, t = ' + str(t) + '.png')
+    return tweet_proportions
+    #sns.heatmap(beliefs, cmap = "gray", xticklabels = ["idea1", "idea2"])
+    #plt.title("Belief proportions per agent")
+    #plt.show()
 
 if __name__ == '__main__':
 
@@ -169,10 +186,9 @@ if __name__ == '__main__':
     idea_levels = 2 
     num_H = 2
 
-    p_vec = np.linspace(0.4,1,1) # different levels of random connection parameter in Erdos-Renyi random graphs
+    p_vec = np.linspace(0.6,1,1) # different levels of random connection parameter in Erdos-Renyi random graphs
     num_trials = 1 # number of trials per level of the ER parameter
-    T = 50
-
+    T = 100
     #fig, axs = plt.subplots(len(p_vec)/2, len(p_vec)/2)
     for param_idx, p in enumerate(p_vec):
         print("p is" + str(p))
@@ -185,16 +201,45 @@ if __name__ == '__main__':
             all_actions, all_beliefs, all_observations, agents, agent_neighbours = inference_loop(G,N)
 
             #collect metrics
-            agent_beliefs, KLD_inter_beliefs, KLD_intra_beliefs, belief_proportions, belief_differences_normalised, _, _ = get_belief_metrics(all_beliefs, agents, agent_neighbours,T)
+            agent_beliefs, KLD_inter_beliefs, KLD_intra_beliefs, belief_proportions, _, _ = get_belief_metrics(all_beliefs, agents, agent_neighbours,T)
             tweet_proportions, tweet_cohesion_matrix = get_action_metrics(all_actions, N, T)
-
+        
             #make plots 
-            plot_beliefs_over_time(all_actions, agent_beliefs, p, T)
+            belief_plot_images = plot_beliefs_over_time(all_actions, agent_beliefs, p, T)
             plt.show()
-            plot_KLD_similarity_matrix(KLD_intra_beliefs)
+            KLD_images = plot_KLD_similarity_matrix(KLD_intra_beliefs)
             plt.show()
-            plot_tweet_similarity_matrix(tweet_cohesion_matrix)
+            tweet_sim_images = plot_tweet_similarity_matrix(tweet_cohesion_matrix)
             plt.show()
-            plot_proportions(tweet_proportions, belief_proportions)
+            tweet_proportions = plot_proportions(tweet_proportions, belief_proportions)
 
+    with imageio.get_writer('belief_plot.gif', mode='I') as writer:
+        for filename in belief_plot_images:
+            image = imageio.imread(filename)
+            writer.append_data(image)
+    for filename in set(belief_plot_images):
+        os.remove(filename)
 
+    with imageio.get_writer('KLD_plot.gif', mode='I') as writer:
+        for filename in KLD_images:
+            image = imageio.imread(filename)
+            writer.append_data(image)
+
+    for filename in set(KLD_images):
+        os.remove(filename)
+
+    with imageio.get_writer('TSM_plot.gif', mode='I') as writer:
+        for filename in tweet_sim_images:
+            image = imageio.imread(filename)
+            writer.append_data(image)
+
+    for filename in set(tweet_sim_images):
+        os.remove(filename)
+
+    with imageio.get_writer('tweet_proportions.gif', mode='I') as writer:
+        for filename in tweet_proportions:
+            image = imageio.imread(filename)
+            writer.append_data(image)
+
+    for filename in set(tweet_proportions):
+        os.remove(filename)
