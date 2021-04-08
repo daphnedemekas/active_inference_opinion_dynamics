@@ -128,8 +128,8 @@ plt.plot(history_of_beliefs_about_other[:,0,1],label='My beliefs about Neighbour
 # plt.plot(neighbour_sampling_probs[:,0],label='Probabiliy of sampling neighbour 1')
 # plt.plot(neighbour_sampling_probs[:,1],label='Probabiliy of sampling neighbour 2')
 
-# plt.scatter(np.arange(T)[history_of_who_im_looking_at == 0], 0.75*np.ones(T)[history_of_who_im_looking_at==0], c = 'red')
-# plt.scatter(np.arange(T)[history_of_who_im_looking_at == 1], 0.25*np.ones(T)[history_of_who_im_looking_at==1], c = 'green')
+plt.scatter(np.arange(T)[history_of_who_im_looking_at == 0], 0.75*np.ones(T)[history_of_who_im_looking_at==0], c = 'red')
+plt.scatter(np.arange(T)[history_of_who_im_looking_at == 1], 0.25*np.ones(T)[history_of_who_im_looking_at==1], c = 'green')
 
 plt.legend(fontsize=18)
 plt.show()

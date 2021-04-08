@@ -132,20 +132,30 @@ def get_belief_metrics(all_beliefs, agents, agent_neighbours,T):
 
 def get_action_metrics(all_actions, N,T):
     all_actions = np.array(all_actions) # shape is T, N, 2
-    agent_actions_per_timestep = np.array([[action[0] for action in all_actions[:,a]] for a in range(N)]) # (N,T,2)
+    agent_tweets_per_timestep = np.array([[action[0] for action in all_actions[:,a]] for a in range(N)]) # (N,T,2)
+    agent_view_per_timestep = np.array([[action[1] for action in all_actions[:,a]] for a in range(N)]) # (N,T,1)
+
+
     tweet_cohesion_matrix = np.zeros((T,N,N))
     
     for a in range(N):
         for n in range(N):
-            tweet_cohesion_matrix[:,a,n] = agent_actions_per_timestep[a] - agent_actions_per_timestep[n]
+            tweet_cohesion_matrix[:,a,n] = agent_tweets_per_timestep[a] - agent_tweets_per_timestep[n]
     agent_tweet_proportions = np.zeros((T,N,2))
+
+    agent_sample_proportions = np.zeros((T,N,N))
 
     for t in range(T)[1:]:
         for a in range(N):
-            hashtag1 = sum(agent_actions_per_timestep[a,:t])
-            hashtag2 = len(agent_actions_per_timestep[a,:t]) - hashtag1
+            hashtag1 = sum(agent_tweets_per_timestep[a,:t])
+            hashtag2 = len(agent_tweets_per_timestep[a,:t]) - hashtag1
             agent_tweet_proportions[t,a] = [hashtag1/t, hashtag2/t]
-    return agent_tweet_proportions, tweet_cohesion_matrix
+
+            sampled_agent = int(agent_view_per_timestep[a,t]) #who did they sample 
+            agent_sample_proportions[t,a,sampled_agent] = agent_sample_proportions[t-1,a,sampled_agent] + 1 
+        agent_sample_proportions[t] = agent_sample_proportions[t] / t
+
+    return agent_tweet_proportions, tweet_cohesion_matrix, agent_sample_proportions
 
 def plot_KLD_similarity_matrix(KLD_intra_beliefs):
     KLD_plot_images = []
@@ -166,8 +176,9 @@ def plot_tweet_similarity_matrix(tweet_cohesion_matrix):
         tweet_sim_images.append('TSM, t = ' + str(t) + '.png')
     return tweet_sim_images
 
-def plot_proportions(tweets, beliefs):
+def plot_proportions(tweets, beliefs, samples):
     tweet_proportions = []
+    sampled_neighbours = []
     for t in range(T)[2:-2:2]:
         plt.figure(t)
         sns.heatmap(tweets[t], cmap = "gray", xticklabels = ["hashtag1", "hashtag2"])
@@ -175,7 +186,16 @@ def plot_proportions(tweets, beliefs):
         plt.savefig('TP, t = ' + str(t) + '.png')
 
         tweet_proportions.append('TP, t = ' + str(t) + '.png')
-    return tweet_proportions
+    plt.show()
+    for t in range(T)[2:-2:2]:
+        plt.figure(t)
+        sns.heatmap(samples[t], cmap = "gray")
+        plt.title("Sampled Neighbours per agent")
+        plt.savefig('SN, t = ' + str(t) + '.png')
+
+        sampled_neighbours.append('SN, t = ' + str(t) + '.png')
+          
+    return tweet_proportions, sampled_neighbours
     #sns.heatmap(beliefs, cmap = "gray", xticklabels = ["idea1", "idea2"])
     #plt.title("Belief proportions per agent")
     #plt.show()
@@ -202,7 +222,7 @@ if __name__ == '__main__':
 
             #collect metrics
             agent_beliefs, KLD_inter_beliefs, KLD_intra_beliefs, belief_proportions, _, _ = get_belief_metrics(all_beliefs, agents, agent_neighbours,T)
-            tweet_proportions, tweet_cohesion_matrix = get_action_metrics(all_actions, N, T)
+            tweet_proportions, tweet_cohesion_matrix, agent_sample_proportions = get_action_metrics(all_actions, N, T)
         
             #make plots 
             belief_plot_images = plot_beliefs_over_time(all_actions, agent_beliefs, p, T)
@@ -211,7 +231,7 @@ if __name__ == '__main__':
             plt.show()
             tweet_sim_images = plot_tweet_similarity_matrix(tweet_cohesion_matrix)
             plt.show()
-            tweet_proportions = plot_proportions(tweet_proportions, belief_proportions)
+            tweet_proportions, sampled_neighbours = plot_proportions(tweet_proportions, belief_proportions, agent_sample_proportions)
 
     with imageio.get_writer('belief_plot.gif', mode='I') as writer:
         for filename in belief_plot_images:
@@ -242,4 +262,12 @@ if __name__ == '__main__':
             writer.append_data(image)
 
     for filename in set(tweet_proportions):
+        os.remove(filename)
+
+    with imageio.get_writer('sampled_neighbours.gif', mode='I') as writer:
+        for filename in sampled_neighbours:
+            image = imageio.imread(filename)
+            writer.append_data(image)
+
+    for filename in set(sampled_neighbours):
         os.remove(filename)
