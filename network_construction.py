@@ -208,7 +208,7 @@ if __name__ == '__main__':
 
     p_vec = np.linspace(0.9,1,1) # different levels of random connection parameter in Erdos-Renyi random graphs
     num_trials = 1 # number of trials per level of the ER parameter
-    T = 100
+    T = 5
     #fig, axs = plt.subplots(len(p_vec)/2, len(p_vec)/2)
     for param_idx, p in enumerate(p_vec):
         print("p is" + str(p))
@@ -219,7 +219,7 @@ if __name__ == '__main__':
 
             #this performs the multiagent inference
             all_actions, all_beliefs, all_observations, agents, agent_neighbours = inference_loop(G,N)
-
+                        
             #collect metrics
             agent_beliefs, KLD_inter_beliefs, KLD_intra_beliefs, belief_proportions, _, _ = get_belief_metrics(all_beliefs, agents, agent_neighbours,T)
             tweet_proportions, tweet_cohesion_matrix, agent_sample_proportions = get_action_metrics(all_actions, N, T)
@@ -232,7 +232,7 @@ if __name__ == '__main__':
             tweet_sim_images = plot_tweet_similarity_matrix(tweet_cohesion_matrix)
             plt.clf()
             tweet_proportions, sampled_neighbours = plot_proportions(tweet_proportions, belief_proportions, agent_sample_proportions)
-
+            
     with imageio.get_writer('belief_plot.gif', mode='I') as writer:
         for filename in belief_plot_images:
             image = imageio.imread(filename)

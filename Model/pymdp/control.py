@@ -9,7 +9,7 @@ __author__: Conor Heins, Alexander Tschantz, Brennan Klein
 
 import itertools 
 import numpy as np
-from .maths import softmax, spm_dot, spm_wnorm, spm_MDP_G_optim
+from .maths import softmax, spm_dot, spm_wnorm, spm_MDP_G_optim, spm_MDP_G
 from . import utils
 import copy 
 
@@ -404,7 +404,8 @@ def calc_states_info_gain(A, qs_pi):
 
     states_surprise = 0
     for t in range(n_steps):
-        states_surprise += spm_MDP_G_optim(A, qs_pi[t])
+        # states_surprise += spm_MDP_G_optim(A, qs_pi[t])
+        states_surprise += spm_MDP_G(A, qs_pi[t])
 
     return states_surprise
 
@@ -654,13 +655,15 @@ def sample_action(q_pi, policies, n_states, control_indices, sampling_type="marg
                 for factor_i, action_i in enumerate(policy[t, :]):
 
                     action_marginals[factor_i][action_i] += q_pi[pol_idx]
+
         #print("Action marginals")
-        #print(action_marginals)
+        print(action_marginals)
         selected_policy = np.zeros(n_factors)
         for factor_i in control_indices:
             if factor_i == control_indices[-1]:
-                selected_policy[factor_i] = utils.sample(softmax(alpha*action_marginals[factor_i]))
-            else:
+                # # selected_policy[factor_i] = utils.sample(softmax(alpha*action_marginals[factor_i]))
+                # selected_policy[factor_i] = utils.sample(action_marginals[factor_i])
+            # else:
                 selected_policy[factor_i] = np.argmax(action_marginals[factor_i])
 
             #selected_policy[factor_i] = np.where(np.random.multinomial(1,action_marginals[factor_i]))[0][0]

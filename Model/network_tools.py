@@ -62,7 +62,7 @@ def create_multiagents(G, N , idea_levels = 2, num_H = 2, precision_params = Non
 
     for agent_i in G.nodes():
         agent_neighbours[agent_i] = list(nx.neighbors(G, agent_i))
-        agent = Agent(**agents_dict[agent_i])
+        agent = Agent(**agents_dict[agent_i], reduce_A=True)
         agents.append(agent)
         
     return G, agents_dict, agents, agent_neighbours
