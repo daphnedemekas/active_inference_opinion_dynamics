@@ -293,10 +293,10 @@ class GenerativeModel(object):
                 
                 elif f_idx == self.h_control_idx:
                     
-                    D[f_idx] = onehot(initial_action[0],f_dim)
+                    D[f_idx] = onehot(initial_action[f_idx],f_dim)
 
                 elif f_idx == self.who_idx: 
-                    D[f_idx] = onehot(initial_action[1],f_dim)
+                    D[f_idx] = onehot(initial_action[f_idx],f_dim)
         else:
             D = obj_array_uniform(self.num_states)
         return D

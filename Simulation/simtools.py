@@ -1,6 +1,7 @@
 import numpy as np
 import networkx as nx
 import random
+import copy
 
 from Model.agent import Agent
 from Model.pymdp import utils
@@ -133,6 +134,7 @@ def initialize_network(G, agent_constructor_params, T = 10):
             'agent': {},
             'self_global_label_mapping': {},
             'qs': {},
+            'q_pi': {},
             'o': {},
             'selected_actions': {},
             'my_tweet': {},
@@ -151,17 +153,19 @@ def initialize_network(G, agent_constructor_params, T = 10):
 
         single_node_attrs['self_global_label_mapping'][agent_i] = self_global_label_mapping
       
-        single_node_attrs['qs'][agent_i] = np.empty((T, agent.genmodel.num_factors), dtype=object) # history of the posterior beliefs of `agent_i` 
+        single_node_attrs['qs'][agent_i] = np.empty((T, agent.genmodel.num_factors), dtype=object) # history of the posterior beliefs  about hidden states of `agent_i` 
 
-        single_node_attrs['o'][agent_i] = np.zeros((T, agent.genmodel.num_modalities), dtype=int) # history of the indices of the observations made by `agent_i`
+        single_node_attrs['q_pi'][agent_i] = np.empty((T, len(agent.genmodel.policies)), dtype=object) # history of the posterior beliefs about policies of `agent_i` 
+
+        single_node_attrs['o'][agent_i] = np.zeros((T+1, agent.genmodel.num_modalities), dtype=int) # history of the indices of the observations made by `agent_i`. One extra time index for the last timestep, which has no subsequent active inference loop 
       
         single_node_attrs['selected_actions'][agent_i] = np.zeros((T, agent.genmodel.num_factors),  dtype=int) # history indices of the actions selected by `agent_i`
 
-        single_node_attrs['my_tweet'][agent_i] = np.zeros((T)) # history of indices of `my_tweet` (same as G.nodes()[agent_i][`o`][:,0])
+        single_node_attrs['my_tweet'][agent_i] = np.zeros(T+1) # history of indices of `my_tweet` (same as G.nodes()[agent_i][`o`][:,0])
 
-        single_node_attrs['other_tweet'][agent_i] = np.zeros((T))  # history of indices of `other_tweet` (same as G.nodes()[agent_i][`o`][t,n+1]) where `n` is the index of the selected neighbour at time t
+        single_node_attrs['other_tweet'][agent_i] = np.zeros(T+1)  # history of indices of `other_tweet` (same as G.nodes()[agent_i][`o`][t,n+1]) where `n` is the index of the selected neighbour at time t
 
-        single_node_attrs['sampled_neighbors'][agent_i] = np.zeros((T)) 
+        single_node_attrs['sampled_neighbors'][agent_i] = np.zeros(T+1) 
 
     for attr, attr_dict in single_node_attrs.items():
 
@@ -171,9 +175,9 @@ def initialize_network(G, agent_constructor_params, T = 10):
 
 def run_simulation(G, T):
 
-    # get initial observations
+    # run first timestep
 
-    G = get_initial_observations(G)
+    G = get_observations_time_t(G,0)
 
     # run active inference loop over time
 
@@ -190,49 +194,28 @@ def run_single_timestep(G, t):
 
     for i in G.nodes():
 
-        node_attrs = G.nodes(data=True)[i]
+        node_attrs = G.nodes()[i]
 
-        qs = node_attrs['agent'].infer_states(t==0, tuple(node_attrs['o'][t,:]))
-        node_attrs['qs'][t,:] = qs 
-        node_attrs['agent'].infer_policies(qs)
-        action = node_attrs['agent'].sample_action()
+        agent_i = node_attrs['agent']
+
+        qs = agent_i.infer_states(t==0, tuple(node_attrs['o'][t,:]))
+        node_attrs['qs'][t,:] = copy.deepcopy(qs) 
+        q_pi = agent_i.infer_policies(qs)
+        node_attrs['q_pi'][t,:] = np.copy(q_pi)
+        action = agent_i.sample_action()
         node_attrs['selected_actions'][t,:] = action
     
-    for i in G.nodes():
+    for i in G.nodes(): # get observations for next timestep
 
-        G = get_observations_time_t(G,t)
+        G = get_observations_time_t(G,t+1)
 
-    return G
-
-def get_initial_observations(G):
-
-    for i in G.nodes():
-
-        node_attrs = G.nodes(data=True)[i] # get attributes for the i-th node
-        agent_i = node_attrs['agent']      # get agent class for the i-th node
-        
-        node_attrs['o'][0,0] = int(agent_i.initial_action[0])      # my first observation is what I'm tweeting
-        node_attrs['my_tweet'][0] = int(agent_i.initial_action[0]) # what I'm tweeting
-
-        node_attrs['o'][0,-1] = int(agent_i.initial_action[-1]) # my last observation is who I'm sampling
-        which_neighbour = int(agent_i.initial_action[-1]) # who I'm sampling
-        node_attrs['sampled_neighbors'][0] = which_neighbour 
-
-        global_neighbour_idx = node_attrs['self_global_label_mapping'][which_neighbour] # convert from 'local' (focal-agent-relative) neighbour index to global (network-relative) index
-        
-        other_node_attrs = G.nodes(data=True)[global_neighbour_idx]
-
-        node_attrs['other_tweet'][0] = int(other_node_attrs['agent'].initial_action[0]+1)
-
-        node_attrs['o'][0,which_neighbour+1] = node_attrs['other_tweet'][0]  # my observation in the (neighbour+1)-th modality is my neighbour's tweet (their 0-th factor action) 
-    
     return G
 
 def get_observations_time_t(G, t):
 
     for i in G.nodes():
 
-        node_attrs = G.nodes(data=True)[i] # get attributes for the i-th node
+        node_attrs = G.nodes()[i] # get attributes for the i-th node
         agent_i = node_attrs['agent']      # get agent class for the i-th node
         
         node_attrs['o'][t,0] = int(agent_i.action[-2])      # my first observation is what I'm tweeting
@@ -240,15 +223,16 @@ def get_observations_time_t(G, t):
 
         node_attrs['o'][t,-1] = int(agent_i.action[-1]) # my last observation is who I'm sampling
         which_neighbour = int(agent_i.action[-1]) # who I'm sampling
-        node_attrs['sampled_neighbors'][t] = which_neighbour 
 
         global_neighbour_idx = node_attrs['self_global_label_mapping'][which_neighbour] # convert from 'local' (focal-agent-relative) neighbour index to global (network-relative) index
         
-        other_node_attrs = G.nodes(data=True)[global_neighbour_idx]
+        node_attrs['sampled_neighbors'][t] = global_neighbour_idx  # index of the neighbour I'm sampling, in terms of that neighbour's global index
 
-        node_attrs['other_tweet'][t] = int(other_node_attrs['agent'].action[-2]+1)
+        sampled_node_attrs = G.nodes()[global_neighbour_idx]
 
-        node_attrs['o'][t,which_neighbour+1] = node_attrs['other_tweet'][t] # my observation in the (neighbour+1)-th modality is my neighbour's tweet (their 0-th factor action) 
+        node_attrs['other_tweet'][t] = int(sampled_node_attrs['agent'].action[-2]+1) # what they're tweeting, offset by +1 to account for the 0-th observation in my-reading-them modality (the null observation)
+
+        node_attrs['o'][t,which_neighbour+1] = node_attrs['other_tweet'][t] # my observation in the (neighbour+1)-th modality is my neighbour's tweet (their 0-th control factor action) 
     
     return G
 
@@ -299,142 +283,3 @@ def clip_edges(G, max_degree = 10):
             print('\tEdge removed:\t %d -- %d'%(node_i, remove))
 
     return G, single_edge_node
-
-
-# def initialize_graph_and_agents(G, num_H, idea_levels, h_idea_mapping, belief2tweet_mapping, reduce_A = False):
-
-#     agents_dict = {}
-#     agents = utils.obj_array(G.number_of_nodes()) # an empty object array of size num_agents
-#     for i in G.nodes():
-
-#         neighbors_i = list(nx.neighbors(G, i)) #each agent has a different number of neighbours 
-#         num_neighbours = len(neighbors_i)
-
-#         per_neighbour_cb_params = np.random.uniform(low=4, high=7)*np.ones((num_neighbours, idea_levels))
-#         env_det_param =  6 #how determinstic the environmennt is in general
-#         belief_det_params = np.random.uniform(low=3.0, high=9.0, size=(num_neighbours,)) #how deterministic the nieghbours are specifically
-#         initial_tweet, initial_neighbour_to_sample = np.random.randint(num_H), np.random.randint(num_neighbours) 
-#         agent_i_params = {
-
-#             "neighbour_params" : {
-#                 "precisions" :  per_neighbour_cb_params,
-#                 "num_neighbours" : num_neighbours,
-#                 "env_determinism": env_det_param,
-#                 "belief_determinism": belief_det_params
-#                 },
-
-#             "idea_mapping_params" : {
-#                 "num_H" : num_H,
-#                 "idea_levels": idea_levels,
-#                 "h_idea_mapping": h_idea_mapping
-#                 },
-
-#             "policy_params" : {
-#                 "initial_action" : [initial_tweet, initial_neighbour_to_sample],
-#                 "belief2tweet_mapping" : belief2tweet_mapping
-#                 },
-
-#             "C_params" : {
-#                 "preference_shape" : None,
-#                 "cohesion_exp" : None,
-#                 "cohesion_temp" : None
-#                 }
-#         }
-
-#         agents_dict[i] = agent_i_params
-#         agents[i] = Agent(**agent_i_params, reduce_A=reduce_A)
-
-
-#     nx.set_node_attributes(G, agents_dict, 'agent')
-#     return G, agents
-
-
-# observation_buffer = utils.obj_array(N) # reset the buffer
-
-    # for agent_id, agent in enumerate(agents):
-
-    #     obs_agent_i = np.zeros(agent.genmodel.num_modalities,dtype=int)
-    #     obs_agent_i[0] = int(agent.action[-2]) # what I'm tweeting
-    #     obs_agent_i[-1] = int(agent.action[-1]) # who I'm sampling
-
-    #     which_neighbour_local = int(agent.action[-1])
-    #     which_neighbour_global = agent_neighbours_global[agent_id][which_neighbour_local] # convert from 'local' (focal-agent-relative) neighbour index to global (network-relative) index
-
-    #     obs_agent_i[which_neighbour_local+1] = int(agents[which_neighbour_global].action[-2]+1) # my neighbour's tweet is my observation in the (neighbour+1)-th modality
-
-    #     observation_buffer[agent_id] = np.copy(obs_agent_i)
-
-    # def initialize_observation_buffer(G, agents):
-
-    #     N = G.number_of_nodes()
-
-    #     observation_buffer = utils.obj_array(N)
-    #     agent_neighbours_global = {}
-
-    #     for agent_id, agent in enumerate(agents):
-
-    #         agent_neighbours_global[agent_id] = np.array(list(nx.neighbors(G, agent_id)))
-
-    #         initial_obs_agent_i = np.zeros(agent.genmodel.num_modalities,dtype=int)
-    #         initial_obs_agent_i[0] = int(agent.initial_action[0]) # what I'm tweeting
-    #         initial_obs_agent_i[-1] = int(agent.initial_action[-1]) # my last observation is who I'm sampling
-
-    #         which_neighbour_local = agent.initial_action[1]
-    #         which_neighbour_global = agent_neighbours_global[agent_id][which_neighbour_local] # convert from 'local' (focal-agent-relative) neighbour index to global (network-relative) index
-
-    #         initial_obs_agent_i[which_neighbour_local+1] = int(agents[which_neighbour_global].initial_action[0]+1) # my neighbour's tweet is my observation in the (neighbour+1)-th modality
-
-    #         observation_buffer[agent_id] = np.copy(initial_obs_agent_i)
-        
-    #     return observation_buffer, agent_neighbours_global
-
-    # def multi_agent_loop(G, agents, T, observation_buffer, agent_neighbours_global):
-
-    #     N = G.number_of_nodes()
-
-    #     all_actions = utils.obj_array( (T, N) )
-    #     all_beliefs = utils.obj_array( (T, N) )
-    #     all_observations = utils.obj_array( (T, N) )
-
-    #     for t in range(T):
-
-    #         all_observations[t,:] = copy.deepcopy(observation_buffer)
-
-    #         # First loop over agents: Do belief-updating (inference) and action selection
-    #         if t == 0:
-
-    #             for agent_id, agent in enumerate(agents):
-    #                 qs = agent.infer_states(True, tuple(observation_buffer[agent_id]))
-    #                 agent.infer_policies(qs)
-    #                 action = agent.sample_action()
-    #                 all_actions[t,agent_id] = np.copy(action[-2:]) # we only store the last two control factor actions (what I'm tweeting and who I'm looking at)
-    #                 all_beliefs[t,agent_id] = copy.deepcopy(qs) # deepcopy perhaps not needed here
-
-    #         else:
-
-    #             for agent_id, agent in enumerate(agents):
-    #                 qs = agent.infer_states(False, tuple(observation_buffer[agent_id]))
-    #                 agent.infer_policies(qs)
-    #                 action = agent.sample_action()
-    #                 all_actions[t,agent_id] = np.copy(action[-2:]) # we only store the last two control factor actions (what I'm tweeting and who I'm looking at)
-    #                 all_beliefs[t,agent_id] = copy.deepcopy(qs) # deepcopy perhaps not needed here
-            
-    #         # Second loop over agents: based on what actions everyone selected, now get actions
-
-    #         observation_buffer = utils.obj_array(N) # reset the buffer
-
-    #         for agent_id, agent in enumerate(agents):
-
-    #             obs_agent_i = np.zeros(agent.genmodel.num_modalities,dtype=int)
-    #             obs_agent_i[0] = int(agent.action[-2]) # what I'm tweeting
-    #             obs_agent_i[-1] = int(agent.action[-1]) # who I'm sampling
-
-    #             which_neighbour_local = int(agent.action[-1])
-    #             which_neighbour_global = agent_neighbours_global[agent_id][which_neighbour_local] # convert from 'local' (focal-agent-relative) neighbour index to global (network-relative) index
-
-    #             obs_agent_i[which_neighbour_local+1] = int(agents[which_neighbour_global].action[-2]+1) # my neighbour's tweet is my observation in the (neighbour+1)-th modality
-
-    #             observation_buffer[agent_id] = np.copy(obs_agent_i)
-        
-    #     return G, agents, all_observations, all_beliefs, all_actions
-
