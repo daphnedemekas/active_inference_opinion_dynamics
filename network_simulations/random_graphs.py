@@ -10,62 +10,22 @@ sys.path.append(str(pathlib.Path(__file__).parent.parent))
 import numpy as np
 import networkx as nx
 from Model.agent import Agent
-from Model.network_tools import create_multiagents, clip_edges, connect_edgeless_nodes
+from Simulation.simtools import initialize_agent_params, connect_edgeless_nodes
 from Model.pymdp import maths
 from Model.pymdp import utils
 import copy
 from matplotlib import pyplot as plt
 import seaborn as sns
-from matplotlib import pyplot as plt
+
+
+N = 10
+G = nx.fast_gnp_random_graph(N,0.1)
+if not nx.is_connected(G):
+    G = connect_edgeless_nodes(G) # make sure graph is connected
+
+all_agent_constructors = initialize_agent_params(G)
 # %% Helper functions
 
-def initialize_graph_and_agents(G, num_H, idea_levels, h_idea_mapping, belief2tweet_mapping, reduce_A = False):
-
-    agents_dict = {}
-    agents = utils.obj_array(G.number_of_nodes()) # an empty object array of size num_agents
-    for i in G.nodes():
-
-        neighbors_i = list(nx.neighbors(G, i)) #each agent has a different number of neighbours 
-        num_neighbours = len(neighbors_i)
-
-        #confirmation_bias_param = np.random.uniform(low=2.5, high=5.0) #confirmation bias params? one param per idea level but should be per neighbour
-        per_neighbour_cb_params = np.random.uniform(low=4, high=7)*np.ones((num_neighbours, idea_levels))
-        env_det_param =  6 #how determinstic the environmennt is in general
-        belief_det_params = np.random.uniform(low=3.0, high=9.0, size=(num_neighbours,)) #how deterministic the nieghbours are specifically
-        initial_tweet, initial_neighbour_to_sample = np.random.randint(num_H), np.random.randint(num_neighbours) 
-        agent_i_params = {
-
-            "neighbour_params" : {
-                "precisions" :  per_neighbour_cb_params,
-                "num_neighbours" : num_neighbours,
-                "env_determinism": env_det_param,
-                "belief_determinism": belief_det_params
-                },
-
-            "idea_mapping_params" : {
-                "num_H" : num_H,
-                "idea_levels": idea_levels,
-                "h_idea_mapping": h_idea_mapping
-                },
-
-            "policy_params" : {
-                "initial_action" : [initial_tweet, initial_neighbour_to_sample],
-                "belief2tweet_mapping" : belief2tweet_mapping
-                },
-
-            "C_params" : {
-                "preference_shape" : None,
-                "cohesion_exp" : None,
-                "cohesion_temp" : None
-                }
-        }
-
-        agents_dict[i] = agent_i_params
-        agents[i] = Agent(**agent_i_params, reduce_A=reduce_A)
-
-
-    nx.set_node_attributes(G, agents_dict, 'agent')
-    return G, agents
 
 def initialize_observation_buffer(G, agents):
 
