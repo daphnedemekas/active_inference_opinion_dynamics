@@ -10,7 +10,7 @@ from matplotlib import pyplot as plt
 import time
 import os 
 import imageio
-
+from sklearn.cluster import spectral_clustering
 def agent_loop(agent, observations = None, initial = False, initial_action = None):  
     qs = agent.infer_states(initial, tuple(observations))
     policy = agent.infer_policies()
@@ -26,7 +26,7 @@ def multi_agent_loop(T, agents, agent_neighbours_local):
     observation_t = [[None] * agent.genmodel.num_modalities for agent in agents] 
 
     initial = True
-    all_actions = obj_array((T,N,))
+    all_actions = obj_array((T,N))
     all_beliefs = obj_array((T,N))
     all_observations = obj_array((T,N))
 
@@ -60,6 +60,8 @@ def multi_agent_loop(T, agents, agent_neighbours_local):
 
 def plot_beliefs_over_time(all_actions, agent_own_beliefs, p,T):
     belief_plot_images = []
+
+    clusters = []
     def color_dict(value):
             if value < 0.5:
                 return "darkblue"
@@ -74,6 +76,7 @@ def plot_beliefs_over_time(all_actions, agent_own_beliefs, p,T):
         plt.title("Connectedness of graph: " +str(p))
         plt.ylabel("Belief that idea is True")
         plt.xlabel("Time")
+        plt.ylim([-0.1,1.1])
         plt.savefig('beliefs, t = ' + str(t) + '.png')
         belief_plot_images.append('beliefs, t = ' + str(t) + '.png')
         #plt.show()
@@ -114,7 +117,7 @@ def get_belief_metrics(all_beliefs, agents, agent_neighbours,T):
 
     for a in range(len(agents)):
         for n in range(len(agents)):
-            KLD_intra_beliefs[a,n] = KL_div(agent_own_beliefs_per_timestep[a][:,0], agent_own_beliefs_per_timestep[a][:,1], agent_own_beliefs_per_timestep[n][:,0], agent_own_beliefs_per_timestep[n][:,1])
+            KLD_intra_beliefs[a,n,:] = KL_div(agent_own_beliefs_per_timestep[a][:,0], agent_own_beliefs_per_timestep[a][:,1], agent_own_beliefs_per_timestep[n][:,0], agent_own_beliefs_per_timestep[n][:,1])
 
     agent_hashtag_beliefs_per_timestep = [[belief[-2] for belief in all_beliefs[:,a]] for a in range(N)] # (N,T,2)
     agent_who_idx_beliefs_per_timestep = [[belief[-1] for belief in all_beliefs[:,a]] for a in range(N)] # (N,T,2)
@@ -130,10 +133,10 @@ def get_belief_metrics(all_beliefs, agents, agent_neighbours,T):
     return agent_own_beliefs_per_timestep, KLD_inter_beliefs, KLD_intra_beliefs, agent_belief_proportions, agent_hashtag_beliefs_per_timestep, agent_who_idx_beliefs_per_timestep
 
 
-def get_action_metrics(all_actions, N,T):
+def get_action_metrics(all_actions, agent_neighbours, N,T):
     all_actions = np.array(all_actions) # shape is T, N, 2
     agent_tweets_per_timestep = np.array([[action[0] for action in all_actions[:,a]] for a in range(N)]) # (N,T,2)
-    agent_view_per_timestep = np.array([[action[1] for action in all_actions[:,a]] for a in range(N)]) # (N,T,1)
+    agent_view_per_timestep = np.array([[agent_neighbours[a][int(action[1])] for action in all_actions[:,a]] for a in range(N)]) # (N,T,1)
 
 
     tweet_cohesion_matrix = np.zeros((T,N,N))
@@ -143,7 +146,7 @@ def get_action_metrics(all_actions, N,T):
             tweet_cohesion_matrix[:,a,n] = agent_tweets_per_timestep[a] - agent_tweets_per_timestep[n]
     agent_tweet_proportions = np.zeros((T,N,2))
 
-    agent_sample_proportions = np.zeros((T,N,N))
+    agent_sample_proportions = np.zeros((N,N))
 
     for t in range(T)[1:]:
         for a in range(N):
@@ -151,32 +154,54 @@ def get_action_metrics(all_actions, N,T):
             hashtag2 = len(agent_tweets_per_timestep[a,:t]) - hashtag1
             agent_tweet_proportions[t,a] = [hashtag1/t, hashtag2/t]
 
-            sampled_agent = int(agent_view_per_timestep[a,t]) #who did they sample 
-            agent_sample_proportions[t,a,sampled_agent] = agent_sample_proportions[t-1,a,sampled_agent] + 1 
-        agent_sample_proportions[t] = agent_sample_proportions[t] / np.sum(agent_sample_proportions[t])
+    return agent_tweet_proportions, tweet_cohesion_matrix, agent_view_per_timestep
 
-    return agent_tweet_proportions, tweet_cohesion_matrix, agent_sample_proportions
-
-def plot_KLD_similarity_matrix(KLD_intra_beliefs):
+def plot_KLD_similarity_matrix(KLD_intra_beliefs, agent_own_beliefs):
     KLD_plot_images = []
-    #time_steps = [2,4,6,10,14,16,20,24,26,28,32,35,40,42,46,48,49,50,52,54,56,60,64,66,70,74,76,78,82,85,90,92,96,98,99]
+    cluster1_idx = np.where(agent_own_beliefs[:,-1,0] > 0.5)
+    cluster2_idx = np.where(agent_own_beliefs[:,-1,0] < 0.5)
+    cluster_sorted_indices = [i for i in cluster1_idx[0]]
+    for j in cluster2_idx[0]:
+        cluster_sorted_indices.append(j)
+    print(cluster_sorted_indices)
+    color_map = plt.cm.get_cmap('gray').reversed()
+
     for t in range(T)[2:-1:2]:
-        plt.imshow(KLD_intra_beliefs[:,:,t], cmap = 'gray')
+
+        single_slice = KLD_intra_beliefs[:,:,t]
+        sorted_slice = single_slice[cluster_sorted_indices,:][:,cluster_sorted_indices]
+        plt.imshow(sorted_slice, cmap = color_map)
         plt.title("Belief similarity matrix")
         plt.savefig('KLD, t = ' + str(t) + '.png')
         KLD_plot_images.append('KLD, t = ' + str(t) + '.png')
-    return KLD_plot_images
+        plt.clf()
+    return KLD_plot_images, cluster_sorted_indices
 
-def plot_tweet_similarity_matrix(tweet_cohesion_matrix):
+
+def plot_tweet_similarity_matrix(tweet_cohesion_matrix, cluster_sorted_indices):
     tweet_sim_images = []
+    color_map = plt.cm.get_cmap('gray').reversed()
     for t in range(T)[2:-1:2]:
-        plt.imshow(tweet_cohesion_matrix[t], cmap = 'gray')
+        single_slice = tweet_cohesion_matrix[t,:,:]
+        sorted_slice = single_slice[cluster_sorted_indices,:][:,cluster_sorted_indices]
+        plt.imshow(sorted_slice, cmap = color_map)
         plt.title("Tweet similarity matrix")
         plt.savefig('TSM, t = ' + str(t) + '.png')
         tweet_sim_images.append('TSM, t = ' + str(t) + '.png')
     return tweet_sim_images
 
-def plot_proportions(tweets, beliefs, samples):
+#AGENT SAMPLING PLOT 
+#TIME ON X AND AGENTS ON Y
+#CONVERT INTO AGENT GLOBAL COORDINATES 
+def plot_samples(agent_view_per_timestep):
+    plt.imshow(agent_view_per_timestep[0:-1:10], cmap = 'gray')
+    #plt.colorbar()
+    plt.title("Agent samples over time")
+    plt.xlabel("Time")
+    plt.ylabel("Agent samples")
+    plt.savefig("Agent Samples")
+
+def plot_proportions(tweets, beliefs):
     tweet_proportions = []
     sampled_neighbours = []
     for t in range(T)[2:-2:2]:
@@ -186,19 +211,8 @@ def plot_proportions(tweets, beliefs, samples):
 
         tweet_proportions.append('TP, t = ' + str(t) + '.png')
         plt.clf()
-
-    for t in range(T)[2:-2:2]:
-        sns.heatmap(samples[t], cmap = "gray", vmin = 0, vmax = 0.2)
-        plt.title("Sampled Neighbours per agent")
-        plt.savefig('SN, t = ' + str(t) + '.png')
-
-        sampled_neighbours.append('SN, t = ' + str(t) + '.png')
-        plt.clf()
-
-    return tweet_proportions, sampled_neighbours
-    #sns.heatmap(beliefs, cmap = "gray", xticklabels = ["idea1", "idea2"])
-    #plt.title("Belief proportions per agent")
-    #plt.show()
+    
+    return tweet_proportions
 
 if __name__ == '__main__':
 
@@ -206,9 +220,9 @@ if __name__ == '__main__':
     idea_levels = 2 
     num_H = 2
 
-    p_vec = np.linspace(0.9,1,1) # different levels of random connection parameter in Erdos-Renyi random graphs
-    num_trials = 1 # number of trials per level of the ER parameter
-    T = 5
+    p_vec = np.linspace(0.6,1,1) # different levels of random connection parameter in Erdos-Renyi random graphs
+    num_trials = 5 # number of trials per level of the ER parameter
+    T = 100
     #fig, axs = plt.subplots(len(p_vec)/2, len(p_vec)/2)
     for param_idx, p in enumerate(p_vec):
         print("p is" + str(p))
@@ -219,55 +233,51 @@ if __name__ == '__main__':
 
             #this performs the multiagent inference
             all_actions, all_beliefs, all_observations, agents, agent_neighbours = inference_loop(G,N)
-                        
+
             #collect metrics
             agent_beliefs, KLD_inter_beliefs, KLD_intra_beliefs, belief_proportions, _, _ = get_belief_metrics(all_beliefs, agents, agent_neighbours,T)
-            tweet_proportions, tweet_cohesion_matrix, agent_sample_proportions = get_action_metrics(all_actions, N, T)
-        
+            tweet_proportions, tweet_cohesion_matrix, agent_view_per_timestep = get_action_metrics(all_actions, agent_neighbours, N, T)
             #make plots 
             belief_plot_images = plot_beliefs_over_time(all_actions, agent_beliefs, p, T)
             plt.clf()
-            KLD_images = plot_KLD_similarity_matrix(KLD_intra_beliefs)
+            with imageio.get_writer('belief_plot.gif', mode='I') as writer:
+                for filename in belief_plot_images:
+                    image = imageio.imread(filename)
+                    writer.append_data(image)
+                for filename in set(belief_plot_images):
+                    os.remove(filename)
+
+            KLD_images, cluster_idx = plot_KLD_similarity_matrix(KLD_intra_beliefs, agent_beliefs)
+
+            with imageio.get_writer('KLD_plot.gif', mode='I') as writer:
+                for filename in KLD_images:
+                    image = imageio.imread(filename)
+                    writer.append_data(image)
+            for filename in set(KLD_images):
+                os.remove(filename)
+
+            tweet_sim_images = plot_tweet_similarity_matrix(tweet_cohesion_matrix, cluster_idx)
             plt.clf()
-            tweet_sim_images = plot_tweet_similarity_matrix(tweet_cohesion_matrix)
+            tweet_proportions = plot_proportions(tweet_proportions, belief_proportions)
+            plt.clf() 
+            plot_samples(agent_view_per_timestep)
             plt.clf()
-            tweet_proportions, sampled_neighbours = plot_proportions(tweet_proportions, belief_proportions, agent_sample_proportions)
-            
-    with imageio.get_writer('belief_plot.gif', mode='I') as writer:
-        for filename in belief_plot_images:
-            image = imageio.imread(filename)
-            writer.append_data(image)
-    for filename in set(belief_plot_images):
-        os.remove(filename)
 
-    with imageio.get_writer('KLD_plot.gif', mode='I') as writer:
-        for filename in KLD_images:
-            image = imageio.imread(filename)
-            writer.append_data(image)
 
-    for filename in set(KLD_images):
-        os.remove(filename)
 
-    with imageio.get_writer('TSM_plot.gif', mode='I') as writer:
-        for filename in tweet_sim_images:
-            image = imageio.imread(filename)
-            writer.append_data(image)
+            with imageio.get_writer('TSM_plot.gif', mode='I') as writer:
+                for filename in tweet_sim_images:
+                    image = imageio.imread(filename)
+                    writer.append_data(image)
 
-    for filename in set(tweet_sim_images):
-        os.remove(filename)
+            for filename in set(tweet_sim_images):
+                os.remove(filename)
 
-    with imageio.get_writer('tweet_proportions.gif', mode='I') as writer:
-        for filename in tweet_proportions:
-            image = imageio.imread(filename)
-            writer.append_data(image)
+            with imageio.get_writer('tweet_proportions.gif', mode='I') as writer:
+                for filename in tweet_proportions:
+                    image = imageio.imread(filename)
+                    writer.append_data(image)
 
-    for filename in set(tweet_proportions):
-        os.remove(filename)
+            for filename in set(tweet_proportions):
+                os.remove(filename)
 
-    with imageio.get_writer('sampled_neighbours.gif', mode='I') as writer:
-        for filename in sampled_neighbours:
-            image = imageio.imread(filename)
-            writer.append_data(image)
-
-    for filename in set(sampled_neighbours):
-        os.remove(filename)

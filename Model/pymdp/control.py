@@ -657,14 +657,12 @@ def sample_action(q_pi, policies, n_states, control_indices, sampling_type="marg
                     action_marginals[factor_i][action_i] += q_pi[pol_idx]
 
         #print("Action marginals")
-        print(action_marginals)
         selected_policy = np.zeros(n_factors)
         for factor_i in control_indices:
-            if factor_i == control_indices[-1]:
                 # # selected_policy[factor_i] = utils.sample(softmax(alpha*action_marginals[factor_i]))
                 # selected_policy[factor_i] = utils.sample(action_marginals[factor_i])
             # else:
-                selected_policy[factor_i] = np.argmax(action_marginals[factor_i])
+            selected_policy[factor_i] = np.argmax(action_marginals[factor_i])
 
             #selected_policy[factor_i] = np.where(np.random.multinomial(1,action_marginals[factor_i]))[0][0]
             #selected_policy[factor_i] = np.argmax(action_marginals[factor_i])
