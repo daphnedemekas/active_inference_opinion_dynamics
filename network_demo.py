@@ -4,7 +4,7 @@ import numpy as np
 import networkx as nx
 from Model.agent import Agent
 from Simulation.simtools import initialize_agent_params, initialize_network, run_simulation, connect_edgeless_nodes, clip_edges
-from Analysis.analysis_tools import collect_idea_beliefs, collect_sampling_history
+from Analysis.analysis_tools import collect_idea_beliefs, collect_sampling_history, collect_tweets
 from Model.pymdp import maths
 from Model.pymdp import utils
 import copy
@@ -50,6 +50,7 @@ all_qs = collect_idea_beliefs(G)
 plt.plot(all_qs[:,0,:])
 
 all_neighbour_samplings = collect_sampling_history(G)
+all_tweets = collect_tweets(G)
 
 believers = np.where(all_qs[-1,0,:] > 0.5)
 nonbelievers = np.where(all_qs[-1,0,:] < 0.5)
@@ -61,4 +62,6 @@ adj_mat = nx.to_numpy_array(G)
 # outfile = TemporaryFile()
 
 fname = 'results/sbm_test' 
-np.savez(fname, adj_mat, all_qs)
+np.savez(fname, adj_mat, all_qs, all_tweets)
+
+

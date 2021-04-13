@@ -3,13 +3,16 @@ import numpy as np
 import networkx as nx
 import matplotlib as mpl
 from matplotlib import pyplot as plt
-
+from Analysis.plots import *
+import imageio
+import os
 # %% Load data and visualize as graph
 
 results = np.load('results/sbm_test.npz') 
 
 adj_mat = results['arr_0']
 belief_hist = results['arr_1']
+all_tweets = results['arr_2']
 
 believers = np.where(belief_hist[-1,1,:] > 0.5)[0]
 nonbelievers = np.where(belief_hist[-1,1,:] < 0.5)[0]
@@ -44,3 +47,15 @@ plt.yticks(fontsize=22)
 plt.xlabel('Time',fontsize=26)
 plt.ylabel('Strength of belief',fontsize=26)
 # %%
+plt.clf()
+
+#make kld gif 
+KLD_matrices, cluster_sorted_indices = KL_similarity_matrices(belief_hist)
+
+make_gif(KLD_matrices, 'KLD_over_time.gif')
+
+tweet_matrices = tweet_similarity_matrices(all_tweets, cluster_sorted_indices)
+
+
+tweets = tweet_proportions(all_tweets)
+make_gif(tweets, 'TP_over_time.gif')
