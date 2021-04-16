@@ -16,7 +16,7 @@ import pandas as pd
 
 h_idea_mapping = utils.softmax(np.eye(2) * 1.0)
 
-num_agent_values = [5,8,11,16]
+num_agent_values = [5,8,13]
 n = len(num_agent_values)
 connectedness_values = [0.2,0.5,0.8]
 c = len(connectedness_values)
