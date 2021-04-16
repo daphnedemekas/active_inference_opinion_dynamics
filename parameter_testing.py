@@ -89,8 +89,9 @@ for i_n, n in enumerate(num_agent_values):
                                     cluster_ratio = np.sum(all_qs[-1,0,believers]) / np.sum(all_qs[-1,1,nonbelievers])
                                     cluster_ratio = cluster_ratio if cluster_ratio < 1 else 1/cluster_ratio
                                 data.append(cluster_ratio)
-                                if iter % 50:
+                                if iter % 10:
                                     print(iter)
+                                iter +=1
 
 np.savez('results/params', all_parameters_to_store)
 np.savez('results/all_results', all_results_to_store)
