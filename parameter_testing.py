@@ -38,6 +38,7 @@ iter = 0
 all_parameters_to_store = utils.obj_array((n,c,l,u,l,u,l,u))
 all_results_to_store = utils.obj_array((n,c,l,u,l,u,l,u))
 for i_n, n in enumerate(num_agent_values):
+    print("number of agents" + str(n))
     for i_p, p in enumerate(connectedness_values):
         N, p, T = n, p, 50
         G = nx.fast_gnp_random_graph(N,p)
@@ -51,7 +52,7 @@ for i_n, n in enumerate(num_agent_values):
 
             if not nx.is_connected(G):
                 G = connect_edgeless_nodes(G) # make sure graph is 
-        
+        print("graph created")
         for i_e, e_lower in enumerate(lower_bounds):
             for e_r, e_upper in enumerate(upper_bounds):
             # range of the uniform distributions
@@ -88,6 +89,8 @@ for i_n, n in enumerate(num_agent_values):
                                     cluster_ratio = np.sum(all_qs[-1,0,believers]) / np.sum(all_qs[-1,1,nonbelievers])
                                     cluster_ratio = cluster_ratio if cluster_ratio < 1 else 1/cluster_ratio
                                 data.append(cluster_ratio)
+                                if iter % 50:
+                                    print(iter)
 
 np.savez('results/params', all_parameters_to_store)
 np.savez('results/all_results', all_results_to_store)
