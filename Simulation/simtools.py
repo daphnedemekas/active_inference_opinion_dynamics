@@ -90,7 +90,7 @@ def initialize_agent_params(G,
     
     agent_constructor_params = {}
 
-    store_parameters = []
+    store_parameters = utils.obj_array(len(G.nodes))
     for i in G.nodes():
 
         num_neighbours = G.degree(i)
@@ -102,7 +102,7 @@ def initialize_agent_params(G,
         belief_determinism = np.random.uniform(low = B_neighbour_precisions_all[i][0], high = B_neighbour_precisions_all[i][1], size = (num_neighbours,))
 
         params = [ecb_precisions,env_determinism,belief_determinism]
-        store_parameters.append(params)
+        store_parameters[i] = params
         agent_constructor_params[i] = {
 
             "neighbour_params" : {
