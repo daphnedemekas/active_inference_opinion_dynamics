@@ -20,15 +20,17 @@ num_agent_values = [5,8,11,16]
 n = len(num_agent_values)
 connectedness_values = [0.2,0.5,0.8]
 c = len(connectedness_values)
-lower_bounds = [1,3,5,7]
+lower_bounds = [1,4,7]
 l = len(lower_bounds)
-upper_bounds = [i+j for i in lower_bounds for j in range(3)]
+upper_bounds = [i+j for i in lower_bounds for j in [1,5]]
+print(upper_bounds)
 u = len(upper_bounds)
 arrays = [num_agent_values, connectedness_values, lower_bounds, upper_bounds, lower_bounds, upper_bounds, lower_bounds, upper_bounds]
 
 tuples = list(pd.MultiIndex.from_product(arrays, names = ["num_agents", "connectedness", "ecb_lower", "ecb_upper", "B_idea_lower", "B_idea_upper", "B_n_lower", "B_n_upper"]))
 
 indices = pd.MultiIndex.from_tuples(tuples)
+print(indices)
 
 #dataframe = np.zeros((n,c,l,u,l,u,l,u))
 data = []
