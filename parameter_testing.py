@@ -80,7 +80,7 @@ for i_n, n in enumerate(num_agent_values):
                                 fname = 'results/sbm_test' + str(i_p) + str(i_e) + str(i_env) + str(i_b)
                                 np.savez(fname, adj_mat, all_qs, all_tweets, all_neighbour_samplings)
 
-                                if np.sum(all_qs[-1,0,believers]) == 0 or np.sum(all_qs[-1,1,nonbelievers]):
+                                if np.sum(all_qs[-1,0,believers]) == 0 or np.sum(all_qs[-1,1,nonbelievers]) == 0:
                                     cluster_ratio = 0
                                 else:
                                     cluster_ratio = np.sum(all_qs[-1,0,believers]) / np.sum(all_qs[-1,1,nonbelievers])
