@@ -90,32 +90,32 @@ def initialize_agent_params(G,
     
     agent_constructor_params = {}
 
+    store_parameters = []
     for i in G.nodes():
 
         num_neighbours = G.degree(i)
 
         initial_tweet, initial_neighbour_to_sample = np.random.randint(num_H), np.random.randint(num_neighbours) 
 
+        ecb_precisions = [np.random.uniform(low = ecb_precisions_all[i][0], high = ecb_precisions_all[i][1], size = (idea_levels,) ) for n in range(num_neighbours)]
+        env_determinism = np.random.uniform(low = B_idea_precisions_all[i][0], high = B_idea_precisions_all[i][1])
+        belief_determinism = np.random.uniform(low = B_neighbour_precisions_all[i][0], high = B_neighbour_precisions_all[i][1], size = (num_neighbours,))
+
+        params = [ecb_precisions,env_determinism,belief_determinism]
+        store_parameters.append(params)
         agent_constructor_params[i] = {
 
             "neighbour_params" : {
-                "ecb_precisions" :  [np.random.uniform(low = 4, high = 5, size = (idea_levels,) ) for n in range(num_neighbours)],
-                #"ecb_precisions" :    [np.random.uniform(low=4, high=5)*np.ones((num_neighbours,idea_levels))],
-
+                "ecb_precisions" :  ecb_precisions,
                 "num_neighbours" : num_neighbours,
-                "env_determinism":  np.random.uniform(low = B_idea_precisions_all[i][0], high = B_idea_precisions_all[i][1]),
-                #"env_determinism": 8,
-                #"belief_determinism": np.random.uniform(low = B_neighbour_precisions_all[i][0], high = B_neighbour_precisions_all[i][1], size = (num_neighbours,))
-                "belief_determinism": np.random.uniform(low = 5, high = 6, size = (num_neighbours,))
-
+                "env_determinism":  env_determinism,
+                "belief_determinism": belief_determinism
                 },
 
             "idea_mapping_params" : {
                 "num_H" : num_H,
                 "idea_levels": idea_levels,
-                #"h_idea_mapping": h_idea_mappings_all[i]
                 "h_idea_mapping": None
-
                 },
 
             "policy_params" : {
@@ -128,7 +128,7 @@ def initialize_agent_params(G,
         }
 
 
-    return agent_constructor_params
+    return agent_constructor_params, store_parameters
 
 
 def initialize_network(G, agent_constructor_params, T):
@@ -291,3 +291,8 @@ def clip_edges(G, max_degree = 10):
             print('\tEdge removed:\t %d -- %d'%(node_i, remove))
 
     return G, single_edge_node
+
+
+
+
+
