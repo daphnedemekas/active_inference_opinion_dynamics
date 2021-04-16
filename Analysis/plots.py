@@ -8,20 +8,27 @@ import seaborn as sns
 def KL_div(array1_0, array1_1, array2_0, array2_1):
     return array1_0 * np.log(array1_0 / array2_0) + array1_1 * np.log(array1_1 / array2_1)
 
-def KL_similarity_matrices(belief_hist):
+def get_KLDs(belief_hist):
     T = belief_hist.shape[0]
     N = belief_hist.shape[2]
     KLD_intra_beliefs = np.zeros((N,N,T))
+
     for a in range(N):
         for n in range(N):
             KLD_intra_beliefs[a,n,:] = KL_div(belief_hist[:,0,a], belief_hist[:,1,a], belief_hist[:,0,n], belief_hist[:,1,n])
+    return KLD_intra_beliefs
 
-    KLD_plot_images = []
+def KL_similarity_matrices(belief_hist):
+    T = belief_hist.shape[0]
+
+    KLD_intra_beliefs = get_KLDs(belief_hist)
     believers = np.where(belief_hist[-1,0,:] > 0.5)
     nonbelievers = np.where(belief_hist[-1,0,:] < 0.5)
     cluster_sorted_indices = [i for i in believers[0]]
     for j in nonbelievers[0]:
         cluster_sorted_indices.append(j)
+
+    KLD_plot_images = []
     
     color_map = plt.cm.get_cmap('gray').reversed()
 
@@ -62,21 +69,20 @@ def tweet_similarity_matrices(all_tweets, cluster_sorted_indices):
 
 
 
-def tweet_proportions(all_tweets):
-    T = all_tweets.shape[0]
-    N = all_tweets.shape[1]
-    tweet_proportions = []
+# def tweet_proportions(all_tweets):
+#     T = all_tweets.shape[0]
+#     N = all_tweets.shape[1]
+#     tweet_proportions = []
 
-    for t in range(T)[2:-2:2]:
-        print(all_tweets[t].reshape(N,1))
-        sns.heatmap(all_tweets[t].reshape(N,1), cmap = "gray", xticklabels = ["hashtag1", "hashtag2"], vmin = 0, vmax = 1)
-        plt.title("Tweet proportions per agent")
-        plt.savefig('TP, t = ' + str(t) + '.png')
+#     for t in range(T)[2:-2:2]:
+#         sns.heatmap(all_tweets[t,:].reshape(N,1), cmap = "gray", xticklabels = ["hashtag1", "hashtag2"], vmin = 0, vmax = 1)
+#         plt.title("Tweet proportions per agent")
+#         plt.savefig('TP, t = ' + str(t) + '.png')
 
-        tweet_proportions.append('TP, t = ' + str(t) + '.png')
-        plt.clf()
+#         tweet_proportions.append('TP, t = ' + str(t) + '.png')
+#         plt.clf()
     
-    return tweet_proportions
+#     return tweet_proportions
 
 
 def make_gif(filenames, gif_name):

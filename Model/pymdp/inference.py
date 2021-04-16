@@ -44,7 +44,6 @@ def update_posterior_states(obs, A, prior=None, **inference_params):
     """
     Update marginal posterior over hidden states using variational inference
         Can optionally set message passing algorithm used for inference
-
     Parameters
     ----------
     - 'A' [numpy nd.array (matrix or tensor or array-of-arrays) or Categorical]:
@@ -65,7 +64,6 @@ def update_posterior_states(obs, A, prior=None, **inference_params):
     - **inference_params:
         List of keyword/parameter arguments corresponding to parameter values for the respective
         variational inference algorithm
-
     Returns
     ----------
     - 'qs' [numpy 1D array, array of arrays (with 1D numpy array entries), or Categorical]:

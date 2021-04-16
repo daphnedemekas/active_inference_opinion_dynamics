@@ -99,16 +99,23 @@ def initialize_agent_params(G,
         agent_constructor_params[i] = {
 
             "neighbour_params" : {
-                "ecb_precisions" :  [np.random.uniform(low = ecb_precisions_all[i][0], high = ecb_precisions_all[i][1], size = (idea_levels,) ) for n in range(num_neighbours)],
+                "ecb_precisions" :  [np.random.uniform(low = 4, high = 5, size = (idea_levels,) ) for n in range(num_neighbours)],
+                #"ecb_precisions" :    [np.random.uniform(low=4, high=5)*np.ones((num_neighbours,idea_levels))],
+
                 "num_neighbours" : num_neighbours,
                 "env_determinism":  np.random.uniform(low = B_idea_precisions_all[i][0], high = B_idea_precisions_all[i][1]),
-                "belief_determinism": np.random.uniform(low = B_neighbour_precisions_all[i][0], high = B_neighbour_precisions_all[i][1], size = (num_neighbours,))
+                #"env_determinism": 8,
+                #"belief_determinism": np.random.uniform(low = B_neighbour_precisions_all[i][0], high = B_neighbour_precisions_all[i][1], size = (num_neighbours,))
+                "belief_determinism": np.random.uniform(low = 5, high = 6, size = (num_neighbours,))
+
                 },
 
             "idea_mapping_params" : {
                 "num_H" : num_H,
                 "idea_levels": idea_levels,
-                "h_idea_mapping": h_idea_mappings_all[i]
+                #"h_idea_mapping": h_idea_mappings_all[i]
+                "h_idea_mapping": None
+
                 },
 
             "policy_params" : {
@@ -124,7 +131,7 @@ def initialize_agent_params(G,
     return agent_constructor_params
 
 
-def initialize_network(G, agent_constructor_params, T = 10):
+def initialize_network(G, agent_constructor_params, T):
     """
     Initializes a network object G that stores agent-level information (e.g. parameters of individual
     generative models, global node-indices, ...) and information about the generative process.
@@ -159,7 +166,7 @@ def initialize_network(G, agent_constructor_params, T = 10):
 
         single_node_attrs['o'][agent_i] = np.zeros((T+1, agent.genmodel.num_modalities), dtype=int) # history of the indices of the observations made by `agent_i`. One extra time index for the last timestep, which has no subsequent active inference loop 
       
-        single_node_attrs['selected_actions'][agent_i] = np.zeros((T, agent.genmodel.num_factors),  dtype=int) # history indices of the actions selected by `agent_i`
+        single_node_attrs['selected_actions'][agent_i] = np.zeros((T, 2),  dtype=int) # history indices of the actions selected by `agent_i`
 
         single_node_attrs['my_tweet'][agent_i] = np.zeros(T+1) # history of indices of `my_tweet` (same as G.nodes()[agent_i][`o`][:,0])
 
@@ -182,7 +189,7 @@ def run_simulation(G, T):
     # run active inference loop over time
 
     for t in range(T):
-
+        #print(str(t) + "/" + str(T))
         G = run_single_timestep(G, t)
     
     return G
@@ -191,18 +198,19 @@ def run_single_timestep(G, t):
 
     # Two loops over agents, first to update beliefs given most recent observations and select actions, second loop to get new set of observations
     # First loop over agents: Do belief-updating (inference) and action selection
-
     for i in G.nodes():
 
         node_attrs = G.nodes()[i]
 
         agent_i = node_attrs['agent']
-
-        qs = agent_i.infer_states(t==0, tuple(node_attrs['o'][t,:]))
+        qs = agent_i.infer_states(t, tuple(node_attrs['o'][t,:]))
         node_attrs['qs'][t,:] = copy.deepcopy(qs) 
-        q_pi = agent_i.infer_policies(qs)
+        q_pi = agent_i.infer_policies()
         node_attrs['q_pi'][t,:] = np.copy(q_pi)
-        action = agent_i.sample_action()
+        if t == 0:
+            action = agent_i.action[-2:]
+        else:
+            action = agent_i.sample_action()[-2:]
         node_attrs['selected_actions'][t,:] = action
     
     for i in G.nodes(): # get observations for next timestep

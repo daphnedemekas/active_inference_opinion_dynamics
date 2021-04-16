@@ -299,6 +299,7 @@ class GenerativeModel(object):
                     D[f_idx] = onehot(initial_action[f_idx],f_dim)
         else:
             D = obj_array_uniform(self.num_states)
+        self.D = D
         return D
 
 

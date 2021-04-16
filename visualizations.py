@@ -55,7 +55,8 @@ KLD_matrices, cluster_sorted_indices = KL_similarity_matrices(belief_hist)
 make_gif(KLD_matrices, 'KLD_over_time.gif')
 
 tweet_matrices = tweet_similarity_matrices(all_tweets, cluster_sorted_indices)
+make_gif(tweet_matrices, 'TSM_over_time.gif')
 
+# tweets = tweet_proportions(all_tweets)
+# make_gif(tweets, 'TP_over_time.gif')
 
-tweets = tweet_proportions(all_tweets)
-make_gif(tweets, 'TP_over_time.gif')

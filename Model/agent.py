@@ -26,14 +26,14 @@ class Agent(object):
                                    "use_states_info_gain": True,
                                    "use_param_info_gain": False}
         # self.initial_action = policy_params["initial_action"]
-        self.action[-2] = policy_params["initial_action"][0]
-        self.action[-1] = policy_params["initial_action"][1]
+        self.action[-2] = policy_params["initial_action"][-2]
+        self.action[-1] = policy_params["initial_action"][-1]
 
 
-    def infer_states(self, initial, observation):
+    def infer_states(self, t, observation):
         empirical_prior = utils.obj_array(self.genmodel.num_factors)
 
-        if initial == True:
+        if t == 0:
             for f in range(self.genmodel.num_factors):
                 empirical_prior[f] = spm_log(self.genmodel.D[f])
 
@@ -50,9 +50,9 @@ class Agent(object):
         return qs
 
 
-    def infer_policies(self, qs):
+    def infer_policies(self):
 
-        self.genmodel.E = self.genmodel.get_policy_prior(qs[0]) 
+        self.genmodel.E = self.genmodel.get_policy_prior(self.qs[0]) 
 
         if hasattr(self.genmodel,'A_reduced'):
             q_pi, neg_efe = update_posterior_policies_reduced(self.qs, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
@@ -61,10 +61,9 @@ class Agent(object):
         self.q_pi = q_pi
         self.neg_efe = neg_efe
         return q_pi
-
+    
     def sample_action(self):
-
-        action = sample_action(self.q_pi, self.genmodel.policies, self.genmodel.num_states, sampling_type = 'marginal_action') #how does this work? 
+        action = sample_action(self.q_pi, self.genmodel.policies, self.genmodel.num_states, self.genmodel.control_factor_idx, sampling_type = 'marginal_action') #how does this work? 
         self.action = action
         return action
 
