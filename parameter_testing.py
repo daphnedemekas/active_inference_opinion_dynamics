@@ -29,9 +29,13 @@ arrays = [num_agent_values, connectedness_values, lower_bounds, upper_bounds, lo
 
 tuples = list(pd.MultiIndex.from_product(arrays, names = ["num_agents", "connectedness", "ecb_lower", "ecb_upper", "B_idea_lower", "B_idea_upper", "B_n_lower", "B_n_upper"]))
 
+for t in tuples:
+    if t[2]<t[3] or t[4] < t[5] or t[6] < t[7]:
+        tuples.remove(t)
+
 indices = pd.MultiIndex.from_tuples(tuples)
 print(indices)
-
+raise
 #dataframe = np.zeros((n,c,l,u,l,u,l,u))
 data = []
 # %% construct network
@@ -57,15 +61,21 @@ for i_n, n in enumerate(num_agent_values):
         print("graph created")
         for i_e, e_lower in enumerate(lower_bounds):
             for e_r, e_upper in enumerate(upper_bounds):
+                if e_r > e_upper:
+                    continue
             # range of the uniform distributions
                 ecb_precision_range = [e_lower, e_upper]
 
                 for i_env, env_lower in enumerate(lower_bounds):
                     for env_r, env_upper in enumerate(upper_bounds):
+                        if env_r > env_upper:
+                            continue
                         env_determinism_range = [env_lower, env_upper]
 
                         for i_b, b_lower in enumerate(lower_bounds):
                             for b_r, b_upper in enumerate(upper_bounds):
+                                b_r > b_upper:
+                                    continue
                                 belief_determinism_range = [b_lower, b_upper]
             
                                 agent_constructor_params, store_params = initialize_agent_params(G, h_idea_mappings = h_idea_mapping, \
