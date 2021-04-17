@@ -16,26 +16,26 @@ import pandas as pd
 
 h_idea_mapping = utils.softmax(np.eye(2) * 1.0)
 
-num_agent_values = [5,8,13]
+num_agent_values = [5,10,15]
 n = len(num_agent_values)
 connectedness_values = [0.2,0.5,0.8]
 c = len(connectedness_values)
-lower_bounds = [1,4,7]
+lower_bounds = [1,6]
+ranges = [[1,5],[1,2],[1,9],[6,7],[6,10]]
 l = len(lower_bounds)
-upper_bounds = [i+j for i in lower_bounds for j in [1,5]]
-print(upper_bounds)
+upper_bounds = [i+j for i in lower_bounds for j in [1,4,8]]
 u = len(upper_bounds)
 arrays = [num_agent_values, connectedness_values, lower_bounds, upper_bounds, lower_bounds, upper_bounds, lower_bounds, upper_bounds]
 
 tuples = list(pd.MultiIndex.from_product(arrays, names = ["num_agents", "connectedness", "ecb_lower", "ecb_upper", "B_idea_lower", "B_idea_upper", "B_n_lower", "B_n_upper"]))
-
 for t in tuples:
-    if (t[2] != t[3] -1) or (t[2] != t[3] -5) or (t[4] != t[5] -1) or (t[4] != t[5] -5) or (t[6] != t[7] - 1) or (t[6] != t[7] - 5):
+    if [t[2],t[3]] in ranges and [t[4],t[5]] in ranges and [t[6],t[7]] in ranges:
+        continue
+    else:
+        
         tuples.remove(t)
-
+print(len(tuples))
 indices = pd.MultiIndex.from_tuples(tuples)
-print(indices)
-raise
 #dataframe = np.zeros((n,c,l,u,l,u,l,u))
 data = []
 # %% construct network
