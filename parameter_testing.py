@@ -20,29 +20,28 @@ num_agent_values = [5,10,15]
 n = len(num_agent_values)
 connectedness_values = [0.2,0.5,0.8]
 c = len(connectedness_values)
-lower_bounds = [1,6]
-ranges = [[1,5],[1,2],[1,9],[6,7],[6,10]]
-l = len(lower_bounds)
-upper_bounds = [i+j for i in lower_bounds for j in [1,4,8]]
-u = len(upper_bounds)
-arrays = [num_agent_values, connectedness_values, lower_bounds, upper_bounds, lower_bounds, upper_bounds, lower_bounds, upper_bounds]
+ranges = [[1,2],[1,5],[1,9],[6,7],[6,10]]
+r_len = len(ranges)
 
-tuples = list(pd.MultiIndex.from_product(arrays, names = ["num_agents", "connectedness", "ecb_lower", "ecb_upper", "B_idea_lower", "B_idea_upper", "B_n_lower", "B_n_upper"]))
-for t in tuples:
-    if [t[2],t[3]] in ranges and [t[4],t[5]] in ranges and [t[6],t[7]] in ranges:
-        continue
-    else:
-        
-        tuples.remove(t)
-print(len(tuples))
+combinations = []
+for i in num_agent_values:
+    for j in connectedness_values:
+        for k in ranges:
+            for l in ranges:
+                for r in ranges:
+                    combinations.append((i,j,k[0],k[1],l[0],l[1],r[0],r[1]))
+
+tuples = list(pd.MultiIndex.from_tuples(combinations, names = ["num_agents", "connectedness", "ecb_lower", "ecb_upper", "B_idea_lower", "B_idea_upper", "B_n_lower", "B_n_upper"]))
+
 indices = pd.MultiIndex.from_tuples(tuples)
+print(indices)
 #dataframe = np.zeros((n,c,l,u,l,u,l,u))
 data = []
 # %% construct network
 iter = 0
 
-all_parameters_to_store = utils.obj_array((n,c,l,u,l,u,l,u))
-all_results_to_store = utils.obj_array((n,c,l,u,l,u,l,u))
+all_parameters_to_store = utils.obj_array((n,c,r_len,r_len,r_len))
+all_results_to_store = utils.obj_array((n,c,r_len,r_len,r_len))
 for i_n, n in enumerate(num_agent_values):
     print("number of agents" + str(n))
     for i_p, p in enumerate(connectedness_values):
@@ -59,48 +58,43 @@ for i_n, n in enumerate(num_agent_values):
             if not nx.is_connected(G):
                 G = connect_edgeless_nodes(G) # make sure graph is 
         print("graph created")
-        for i_e, e_lower in enumerate(lower_bounds):
-            for e_r in [1,5]:
-                e_upper = e_lower + e_r
+        for i_e, e_range in enumerate(ranges):
             # range of the uniform distributions
-                ecb_precision_range = [e_lower, e_upper]
+                ecb_precision_range = e_range
 
-                for i_env, env_lower in enumerate(lower_bounds):
-                    for env_r in [1,5]:
-                        env_upper = env_lower + env_r
-                        env_determinism_range = [env_lower, env_upper]
+                for i_env, env_range in enumerate(ranges):
+                
+                    env_determinism_range = env_range
 
-                        for i_b, b_lower in enumerate(lower_bounds):
-                            for b_r in [1,5]:
-                                b_upper = b_lower + b_r
-                                belief_determinism_range = [b_lower, b_upper]
-            
-                                agent_constructor_params, store_params = initialize_agent_params(G, h_idea_mappings = h_idea_mapping, \
-                                                            ecb_precisions = ecb_precision_range, B_idea_precisions = env_determinism_range, \
-                                                                B_neighbour_precisions = belief_determinism_range, reduce_A=True)
-                                all_parameters_to_store[i_n,i_p,i_e,e_r, i_env, env_r, i_b, b_r] = store_params
-                                G = initialize_network(G, agent_constructor_params, T = T)
-                                G = run_simulation(G, T = T)
+                    for i_b, b_range in enumerate(ranges):
+                        belief_determinism_range = b_range
+    
+                        agent_constructor_params, store_params = initialize_agent_params(G, h_idea_mappings = h_idea_mapping, \
+                                                    ecb_precisions = ecb_precision_range, B_idea_precisions = env_determinism_range, \
+                                                        B_neighbour_precisions = belief_determinism_range, reduce_A=True)
+                        all_parameters_to_store[i_n,i_p,i_e,i_env,i_b] = store_params
+                        G = initialize_network(G, agent_constructor_params, T = T)
+                        G = run_simulation(G, T = T)
 
-                                all_qs = collect_idea_beliefs(G)
-                                all_neighbour_samplings = collect_sampling_history(G)
-                                adj_mat = nx.to_numpy_array(G)
-                                all_tweets = collect_tweets(G)
+                        all_qs = collect_idea_beliefs(G)
+                        all_neighbour_samplings = collect_sampling_history(G)
+                        adj_mat = nx.to_numpy_array(G)
+                        all_tweets = collect_tweets(G)
 
-                                believers = np.where(all_qs[-1,0,:] > 0.5)
-                                nonbelievers = np.where(all_qs[-1,0,:] < 0.5)
+                        believers = np.where(all_qs[-1,0,:] > 0.5)
+                        nonbelievers = np.where(all_qs[-1,0,:] < 0.5)
 
-                                all_results_to_store[i_n,i_p,i_e,e_r, i_env, env_r, i_b, b_r] = (adj_mat, all_qs, all_tweets, all_neighbour_samplings)
+                        all_results_to_store[i_n,i_p,i_e,i_env,i_b] = (adj_mat, all_qs, all_tweets, all_neighbour_samplings)
 
-                                if np.sum(all_qs[-1,0,believers]) == 0 or np.sum(all_qs[-1,1,nonbelievers]) == 0:
-                                    cluster_ratio = 0
-                                else:
-                                    cluster_ratio = np.sum(all_qs[-1,0,believers]) / np.sum(all_qs[-1,1,nonbelievers])
-                                    cluster_ratio = cluster_ratio if cluster_ratio < 1 else 1/cluster_ratio
-                                data.append(cluster_ratio)
-                                if iter % 10:
-                                    print(iter)
-                                iter +=1
+                        if np.sum(all_qs[-1,0,believers]) == 0 or np.sum(all_qs[-1,1,nonbelievers]) == 0:
+                            cluster_ratio = 0
+                        else:
+                            cluster_ratio = np.sum(all_qs[-1,0,believers]) / np.sum(all_qs[-1,1,nonbelievers])
+                            cluster_ratio = cluster_ratio if cluster_ratio < 1 else 1/cluster_ratio
+                        data.append(cluster_ratio)
+                        if iter % 10 ==0:
+                            print(iter)
+                        iter +=1
 
 np.savez('results/params', all_parameters_to_store)
 np.savez('results/all_results', all_results_to_store)
