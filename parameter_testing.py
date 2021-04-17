@@ -61,20 +61,20 @@ for i_n, n in enumerate(num_agent_values):
         print("graph created")
         for i_e, e_lower in enumerate(lower_bounds):
             for e_r, e_upper in enumerate(upper_bounds):
-                if e_r > e_upper:
+                if e_lower > e_upper:
                     continue
             # range of the uniform distributions
                 ecb_precision_range = [e_lower, e_upper]
 
                 for i_env, env_lower in enumerate(lower_bounds):
                     for env_r, env_upper in enumerate(upper_bounds):
-                        if env_r > env_upper:
+                        if env_lower > env_upper:
                             continue
                         env_determinism_range = [env_lower, env_upper]
 
                         for i_b, b_lower in enumerate(lower_bounds):
                             for b_r, b_upper in enumerate(upper_bounds):
-                                b_r > b_upper:
+                                if b_lower > b_upper:
                                     continue
                                 belief_determinism_range = [b_lower, b_upper]
             
