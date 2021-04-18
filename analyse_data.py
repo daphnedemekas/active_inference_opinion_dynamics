@@ -59,7 +59,6 @@ plt.show()
 output = widgets.Output()
 @output.capture
 def n_update(change):
-    print("Fuck u")
     with output:
         replot(change.new, c_d.value, r2_d.value, r3_d.value)
 @output.capture
@@ -70,7 +69,6 @@ def r2_update(change):
     replot(n_d.value, c_d.value, change.new, r3_d.value)
 @output.capture
 def r3_update(change):
-    print("Hello?")
     plt.plot([1,2],[3,4])
     plt.show()
     replot(n_d.value, c_d.value, r2_d.value, change.new)
@@ -86,6 +84,28 @@ def replot(n, c, env_r, b_r):
         plt.plot(str_ranges, new_data)
         plt.show()
         display(output)
+# %% replot function to call in vs code
+   
+def replot_vs():
+    n = n_d.value
+    c = c_d.value
+    #output.clear_output()
+    r2 = ranges[str_ranges.index(r2_d.value)]
+    r3 = ranges[str_ranges.index(r3_d.value)]
+    new_data = []
+    for r in ranges:
+        new_data.append(get_ratio_from_parameters(n, c, r, r2, r3))
+    fig, ax = plt.subplots(figsize=(3, 2))
+
+    plt.plot(str_ranges, new_data)
+    plt.ylabel("Cluster Homogeneity")
+    plt.xlabel("ECB Precision Range")
+    plt.show()
+    display(n_d)
+    display(c_d)
+    display(r1_d)
+    display(r2_d)
+    display(r3_d)
 
 # %% define the observations
 n_d.observe(n_update, names='value')
@@ -99,3 +119,6 @@ display(r1_d)
 display(r2_d)
 display(r3_d)
 # %%
+
+
+
