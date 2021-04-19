@@ -4,7 +4,27 @@ import imageio
 import os
 import seaborn as sns
 
+def plot_beliefs_over_time(belief_hist):
+    believers = np.where(belief_hist[-1,1,:] > 0.5)[0]
+    nonbelievers = np.where(belief_hist[-1,1,:] < 0.5)[0]
+    for non_believe_idx in nonbelievers:
+        if non_believe_idx == nonbelievers[-1]:
+            plt.plot(belief_hist[:,0,non_believe_idx],c='b',lw=2.5, label='Believe in Idea 1')
+        else:
+            plt.plot(belief_hist[:,0,non_believe_idx],c='b',lw=2.5)
 
+    for believe_idx in believers:
+        if believe_idx == believers[-1]:
+            plt.plot(belief_hist[:,0,believe_idx],c='orange',lw=2.5, label='Believe in Idea 2')
+        else:
+            plt.plot(belief_hist[:,0,believe_idx],c='orange',lw=2.5)
+    plt.legend(fontsize=10)
+    plt.xticks(fontsize=10)
+    plt.yticks(fontsize=10)
+    plt.xlabel('Time',fontsize=10)
+    plt.ylabel('Strength of belief',fontsize=10)
+
+    
 def KL_div(array1_0, array1_1, array2_0, array2_1):
     return array1_0 * np.log(array1_0 / array2_0) + array1_1 * np.log(array1_1 / array2_1)
 

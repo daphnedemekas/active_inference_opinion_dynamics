@@ -14,14 +14,6 @@ from Analysis.plots import *
 import csv
 import pandas as pd 
 
-def get_cluster_ratio(all_qs):
-    if np.sum(all_qs[-1,0,believers]) == 0 or np.sum(all_qs[-1,1,nonbelievers]) == 0:
-        cluster_ratio = 0
-    else:
-        cluster_ratio = np.sum(all_qs[-1,0,believers]) / np.sum(all_qs[-1,1,nonbelievers])
-        cluster_ratio = cluster_ratio if cluster_ratio < 1 else 1/cluster_ratio
-    return cluster_ratio
-
 h_idea_mapping = utils.softmax(np.eye(2) * 1.0)
 
 num_agent_values = [5,10,15]
@@ -32,18 +24,6 @@ precision_ranges = [[1,2],[1,5],[1,9],[6,7],[6,10]]
 r_len = len(precision_ranges)
 num_trials = 5
 
-combinations = []
-for i in num_agent_values:
-    for j in connectedness_values:
-        for k in precision_ranges:
-            for l in precision_ranges:
-                for r in precision_ranges:
-                    combinations.append((i,j,k[0],k[1],l[0],l[1],r[0],r[1]))
-
-tuples = list(pd.MultiIndex.from_tuples(combinations, names = ["num_agents", "connectedness", "ecb_lower", "ecb_upper", "B_idea_lower", "B_idea_upper", "B_n_lower", "B_n_upper"]))
-
-indices = pd.MultiIndex.from_tuples(tuples)
-data = np.zeros((num_trials, len(tuples)))
 # %% construct network
 iter = 0
 
@@ -95,9 +75,8 @@ for trial in range(num_trials):
                             all_results_to_store[i_n,i_p,i_e,i_env,i_b] = (adj_mat, all_qs, all_tweets, all_neighbour_samplings)
 
                             #choose a metric to store (or more than one)
-                            metric = get_cluster_ratio(all_qs)
-
-                            data[trial, iter] = metric
+                            #metric = get_cluster_ratio(all_qs)
+                            #data[trial, iter] = metric
 
                             if iter % 10 ==0:
                                 print(iter)
@@ -105,7 +84,33 @@ for trial in range(num_trials):
 
 np.savez('results/params', all_parameters_to_store)
 np.savez('results/all_results', all_results_to_store)
-s = pd.Series(data,index=indices)
 
-s.to_pickle("param_data.pkl")
 
+
+
+
+
+# def get_cluster_ratio(all_qs):
+#     if np.sum(all_qs[-1,0,believers]) == 0 or np.sum(all_qs[-1,1,nonbelievers]) == 0:
+#         cluster_ratio = 0
+#     else:
+#         cluster_ratio = np.sum(all_qs[-1,0,believers]) / np.sum(all_qs[-1,1,nonbelievers])
+#         cluster_ratio = cluster_ratio if cluster_ratio < 1 else 1/cluster_ratio
+#     return cluster_ratio
+
+#s = pd.Series(data,index=indices)
+
+#s.to_pickle("param_data.pkl")
+
+# combinations = []
+# for i in num_agent_values:
+#     for j in connectedness_values:
+#         for k in precision_ranges:
+#             for l in precision_ranges:
+#                 for r in precision_ranges:
+#                     combinations.append((i,j,k[0],k[1],l[0],l[1],r[0],r[1]))
+
+#tuples = list(pd.MultiIndex.from_tuples(combinations, names = ["num_agents", "connectedness", "ecb_lower", "ecb_upper", "B_idea_lower", "B_idea_upper", "B_n_lower", "B_n_upper"]))
+
+#indices = pd.MultiIndex.from_tuples(tuples)
+#data = np.zeros((num_trials, len(tuples)))
