@@ -13,6 +13,7 @@ import seaborn as sns
 from Analysis.plots import *
 import csv
 import pandas as pd 
+import itertools
 
 h_idea_mapping = utils.softmax(np.eye(2) * 1.0)
 
@@ -20,67 +21,69 @@ num_agent_values = [5,10,15]
 n = len(num_agent_values)
 connectedness_values = [0.2,0.5,0.8]
 c = len(connectedness_values)
-precision_ranges = [[1,2],[1,5],[1,9],[6,7],[6,10]]
-r_len = len(precision_ranges)
-num_trials = 5
+#precision_ranges = [[1,2],[1,5],[1,9],[6,7],[6,10]]
+ecb_precision_gammas = [1,4,6,8]
+env_precision_gammas = [5,8,10]
+b_precision_gammas = [5,8,10]
 
+r_len = len(ecb_precision_gammas)
+n_trials = 5
+
+param_combos = itertools.product(num_agent_values, connectedness_values, ecb_precision_gammas,env_precision_gammas,b_precision_gammas)
 # %% construct network
 iter = 0
 
-all_parameters_to_store = utils.obj_array((n,c,r_len,r_len,r_len))
-all_results_to_store = utils.obj_array((n,c,r_len,r_len,r_len))
+all_parameters_to_store = utils.obj_array((n_trials, n,c,r_len,r_len,r_len))
+all_results_to_store = utils.obj_array((n_trials, n,c,r_len,r_len,r_len))
 
-for trial in range(num_trials):
-    for i_n, n in enumerate(num_agent_values):
-        for i_p, p in enumerate(connectedness_values):
-            N, p, T = n, p, 50
+for param_config in param_combos:
+    num_agents_i, connectedness_i, ecb_p_i, env_precision_i, b_precision_i = param_config
+
+    all_trials_ecbs = np.random.gamma(shape=ecb_p_i,size=(n_trials,)) # one random gamma distributed precision for each trial
+    all_trials_envs = np.random.gamma(shape=env_precision_i,size=(n_trials,))
+    all_trials_bs = np.random.gamma(shape=b_precision_i,size=(n_trials,))
+
+    for trial_i in range(n_trials):
+        indices = (trial_i, num_agent_values.index(num_agents_i), connectedness_values.index(connectedness_i), ecb_precision_gammas.index(ecb_p_i), env_precision_gammas.index(env_precision_i), b_precision_gammas.index(b_precision_i))
+
+        ecb_precisions = all_trials_ecbs[trial_i]
+        env_precisions = all_trials_envs[trial_i]
+        b_precisions = all_trials_bs[trial_i]
+
+        N, p, T = num_agents_i, connectedness_i, 50
+        G = nx.fast_gnp_random_graph(N,p)
+
+        # make sure graph is connected and all agents have at least one edge
+        if not nx.is_connected(G):
+            G = connect_edgeless_nodes(G) # make sure graph is connected
+        while np.array(list(G.degree()))[:,1].min() < 2: # make sure no agents with only 1 edge
+            #G = nx.stochastic_block_model(sizes, probs, seed=0) # create the graph for this trial & condition
             G = nx.fast_gnp_random_graph(N,p)
 
-            # make sure graph is connected and all agents have at least one edge
             if not nx.is_connected(G):
-                G = connect_edgeless_nodes(G) # make sure graph is connected
-            while np.array(list(G.degree()))[:,1].min() < 2: # make sure no agents with only 1 edge
-                #G = nx.stochastic_block_model(sizes, probs, seed=0) # create the graph for this trial & condition
-                G = nx.fast_gnp_random_graph(N,p)
+                G = connect_edgeless_nodes(G) # make sure graph is 
 
-                if not nx.is_connected(G):
-                    G = connect_edgeless_nodes(G) # make sure graph is 
-            print("graph created")
-            for i_e, e_range in enumerate(precision_ranges):
-                # range of the uniform distributions
-                    ecb_precision_range = e_range
+        agent_constructor_params, store_params = initialize_agent_params(G, h_idea_mappings = h_idea_mapping, \
+                                    ecb_precisions = ecb_precisions, B_idea_precisions = env_precisions, \
+                                        B_neighbour_precisions = b_precisions, reduce_A=True)
 
-                    for i_env, env_range in enumerate(precision_ranges):
-                    
-                        env_determinism_range = env_range
+        all_parameters_to_store[indices] = store_params
+        G = initialize_network(G, agent_constructor_params, T = T)
+        G = run_simulation(G, T = T)
 
-                        for i_b, b_range in enumerate(precision_ranges):
-                            belief_determinism_range = b_range
-        
-                            agent_constructor_params, store_params = initialize_agent_params(G, h_idea_mappings = h_idea_mapping, \
-                                                        ecb_precisions = ecb_precision_range, B_idea_precisions = env_determinism_range, \
-                                                            B_neighbour_precisions = belief_determinism_range, reduce_A=True)
-                            all_parameters_to_store[i_n,i_p,i_e,i_env,i_b] = store_params
-                            G = initialize_network(G, agent_constructor_params, T = T)
-                            G = run_simulation(G, T = T)
+        all_qs = collect_idea_beliefs(G)
+        all_neighbour_samplings = collect_sampling_history(G)
+        adj_mat = nx.to_numpy_array(G)
+        all_tweets = collect_tweets(G)
 
-                            all_qs = collect_idea_beliefs(G)
-                            all_neighbour_samplings = collect_sampling_history(G)
-                            adj_mat = nx.to_numpy_array(G)
-                            all_tweets = collect_tweets(G)
+        believers = np.where(all_qs[-1,0,:] > 0.5)
+        nonbelievers = np.where(all_qs[-1,0,:] < 0.5)
 
-                            believers = np.where(all_qs[-1,0,:] > 0.5)
-                            nonbelievers = np.where(all_qs[-1,0,:] < 0.5)
+        all_results_to_store[indices] = (adj_mat, all_qs, all_tweets, all_neighbour_samplings)
 
-                            all_results_to_store[i_n,i_p,i_e,i_env,i_b] = (adj_mat, all_qs, all_tweets, all_neighbour_samplings)
-
-                            #choose a metric to store (or more than one)
-                            #metric = get_cluster_ratio(all_qs)
-                            #data[trial, iter] = metric
-
-                            if iter % 10 ==0:
-                                print(iter)
-                            iter +=1
+        if iter % 10 ==0:
+            print(iter)
+        iter +=1
 
 np.savez('results/params', all_parameters_to_store)
 np.savez('results/all_results', all_results_to_store)

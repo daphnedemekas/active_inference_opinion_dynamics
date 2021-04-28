@@ -55,7 +55,8 @@ class GenerativeModel(object):
         self.num_neighbours = num_neighbours
         self.num_cohesion_levels = 2 * (self.num_neighbours+1)
 
-        self.env_determinism = env_determinism
+        self.env_determinism = float(env_determinism)
+
         if self.env_determinism is None:
             self.env_determinism = np.random.uniform(low=0.5, high=3.0)
         else:
@@ -132,7 +133,7 @@ class GenerativeModel(object):
                     A[o_idx][tuple(A_indices)] = self.h_control_mapping
 
             if o_idx in self.neighbour_h_idx: # now we're considering one of the observation modalities corresponding to seeing my neighbour's tweets
-                
+                 
                 for truth_level in range(self.num_states[self.focal_belief_idx]): # the precision of the mapping is dependent on the truth value of the hidden state 
                                                                     # this reflects the idea that 
                     h_idea_mapping_scaled = np.copy(self.h_idea_mapping)

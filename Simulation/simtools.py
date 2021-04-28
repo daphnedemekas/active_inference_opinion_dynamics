@@ -49,30 +49,30 @@ def initialize_agent_params(G,
     
     # set every single agent's ecb precision parameters, if not provided (min and max parameters of a uniform distribution)
     if ecb_precisions is None:
-        mins = np.random.gamma(2.0, 2.0, size = (num_agents, ))
+        mins = np.random.gamma(4.0,size = (num_agents, ))
         ranges = np.hstack( (mins.reshape(-1,1), mins.reshape(-1,1) + ecb_spread )) # min and maxes of random uniform distributions
         ecb_precisions_all = {}
         for i in G.nodes():
             ecb_precisions_all[i] = ranges[i,:]
-    elif isinstance(ecb_precisions,list):
+    else:
         ecb_precisions_all = {i: np.array(ecb_precisions) for i in G.nodes()}
     
     if B_idea_precisions is None:
-        mins = np.random.gamma(4.0,2, size = (num_agents, ))
+        mins = np.random.gamma(5.0,size = (num_agents, ))
         ranges = np.hstack( (mins.reshape(-1,1), mins.reshape(-1,1) + b_idea_spread )) # min and maxes of random uniform distributions
         B_idea_precisions_all = {}
         for i in G.nodes():
             B_idea_precisions_all[i] = ranges[i,:]
-    elif isinstance(B_idea_precisions,list):
+    else:
         B_idea_precisions_all = {i: np.array(B_idea_precisions) for i in G.nodes()}
 
     if B_neighbour_precisions is None:
-        mins = np.random.gamma(4.0,2, size = (num_agents, ))
+        mins = np.random.gamma(8.0,size = (num_agents, ))
         ranges = np.hstack( (mins.reshape(-1,1), mins.reshape(-1,1) + b_neighbour_spread )) # min and maxes of random uniform distributions
         B_neighbour_precisions_all = {}
         for i in G.nodes():
             B_neighbour_precisions_all[i] = ranges[i,:]
-    elif isinstance(B_neighbour_precisions,list):
+    else:
         B_neighbour_precisions_all = {i: np.array(B_neighbour_precisions) for i in G.nodes()}
     
     # set every single agent's prior preference parameters
@@ -97,19 +97,21 @@ def initialize_agent_params(G,
 
         initial_tweet, initial_neighbour_to_sample = np.random.randint(num_H), np.random.randint(num_neighbours) 
 
-        ecb_precisions = [np.random.uniform(low = ecb_precisions_all[i][0], high = ecb_precisions_all[i][1], size = (idea_levels,) ) for n in range(num_neighbours)]
-        env_determinism = np.random.uniform(low = B_idea_precisions_all[i][0], high = B_idea_precisions_all[i][1])
-        belief_determinism = np.random.uniform(low = B_neighbour_precisions_all[i][0], high = B_neighbour_precisions_all[i][1], size = (num_neighbours,))
+        # ecb_precisions = [np.random.uniform(low = ecb_precisions_all[i][0], high = ecb_precisions_all[i][1], size = (idea_levels,) ) for n in range(num_neighbours)]
+        ecb_precisions = ecb_precisions_all[i]
+        env_determinism = B_idea_precisions_all[i]
+        belief_determinism = B_neighbour_precisions_all[i]
 
         params = [ecb_precisions,env_determinism,belief_determinism]
         store_parameters[i] = params
+
         agent_constructor_params[i] = {
 
             "neighbour_params" : {
-                "ecb_precisions" :  ecb_precisions,
+                "ecb_precisions" :  ecb_precisions*np.ones((num_neighbours, idea_levels)),
                 "num_neighbours" : num_neighbours,
                 "env_determinism":  env_determinism,
-                "belief_determinism": belief_determinism
+                "belief_determinism": belief_determinism*np.ones(num_neighbours,)
                 },
 
             "idea_mapping_params" : {

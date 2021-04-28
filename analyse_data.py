@@ -10,30 +10,28 @@ import seaborn as sns
 from Analysis.plots import plot_beliefs_over_time
 # %% define values and get data file
 num_agent_values = [5,10,15]
-
+n = len(num_agent_values)
 connectedness_values = [0.2,0.5,0.8]
-ranges = [[1,2],[1,5],[1,9],[6,7],[6,10]]
-str_ranges = ['[1,2]','[1,5]','[1,9]','[6,7]','[6,10]']
+c = len(connectedness_values)
+ecb_precision_gammas = [1,4,6,8]
+env_precision_gammas = [5,8,10]
+b_precision_gammas = [5,8,10]
 
-df = pd.read_pickle("param_data.pkl")
-param_results = np.load('results/params 2.npz',allow_pickle = True)['arr_0']
-sim_results = np.load('results/all_results 2.npz',allow_pickle=True)['arr_0']
+n_trials = 5
+
+param_results = np.load('results/params.npz',allow_pickle = True)['arr_0']
+sim_results = np.load('results/all_results.npz',allow_pickle=True)['arr_0']
 # %% function to access the real parameters from the simulation
 
-def get_real_precisions(n,c,l,u,r1, r2, r3):
+def get_real_precisions(t,n,c,l,u,r1, r2, r3):
     n_i = num_agent_values.index(n)
     c_i = connectedness_values.index(c)
     r1_i = str_ranges.index(r1)
     r2_i = str_ranges.index(r2)
     r3_i = str_ranges.index(r3)
-    all_agent_params = param_results[n_i,c_i,r1_i,r2_i,r3_i]
+    all_agent_params = param_results[t,n_i,c_i,r1_i,r2_i,r3_i]
     return all_agent_params
 # %% function to access the cluster ratio from the inputted params
-
-def get_ratio_from_parameters(n, c, r1, r2, r3):
-    #first need to rount to the closest valuable option 
-    indices = (n, c, r1[0], r1[1], r2[0], r2[1], r3[0], r3[1])
-    return df[indices]
 
 def get_sim_results_from_parameters(n, c, r1, r2, r3):
     n_i = num_agent_values.index(n)
@@ -41,10 +39,10 @@ def get_sim_results_from_parameters(n, c, r1, r2, r3):
     r1_i = str_ranges.index(r1)
     r2_i = str_ranges.index(r2)
     r3_i = str_ranges.index(r3)
-    adj_mat = sim_results[n_i,c_i,r1_i,r2_i,r3_i][0]
-    all_qs = sim_results[n_i,c_i,r1_i,r2_i,r3_i][1]
-    all_tweets = sim_results[n_i,c_i,r1_i,r2_i,r3_i][2]
-    all_neighbour_samplings = sim_results[n_i,c_i,r1_i,r2_i,r3_i][3]
+    adj_mat = np.average(sim_results[:,n_i,c_i,r1_i,r2_i,r3_i][0]) #take the average 
+    all_qs = np.average(sim_results[:,n_i,c_i,r1_i,r2_i,r3_i][1])
+    all_tweets = np.average(sim_results[:,n_i,c_i,r1_i,r2_i,r3_i][2])
+    all_neighbour_samplings = np.average(sim_results[:,n_i,c_i,r1_i,r2_i,r3_i][3])
     result = {'adj_mat' : adj_mat, 'all_qs':all_qs, 'all_tweets':all_tweets, 'all_neighbour_sampling':all_neighbour_samplings}
     return result
 
@@ -120,7 +118,10 @@ def cluster_ratio_over_time():
 
 
 
-
+# def get_ratio_from_parameters(n, c, r1, r2, r3):
+#     #first need to rount to the closest valuable option 
+#     indices = (n, c, r1[0], r1[1], r2[0], r2[1], r3[0], r3[1])
+#     return df[indices]
 
 
 # # %% update function
