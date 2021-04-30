@@ -40,6 +40,7 @@ all_results_to_store = utils.obj_array((n_trials, n,c,r_len,r_len,r_len))
 
 for param_config in param_combos:
     num_agents_i, connectedness_i, ecb_p_i, env_precision_i, b_precision_i = param_config
+    N, p, T = num_agents_i, connectedness_i, 50
 
     all_trials_ecbs = np.random.gamma(shape=ecb_p_i,size=(n_trials,)) # one random gamma distributed precision for each trial
     all_trials_envs = np.random.gamma(shape=env_precision_i,size=(n_trials,))
@@ -62,8 +63,6 @@ for param_config in param_combos:
         ecb_precisions = all_trials_ecbs[trial_i]
         env_precisions = all_trials_envs[trial_i]
         b_precisions = all_trials_bs[trial_i]
-
-        N, p, T = num_agents_i, connectedness_i, 50
 
         agent_constructor_params, store_params = initialize_agent_params(G, h_idea_mappings = h_idea_mapping, \
                                     ecb_precisions = ecb_precisions, B_idea_precisions = env_precisions, \
