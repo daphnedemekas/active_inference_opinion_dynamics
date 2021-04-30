@@ -87,7 +87,9 @@ def tweet_similarity_matrices(all_tweets, cluster_sorted_indices):
         plt.clf()
     return tweet_sim_images
 
-
+def plot_conclusion_thresholds(conclusion_thresholds):
+    plt.bar(list(range(len(conclusion_thresholds))), conclusion_thresholds)
+    plt.title("Conclusion Thresholds")
 
 # def tweet_proportions(all_tweets):
 #     T = all_tweets.shape[0]

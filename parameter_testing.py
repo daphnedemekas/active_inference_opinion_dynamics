@@ -17,17 +17,19 @@ import itertools
 
 h_idea_mapping = utils.softmax(np.eye(2) * 1.0)
 
-num_agent_values = [5,10,15]
+connectedness_values = [0.2,0.4,0.5,0.6,0.7,0.8]
+ecb_precision_gammas = [1,2,3,4,5,6,7,8,9,10]
+
+num_agent_values = [4,6,8,10,12,14]
+
 n = len(num_agent_values)
-connectedness_values = [0.2,0.5,0.8]
 c = len(connectedness_values)
 #precision_ranges = [[1,2],[1,5],[1,9],[6,7],[6,10]]
-ecb_precision_gammas = [1,4,6,8]
-env_precision_gammas = [5,8,10]
-b_precision_gammas = [5,8,10]
+env_precision_gammas = [10]
+b_precision_gammas = [5]
 
 r_len = len(ecb_precision_gammas)
-n_trials = 5
+n_trials = 50
 
 param_combos = itertools.product(num_agent_values, connectedness_values, ecb_precision_gammas,env_precision_gammas,b_precision_gammas)
 # %% construct network
@@ -117,3 +119,4 @@ np.savez('results/all_results', all_results_to_store)
 
 #indices = pd.MultiIndex.from_tuples(tuples)
 #data = np.zeros((num_trials, len(tuples)))
+# %%
