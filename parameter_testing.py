@@ -44,6 +44,17 @@ for param_config in param_combos:
     all_trials_ecbs = np.random.gamma(shape=ecb_p_i,size=(n_trials,)) # one random gamma distributed precision for each trial
     all_trials_envs = np.random.gamma(shape=env_precision_i,size=(n_trials,))
     all_trials_bs = np.random.gamma(shape=b_precision_i,size=(n_trials,))
+    G = nx.fast_gnp_random_graph(N,p)
+
+        # make sure graph is connected and all agents have at least one edge
+    if not nx.is_connected(G):
+        G = connect_edgeless_nodes(G) # make sure graph is connected
+    while np.array(list(G.degree()))[:,1].min() < 2: # make sure no agents with only 1 edge
+        #G = nx.stochastic_block_model(sizes, probs, seed=0) # create the graph for this trial & condition
+        G = nx.fast_gnp_random_graph(N,p)
+
+        if not nx.is_connected(G):
+            G = connect_edgeless_nodes(G) # make sure graph is 
 
     for trial_i in range(n_trials):
         indices = (trial_i, num_agent_values.index(num_agents_i), connectedness_values.index(connectedness_i), ecb_precision_gammas.index(ecb_p_i), env_precision_gammas.index(env_precision_i), b_precision_gammas.index(b_precision_i))
@@ -53,17 +64,6 @@ for param_config in param_combos:
         b_precisions = all_trials_bs[trial_i]
 
         N, p, T = num_agents_i, connectedness_i, 50
-        G = nx.fast_gnp_random_graph(N,p)
-
-        # make sure graph is connected and all agents have at least one edge
-        if not nx.is_connected(G):
-            G = connect_edgeless_nodes(G) # make sure graph is connected
-        while np.array(list(G.degree()))[:,1].min() < 2: # make sure no agents with only 1 edge
-            #G = nx.stochastic_block_model(sizes, probs, seed=0) # create the graph for this trial & condition
-            G = nx.fast_gnp_random_graph(N,p)
-
-            if not nx.is_connected(G):
-                G = connect_edgeless_nodes(G) # make sure graph is 
 
         agent_constructor_params, store_params = initialize_agent_params(G, h_idea_mappings = h_idea_mapping, \
                                     ecb_precisions = ecb_precisions, B_idea_precisions = env_precisions, \
@@ -75,6 +75,8 @@ for param_config in param_combos:
 
         all_qs = collect_idea_beliefs(G)
         all_neighbour_samplings = collect_sampling_history(G)
+        print(all_neighbour_samplings)
+        raise
         adj_mat = nx.to_numpy_array(G)
         all_tweets = collect_tweets(G)
 
@@ -87,8 +89,8 @@ for param_config in param_combos:
             print(iter)
         iter +=1
 
-np.savez('results/params', all_parameters_to_store)
-np.savez('results/all_results', all_results_to_store)
+np.savez('results/params2', all_parameters_to_store)
+np.savez('results/all_results2', all_results_to_store)
 
 
 
