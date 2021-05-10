@@ -19,32 +19,6 @@ def get_real_precisions(t,n,c,ecb, env, bel):
     bel_i = b_precision_gammas.index(bel)
     all_agent_params = param_results[t,n_i,c_i,ecb_i,env_i,bel_i]
     return all_agent_params
-# %% function to access the cluster ratio from the inputted params
-def get_all_sim_results(t, n, c, ecb, env, bel, num_agent_values, connectedness_values, ecb_precision_gammas, b_precision_gammas, env_precision_gammas):
-    n_i = num_agent_values.index(n)
-    c_i = connectedness_values.index(c)
-    ecb_i = ecb_precision_gammas.index(ecb)
-    env_i = env_precision_gammas.index(env)
-    bel_i = b_precision_gammas.index(bel)
-    adj_mat = sim_results[t,n_i,c_i,ecb_i,env_i,bel_i][0]
-    all_qs = sim_results[t,n_i,c_i,ecb_i,env_i,bel_i][1] 
-    all_tweets = sim_results[t,n_i,c_i,ecb_i,env_i,bel_i][2] 
-    all_neighbour_samplings = sim_results[t,n_i,c_i,ecb_i,env_i,bel_i][3]
-    result = {'adj_mat' : adj_mat, 'all_qs':all_qs, 'all_tweets':all_tweets, 'all_neighbour_sampling':all_neighbour_samplings}
-    return result
-
-def get_sim_results_from_parameters(params):
-    n_i = params.num_agent_values.index(params.n_d.value)
-    c_i = params.connectedness_values.index(params.c_d.value)
-    ecb_i = params.ecb_precision_gammas.index(params.ecb_d.value)
-    env_i = params.env_precision_gammas.index(params.env_d.value)
-    bel_i = params.b_precision_gammas.index(params.b_d.value)
-    adj_mat = np.mean(np.array([params.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i][0] for i in range(params.n_trials)]),axis=0)#take the average 
-    avg_all_qs = np.mean(np.array([params.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i][1] for i in range(params.n_trials)]),axis=0)
-    avg_all_tweets = np.mean(np.array([params.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i][2] for i in range(params.n_trials)]),axis=0)
-    avg_all_neighbour_samplings = np.mean(np.array([params.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i][3] for i in range(params.n_trials)]),axis=0)
-    result = {'adj_mat' : adj_mat, 'all_qs':avg_all_qs, 'all_tweets':avg_all_tweets, 'all_neighbour_sampling':avg_all_neighbour_samplings}
-    return result
 
 def display_dropdown(params):
     display(params.n_d)
@@ -63,77 +37,30 @@ def heatmap_of_tweets(params):
     plt.show()
     display_dropdown(params)
 
-def beliefs_over_time(params):
+def beliefs_over_time(params, p):
     fig, ax = plt.subplots(figsize=(6,4))
     belief_hist = get_sim_results_from_parameters(params)['all_qs']
     plot_beliefs_over_time(belief_hist)
+    plt.title(p)
     plt.show()
     #display_dropdown(n_d, c_d, ecb_d, env_d, b_d)
 
-def get_cluster_ratio(all_qs):
-    cluster_ratios = np.zeros((all_qs.shape[0],1))
-    believers = np.where(all_qs[-1,1,:] > 0.5)[0]
-    nonbelievers = np.where(all_qs[-1,1,:] < 0.5)[0]
-    for t in range(all_qs.shape[0]):
-        if np.sum(all_qs[t,0,believers]) == 0 or np.sum(all_qs[t,1,nonbelievers]) == 0:
-            cluster_ratio = 0
-        else:
-            cluster_ratio = np.sum(all_qs[t,0,believers]) / np.sum(all_qs[t,1,nonbelievers])
-            cluster_ratio = cluster_ratio if cluster_ratio < 1 else 1/cluster_ratio
-        cluster_ratios[t] = cluster_ratio
-    return cluster_ratios
 # %% initialize plot
-def davies_bouldin(all_qs): # a low DB index represents low inter cluster and high intra cluster similarity 
-    believers = np.where(all_qs[-1,1,:] > 0.5)[0]
-    nonbelievers = np.where(all_qs[-1,1,:] < 0.5)[0] 
-    centroid1 = np.mean(all_qs[-1,1,believers])
-    centroid2 = np.mean(all_qs[-1,1,nonbelievers])
-    sigma1 = np.mean([np.absolute(e - centroid1) for e in all_qs[-1,1,believers]])
-    sigma2 = np.mean([np.absolute(e - centroid2) for e in all_qs[-1,1,nonbelievers]])
-    db = 0.5 * ((sigma1 + sigma2) / np.absolute(centroid1 - centroid2))
-    return db
 
-def evaluate_clustering(params):
+def evaluate_clustering(params, p):
     results = {}
     belief_hist = get_sim_results_from_parameters(params)['all_qs']
-    results["davies bouldin index"] = davies_bouldin(belief_hist)
-    results["cluster kl div"] = get_cluster_metric(belief_hist)[-1]
-    results["agent convergence times"] = conclusion_thresholds(belief_hist)
-    results["cluster ratio"] = get_cluster_ratio(belief_hist)[-1]
+    results["davies bouldin index"] = davies_bouldin(belief_hist) 
+    results["cluster kl div"] = cluster_kl(belief_hist)[-1] 
+    results["cluster meanvar"] = cluster_mean_over_variance(belief_hist)
+
+    #results["agent convergence times"] = [conclusion_thresholds(belief_hist)
+    #results["cluster ratio"] = get_cluster_ratio(belief_hist)[-1]
     results["ECB"] = params.ecb_d.value
     results["Graph Connnectedness"] = params.c_d.value
     results["num agents"] = params.n_d.value
     #display_dropdown(n_d, c_d, ecb_d, env_d, b_d)
     return results 
-
-
-# %% initialize plot
-def get_cluster_metric(all_qs):
-    cluster_metrics = np.zeros((all_qs.shape[0],1))
-    believers = np.where(all_qs[-1,1,:] > 0.5)[0]
-    nonbelievers = np.where(all_qs[-1,1,:] < 0.5)[0]
-
-    for t in range(all_qs.shape[0]):
-        believer_beliefs = all_qs[t,1,believers]
-        non_believer_beliefs = all_qs[t,0,nonbelievers]
-        if np.sum(believer_beliefs) == 0 or np.sum(non_believer_beliefs) == 0:
-            cluster_ratio = 0.5
-        else:
-            cluster_metric_b = np.mean(np.ones(believer_beliefs.shape[0]) * np.log(np.ones(believer_beliefs.shape[0]) / believer_beliefs))         
-            cluster_metric_nb = np.mean(np.ones(non_believer_beliefs.shape[0])* np.log(np.ones(non_believer_beliefs.shape[0]) / non_believer_beliefs) )        
-            cluster_metrics[t] = (cluster_metric_b + cluster_metric_nb) / 2
-    return cluster_metrics
-
-def conclusion_thresholds(all_qs):
-    N = all_qs.shape[2]
-    agent_thresholds = np.zeros(N)
-    for agent in range(N):
-        last_belief = all_qs[-1,1,agent] > 0.5
-        for t in reversed(range(all_qs.shape[0])):
-            if (all_qs[t,1,agent] > 0.5) != last_belief:
-                agent_thresholds[agent] = t
-                break
-    return agent_thresholds
 
 def cluster_ratio_over_time(params):
     fig, ax = plt.subplots(figsize=(6,2))
@@ -143,7 +70,7 @@ def cluster_ratio_over_time(params):
     plt.show()
     display_dropdown(params)
 
-def cluster_metric_over_time(params):
+def cluster_kl_over_time(params):
     fig, ax = plt.subplots(figsize=(6,2))
     belief_hist = get_sim_results_from_parameters(paramss)['all_qs']
     cluster_metric = get_cluster_metric(belief_hist)
@@ -151,6 +78,26 @@ def cluster_metric_over_time(params):
     ax = sns.heatmap(np.transpose(cluster_metric), vmin = 0.2, vmax = 0.8)
     plt.show()
     display_dropdown(n_d, c_d, ecb_d, env_d, b_d)
+
+
+#metric for sampling behaviour? larger means more variance - just make a list of who they sampled from. 
+def sampling_variance(params):
+    actions = get_sim_results_from_parameters(params)['all_neighbour_sampling']
+    sampling_variances = np.zeros(params.n_d.value)
+    for a in range(params.n_d.value):
+        sampling_variances[a] = np.var(actions[:,a])
+    return sampling_variances
+
+
+
+
+
+
+
+
+
+
+
 
 
 # fig, ax = plt.subplots(figsize=(6, 4))
@@ -246,3 +193,16 @@ def cluster_metric_over_time(params):
 
 
 # %%
+# %% function to access the cluster ratio from the inputted params
+""" def get_all_sim_results(params):
+    n_i = num_agent_values.index(params.n_d.value)
+    c_i = connectedness_values.index(params.c_d.value)
+    ecb_i = ecb_precision_gammas.index(ecb)
+    env_i = env_precision_gammas.index(env)
+    bel_i = b_precision_gammas.index(bel)
+    adj_mat = sim_results[t,n_i,c_i,ecb_i,env_i,bel_i][0]
+    all_qs = sim_results[t,n_i,c_i,ecb_i,env_i,bel_i][1] 
+    all_tweets = sim_results[t,n_i,c_i,ecb_i,env_i,bel_i][2] 
+    all_neighbour_samplings = sim_results[:,n_i,c_i,ecb_i,env_i,bel_i][3]
+    result = {'adj_mat' : adj_mat, 'all_qs':all_qs, 'all_tweets':all_tweets, 'all_neighbour_sampling':all_neighbour_samplings}
+    return result """
