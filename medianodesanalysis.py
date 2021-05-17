@@ -42,6 +42,9 @@ def get_belief_metrics(all_beliefs, agents, agent_neighbours,T):
     return agent_own_beliefs_per_timestep, KLD_intra_beliefs, agent_belief_proportions, agent_hashtag_beliefs_per_timestep, agent_who_idx_beliefs_per_timestep
 
 
+
+
+
 def get_action_metrics(all_actions, agent_neighbours, N,T):
     all_actions = np.array(all_actions) # shape is T, N, 2
     agent_tweets_per_timestep = np.array([[action[0] for action in all_actions[:,a]] for a in range(N)]) # (N,T,2)
@@ -157,63 +160,64 @@ def KL_div(array1_0, array1_1, array2_0, array2_1):
 
 
 
-results = np.load('results/medianodedata.npz', allow_pickle = True) 
+if __name__ == '__main__':
+    results = np.load('results/medianodedata.npz', allow_pickle = True) 
 
-all_actions = results['arr_0']
-all_beliefs = results['arr_1']
-all_observations = results['arr_2']
-agent_neighbours = {0: [1, 2, 3, 4, 5, 6, 7, 8, 9], 1: [0, 2, 3, 4, 5, 6, 7, 8, 9], 2: [0, 1, 3, 4, 5, 6, 7, 8, 9], 3: [0, 1, 2, 4, 5, 6, 7, 8, 9], 4: [0, 1, 2, 3, 5, 6, 7, 8, 9], 5: [0, 1, 2, 3, 4, 6, 7, 8, 9], 6: [0, 1, 2, 3, 4, 5, 7, 8, 9], 7: [0, 1, 2, 3, 4, 5, 6, 8, 9], 8: [0, 1, 2, 3, 4, 5, 6, 7, 9], 9: [0, 1, 2, 3, 4, 5, 6, 7, 8]}
+    all_actions = results['arr_0']
+    all_beliefs = results['arr_1']
+    all_observations = results['arr_2']
+    agent_neighbours = {0: [1, 2, 3, 4, 5, 6, 7, 8, 9], 1: [0, 2, 3, 4, 5, 6, 7, 8, 9], 2: [0, 1, 3, 4, 5, 6, 7, 8, 9], 3: [0, 1, 2, 4, 5, 6, 7, 8, 9], 4: [0, 1, 2, 3, 5, 6, 7, 8, 9], 5: [0, 1, 2, 3, 4, 6, 7, 8, 9], 6: [0, 1, 2, 3, 4, 5, 7, 8, 9], 7: [0, 1, 2, 3, 4, 5, 6, 8, 9], 8: [0, 1, 2, 3, 4, 5, 6, 7, 9], 9: [0, 1, 2, 3, 4, 5, 6, 7, 8]}
 
-T = 300
+    T = 300
 
-agents = [1,2,3,4,5,6,7,8]
-N = len(agents)
-agent_beliefs, KLD_intra_beliefs, belief_proportions, _, _ = get_belief_metrics(all_beliefs, agents, agent_neighbours,T)
-tweet_proportions, tweet_cohesion_matrix, agent_view_per_timestep = get_action_metrics(all_actions, agent_neighbours, N, T)
-#make plots 
+    agents = [1,2,3,4,5,6,7,8]
+    N = len(agents)
+    agent_beliefs, KLD_intra_beliefs, belief_proportions, _, _ = get_belief_metrics(all_beliefs, agents, agent_neighbours,T)
+    tweet_proportions, tweet_cohesion_matrix, agent_view_per_timestep = get_action_metrics(all_actions, agent_neighbours, N, T)
+    #make plots 
 
 
 
-belief_plot_images = plot_beliefs_over_time(all_actions, agent_beliefs, 1, T)
-plt.clf()
-with imageio.get_writer('belief_plot.gif', mode='I') as writer:
-    for filename in belief_plot_images:
-        image = imageio.imread(filename)
-        writer.append_data(image)
-    for filename in set(belief_plot_images):
+    belief_plot_images = plot_beliefs_over_time(all_actions, agent_beliefs, 1, T)
+    plt.clf()
+    with imageio.get_writer('belief_plot.gif', mode='I') as writer:
+        for filename in belief_plot_images:
+            image = imageio.imread(filename)
+            writer.append_data(image)
+        for filename in set(belief_plot_images):
+            os.remove(filename)
+
+    KLD_images, cluster_idx = plot_KLD_similarity_matrix(KLD_intra_beliefs, agent_beliefs)
+    plot_samples(agent_view_per_timestep, cluster_idx, agent_neighbours)
+
+    with imageio.get_writer('KLD_plot.gif', mode='I') as writer:
+        for filename in KLD_images:
+            image = imageio.imread(filename)
+            writer.append_data(image)
+    for filename in set(KLD_images):
         os.remove(filename)
 
-KLD_images, cluster_idx = plot_KLD_similarity_matrix(KLD_intra_beliefs, agent_beliefs)
-plot_samples(agent_view_per_timestep, cluster_idx, agent_neighbours)
-
-with imageio.get_writer('KLD_plot.gif', mode='I') as writer:
-    for filename in KLD_images:
-        image = imageio.imread(filename)
-        writer.append_data(image)
-for filename in set(KLD_images):
-    os.remove(filename)
-
-tweet_sim_images = plot_tweet_similarity_matrix(tweet_cohesion_matrix, cluster_idx)
-plt.clf()
-tweet_proportions = plot_proportions(tweet_proportions, belief_proportions)
-plt.clf() 
-plot_samples(agent_view_per_timestep)
-plt.clf()
+    tweet_sim_images = plot_tweet_similarity_matrix(tweet_cohesion_matrix, cluster_idx)
+    plt.clf()
+    tweet_proportions = plot_proportions(tweet_proportions, belief_proportions)
+    plt.clf() 
+    plot_samples(agent_view_per_timestep)
+    plt.clf()
 
 
 
-with imageio.get_writer('TSM_plot.gif', mode='I') as writer:
-    for filename in tweet_sim_images:
-        image = imageio.imread(filename)
-        writer.append_data(image)
+    with imageio.get_writer('TSM_plot.gif', mode='I') as writer:
+        for filename in tweet_sim_images:
+            image = imageio.imread(filename)
+            writer.append_data(image)
 
-for filename in set(tweet_sim_images):
-    os.remove(filename)
+    for filename in set(tweet_sim_images):
+        os.remove(filename)
 
-with imageio.get_writer('tweet_proportions.gif', mode='I') as writer:
-    for filename in tweet_proportions:
-        image = imageio.imread(filename)
-        writer.append_data(image)
+    with imageio.get_writer('tweet_proportions.gif', mode='I') as writer:
+        for filename in tweet_proportions:
+            image = imageio.imread(filename)
+            writer.append_data(image)
 
-for filename in set(tweet_proportions):
-    os.remove(filename)
+    for filename in set(tweet_proportions):
+        os.remove(filename)

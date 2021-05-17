@@ -101,8 +101,9 @@ def initialize_agent_params(G,
         ecb_precisions = ecb_precisions_all[i]
         env_determinism = B_idea_precisions_all[i]
         belief_determinism = B_neighbour_precisions_all[i]
+        h_idea_mapping = h_idea_mappings_all[i]
 
-        params = [ecb_precisions,env_determinism,belief_determinism]
+        params = [ecb_precisions,env_determinism,belief_determinism,h_idea_mapping]
         store_parameters[i] = params
 
         agent_constructor_params[i] = {
@@ -117,7 +118,7 @@ def initialize_agent_params(G,
             "idea_mapping_params" : {
                 "num_H" : num_H,
                 "idea_levels": idea_levels,
-                "h_idea_mapping": None
+                "h_idea_mapping": h_idea_mapping
                 },
 
             "policy_params" : {
