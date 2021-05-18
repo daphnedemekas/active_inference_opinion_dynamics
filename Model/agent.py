@@ -1,6 +1,6 @@
 import numpy as np
 from .genmodel import GenerativeModel
-from .pymdp.inference import update_posterior_states_factorized
+from .pymdp.inference import *
 from .pymdp.control import *
 from .pymdp.maths import spm_log
 from .pymdp import utils
@@ -13,12 +13,17 @@ class Agent(object):
         idea_mapping_params,
         policy_params,
         C_params,
-        reduce_A = False,   
+        reduce_A = False,
+        reduce_A_inference = False,
+        reduce_A_policies = False   
         ):            
 
         self.genmodel = GenerativeModel(reduce_A = reduce_A, **neighbour_params, **idea_mapping_params, **policy_params, **C_params)
         self.action = np.zeros(len(self.genmodel.num_states),dtype=int)
-        
+
+        self.reduce_A_inference = reduce_A_inference
+        self.reduce_A_policies = reduce_A_policies
+
         # self.set_starting_state_and_priors()
         self.inference_params = {"num_iter":10, 
                                  "dF":1.0,
@@ -44,7 +49,10 @@ class Agent(object):
 
                 empirical_prior[f] = spm_log(self.genmodel.B[f][:,:, int(self.action[f])].dot(self.qs[f]))
         
-        qs = update_posterior_states_factorized(observation, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.num_states, prior = empirical_prior, **self.inference_params)
+        if self.reduce_A_inference:
+            qs = update_posterior_states_factorized(observation, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.num_states, prior = empirical_prior, **self.inference_params)
+        else:
+            qs = update_posterior_states(observation, self.genmodel.A, prior=empirical_prior, **self.inference_params)
 
         self.qs = qs
 
@@ -55,8 +63,11 @@ class Agent(object):
 
         self.genmodel.E = self.genmodel.get_policy_prior(self.qs[0]) 
 
-        q_pi, neg_efe = update_posterior_policies_reduced(self.qs, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
-     
+        if self.reduce_A_policies:
+            q_pi, neg_efe = update_posterior_policies_reduced(self.qs, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
+        else:
+            q_pi, neg_efe = update_posterior_policies(self.qs, self.genmodel.A, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
+
         self.q_pi = q_pi
         self.neg_efe = neg_efe
         return q_pi
