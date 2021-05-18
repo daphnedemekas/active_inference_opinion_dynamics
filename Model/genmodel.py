@@ -1,5 +1,6 @@
 import numpy as np 
 import itertools
+import time
 from .pymdp.utils import obj_array, obj_array_uniform, insert_multiple, softmax, onehot, reduce_a_matrix
 
 class GenerativeModel(object):
@@ -93,14 +94,18 @@ class GenerativeModel(object):
         self.control_factor_idx = [self.h_control_idx, self.who_idx]
         
         self.policies = self.generate_policies()
+
+        start = time.time()
         self.A = self.generate_likelihood()
+        print(f'Time taken to generate A matrix: {time.time() - start}\n')
+        
         if reduce_A:
             self.A_reduced = obj_array(self.num_modalities)
             self.informative_dims = []
             for g in range(self.num_modalities):
                 self.A_reduced[g], factor_idx = reduce_a_matrix(self.A[g])
                 self.informative_dims.append(factor_idx)
-        del self.A
+            # del self.A
         
         self.B = self.generate_transition()
         self.C = self.generate_prior_preferences()
