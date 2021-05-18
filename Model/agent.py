@@ -1,6 +1,6 @@
 import numpy as np
 from .genmodel import GenerativeModel
-from .pymdp.inference import update_posterior_states
+from .pymdp.inference import update_posterior_states_factorized
 from .pymdp.control import *
 from .pymdp.maths import spm_log
 from .pymdp import utils
@@ -18,7 +18,8 @@ class Agent(object):
 
         self.genmodel = GenerativeModel(reduce_A = reduce_A, **neighbour_params, **idea_mapping_params, **policy_params, **C_params)
         self.action = np.zeros(len(self.genmodel.num_states),dtype=int)
-        self.set_starting_state_and_priors()
+        
+        # self.set_starting_state_and_priors()
         self.inference_params = {"num_iter":10, 
                                  "dF":1.0,
                                  "dF_tol":0.001}
@@ -29,6 +30,7 @@ class Agent(object):
         self.action[-2] = policy_params["initial_action"][-2]
         self.action[-1] = policy_params["initial_action"][-1]
 
+        self.set_starting_state_and_priors()
 
     def infer_states(self, t, observation):
         empirical_prior = utils.obj_array(self.genmodel.num_factors)
@@ -42,11 +44,10 @@ class Agent(object):
 
                 empirical_prior[f] = spm_log(self.genmodel.B[f][:,:, int(self.action[f])].dot(self.qs[f]))
         
-        qs = update_posterior_states(observation, self.genmodel.A, prior=empirical_prior, **self.inference_params)
+        qs = update_posterior_states_factorized(observation, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.num_states, prior = empirical_prior, **self.inference_params)
 
         self.qs = qs
 
-        
         return qs
 
 
