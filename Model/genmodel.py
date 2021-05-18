@@ -100,6 +100,7 @@ class GenerativeModel(object):
             for g in range(self.num_modalities):
                 self.A_reduced[g], factor_idx = reduce_a_matrix(self.A[g])
                 self.informative_dims.append(factor_idx)
+        del self.A
         
         self.B = self.generate_transition()
         self.C = self.generate_prior_preferences()
