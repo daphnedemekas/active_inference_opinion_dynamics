@@ -89,7 +89,7 @@ def update_posterior_states(obs, A, prior=None, **inference_params):
 
     obs = utils.process_observation(obs, n_modalities, n_observations)
     if prior is not None:
-        prior = utils.process_prior(prior, n_factors)
+        prior = utils.process_prior(prior)
 
     qs = fpi.run_fpi(A, obs, n_observations, n_states, prior, **inference_params)
 
