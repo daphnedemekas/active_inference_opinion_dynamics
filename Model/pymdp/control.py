@@ -194,6 +194,31 @@ def update_posterior_policies_reduced(
                     spm_optim = spm_MDP_G_optim(A_reduced[g], qs_pi[informative_dims[g]])
                     neg_efe[idx] += spm_optim
 
+    """
+    @TODO / @NOTE on 18 May 2021:
+    We need to optimize this function to speed it up -- our options (as I see it) include the following 
+    (please add to this if there are other ideas, @Daphne):
+
+    1. Continue to use the epistemic value + utility decomposition of the (-ve) EFE, but find a way to speed up
+    the inner loop of spm_MDP_G, using workarounds to spm_cross. This is the idea behind Daphne's spm_MDP_G_optim,
+    but we can keep going down this rabbit hole and making it faster. I remember Dimi did something where he achieved
+    essentially the same output as spm_cross by doing things like :
+
+    output = full_array_of_arrays[0]
+    for ii in range(len(full_array_of_arrays)-1):
+        output = output[..., None] * full_array_of_arrays[ii + 1]
+
+    2. Try to vectorize across policies (no loop over policies). Dimi did something like this in pomdp+utils in the Space Man repo 
+    (`interactive` branch) on Magnus' github https://github.com/MagnusKoudahl/space_man/blob/d3bada1af93b3100b53d6f0cfda31fcccfdabac2/pomdp_utils.py#L324
+    @NOTE: This function uses the Ambiguity + Risk decomposition, but I think the same principle could be used for surprise and utility
+
+    3. (-ve) Expected ambiguity + (-ve) expected risk decomposition -- this should be E_q(s)[lnP(o|s)], which I think could be computed using
+    ambiguity = 0
+    for g in range(num_modalities):
+        ambiguity += spm_dot(spm_log(A[g]), qs_pi).sum() # sum across observation levels?
+
+    But I'm not sure how to do the risk one off the top of my head (KLD(Q_pi(o) || P(o)))
+    """
     q_pi = softmax(gamma*neg_efe + E)
 
     q_pi = q_pi / q_pi.sum(axis=0)  # type: ignore
