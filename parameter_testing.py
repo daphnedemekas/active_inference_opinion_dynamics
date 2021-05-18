@@ -18,10 +18,10 @@ import itertools
 h_idea_mapping = utils.softmax(np.array([[1,0],[0,1]])* np.random.uniform(0.3,2.1))
 
 
-connectedness_values = [0.2,0.3,0.4,0.5,0.6,0.7,0.8]
-ecb_precision_gammas = [4,5,6,7,8,9]
+connectedness_values = [0.7,0.8]
+ecb_precision_gammas = [7,8,9]
 
-num_agent_values = [4,6,8]
+num_agent_values = [6,7,8,9]
 
 n = len(num_agent_values)
 c = len(connectedness_values)

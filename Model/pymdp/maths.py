@@ -12,7 +12,7 @@ import numpy as np
 from . import utils
 from scipy import special
 from itertools import chain
-
+import time 
 EPS_VAL = 1e-16 # global constant for use in spm_log() function
 
 def spm_dot(X, x, dims_to_omit=None):
@@ -347,14 +347,13 @@ def calc_free_energy(qs, prior, n_factors, likelihood=None):
     return free_energy
 
 def spm_MDP_G_optim(A, x, is_test = False):
+    start = time.time()
     # Probability distribution over the hidden causes: i.e., Q(x)
-
     _, _, Ng, _ = utils.get_model_dimensions(A=A)
 
     qx = spm_cross(x)
     G = 0
     qo = 0
-    #qo_test = 0
     idx = np.array(np.where(qx > np.exp(-16))).T
 
     if utils.is_arr_of_arr(A):
@@ -364,7 +363,6 @@ def spm_MDP_G_optim(A, x, is_test = False):
             shape = []
             # Probability over outcomes for this combination of causes
             po = np.ones(1)
-            #po_test = np.ones(1)
             for g in range(Ng):
                 index_vector = [slice(0, A[g].shape[0])] + list(i)
                 ag = (A[g][tuple(index_vector)])
@@ -373,9 +371,6 @@ def spm_MDP_G_optim(A, x, is_test = False):
                 p_nonzero = np.nonzero(po)
                 einsum = np.array(np.einsum('i,j->ij', po[p_nonzero], ag).flatten())
                 po = np.array(einsum.flatten())
-                #if is_test:
-                    #po_test = spm_cross(po_test, A[g][tuple(index_vector)])
-
             indexlength = len(po)
             po_nonzero_indices = [np.repeat(nz, int(indexlength/len(nz[0]))) for nz in nonzeros[:-1]]
             po_nonzero_indices.append(np.tile(nonzeros[-1],int(indexlength/len(nonzeros[-1][0]))))
@@ -383,10 +378,6 @@ def spm_MDP_G_optim(A, x, is_test = False):
             po_full = np.zeros(tuple(shape))
             po_full[tuple(po_nonzero_indices)] = po
 
-            #if is_test:
-            #if not np.array_equal(po_full, po_test):
-            #    print("spm_MDP_G is not outputting the correct probability over outcomes. Maybe use spm_MDP_G_old instead.")
-            #    raise
 
             po = (po_full).ravel()
             qo += qx[tuple(i)] * po
@@ -394,6 +385,7 @@ def spm_MDP_G_optim(A, x, is_test = False):
     else:
         for i in idx:
             po = np.ones(1)
+
             index_vector = [slice(0, A.shape[0])] + list(i)
             ag = (A[tuple(index_vector)])
             einsum = np.array(np.einsum('i,j->ij', po[np.nonzero(po)], ag).flatten())
@@ -401,13 +393,17 @@ def spm_MDP_G_optim(A, x, is_test = False):
             po = po.ravel()
             qo += qx[tuple(i)] * po
             G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
+            
     # Subtract negative entropy of expectations: i.e., E[lnQ(o)]
     G = G - qo.dot(spm_log(qo))
-
+    end = time.time() - start
+    print("optim")
+    print(end)
     return G
 
 
 def spm_MDP_G(A, x):
+    start = time.time()
     """
     Calculates the Bayesian surprise in the same way as spm_MDP_G.m does in 
     the original matlab code.
@@ -462,6 +458,9 @@ def spm_MDP_G(A, x):
 
     # Subtract negative entropy of expectations: i.e., E[lnQ(o)]
     G = G - qo.dot(spm_log(qo))  # type: ignore
+    end = time.time() - start
+    print("OG")
+    print(end)
 
     return G
 

@@ -9,7 +9,7 @@ __author__: Conor Heins, Alexander Tschantz, Brennan Klein
 
 import itertools 
 import numpy as np
-from .maths import softmax, spm_dot, spm_wnorm, spm_MDP_G
+from .maths import softmax, spm_dot, spm_wnorm, spm_MDP_G, spm_MDP_G_optim
 from . import utils
 import copy 
 
@@ -190,7 +190,9 @@ def update_posterior_policies_reduced(
         if use_states_info_gain:
             for g in range(num_modalities):
                 if informative_dims[g]:
-                    neg_efe[idx] += spm_MDP_G(A_reduced[g], qs_pi[informative_dims[g]])
+                    #spm = spm_MDP_G(A_reduced[g], qs_pi[informative_dims[g]])
+                    spm_optim = spm_MDP_G_optim(A_reduced[g], qs_pi[informative_dims[g]])
+                    neg_efe[idx] += spm_optim
 
     q_pi = softmax(gamma*neg_efe + E)
 
@@ -404,7 +406,8 @@ def calc_states_info_gain(A, qs_pi):
 
     states_surprise = 0
     for t in range(n_steps):
-        states_surprise += spm_MDP_G(A, qs_pi[t])
+        spm_optim = spm_MDP_G_optim(A, qs_pi[t])
+        states_surprise += spm_optim
 
     return states_surprise
 

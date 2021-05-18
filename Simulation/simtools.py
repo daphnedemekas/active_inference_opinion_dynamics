@@ -90,7 +90,7 @@ def initialize_agent_params(G,
         c_params_all = { i : c_params for i in G.nodes() }
     
     if optim_options is None:
-        optim_options = {'reduce_A': True, 'reduce_A_inference': True, 'reduce_A_policies': True}
+        optim_options = {'reduce_A': True, 'reduce_A_inference': False, 'reduce_A_policies': True}
     
     agent_constructor_params = {}
 
