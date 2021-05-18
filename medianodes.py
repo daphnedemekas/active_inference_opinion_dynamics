@@ -153,7 +153,9 @@ def inference_loop(G,N): #just goes until you get a graph that has the right con
         G = nx.fast_gnp_random_graph(N,p)
         G, agents_dict, agents, agent_neighbours = create_multiagents(G, N)
 
-
+        for n in range(8):
+            G.add_edge(n,8)
+            G.add_edge(n,9)
         G = connect_edgeless_nodes(G)
         all_actions, all_beliefs, all_observations = multi_agent_loop(T, agents, agent_neighbours)
     except ValueError:
@@ -168,7 +170,7 @@ if __name__ == '__main__':
     idea_levels = 2 
     num_H = 2
 
-    ecb_precision = 5
+    ecb_precision = 8
 
     N = 10
 
@@ -177,12 +179,15 @@ if __name__ == '__main__':
     b_precision = 5
 
 
-    p = 1 # different levels of random connection parameter in Erdos-Renyi random graphs
-    num_trials = 5 # number of trials per level of the ER parameter
-    T = 300
+    p = 0.2 # different levels of random connection parameter in Erdos-Renyi random graphs
+    num_trials = 30 # number of trials per level of the ER parameter
+    T = 50
     #fig, axs = plt.subplots(len(p_vec)/2, len(p_vec)/2)
             
     G = nx.fast_gnp_random_graph(N,p) # create the graph for this trial & condition
+    for n in range(8):
+        G.add_edge(n,8)
+        G.add_edge(n,9)
     #this performs the multiagent inference
     all_actions, all_beliefs, all_observations, agents, agent_neighbours = inference_loop(G,N)
     np.savez('results/medianodedata', all_actions, all_beliefs, all_observations, agent_neighbours)

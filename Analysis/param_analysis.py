@@ -17,6 +17,8 @@ class ParameterAnalysis(object):
 
     def __init__(
         self,
+        results_file,
+        params_file,
         num_agent_values,
         connectedness_values,
         ecb_precision_gammas,
@@ -24,7 +26,9 @@ class ParameterAnalysis(object):
         b_precision_gammas,   
         n_trials
         ):       
-
+        
+        self.results_file = results_file
+        self.params_file = params_file
         self.num_agent_values = num_agent_values
         self.connectedness_values = connectedness_values
         self.ecb_precision_gammas = ecb_precision_gammas
@@ -34,8 +38,8 @@ class ParameterAnalysis(object):
         self.n = len(num_agent_values)
         self.c = len(connectedness_values)
 
-        self.param_results = np.load('results/params2.npz',allow_pickle = True)['arr_0']
-        self.sim_results = np.load('results/all_results3.npz',allow_pickle=True)['arr_0']
+        self.param_results = np.load(self.params_file,allow_pickle = True)['arr_0']
+        self.sim_results = np.load(self.results_file,allow_pickle=True)['arr_0']
         
         
         self.n_d = widgets.Dropdown(value = self.num_agent_values[0], options = num_agent_values, description = "number of agents")
@@ -71,10 +75,10 @@ class ParameterAnalysis(object):
         ecb_i = self.ecb_precision_gammas.index(self.ecb_d.value)
         env_i = self.env_precision_gammas.index(self.env_d.value)
         bel_i = self.b_precision_gammas.index(self.b_d.value)
-        adj_mat = np.mean(np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i][0] for i in range(self.n_trials)]),axis=0)#take the average 
+        adj_mat = np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i][0] for i in range(self.n_trials)])
         avg_all_qs = np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i][1] for i in range(self.n_trials)])
-        avg_all_tweets = np.mean(np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i][2] for i in range(self.n_trials)]),axis=0)
-        all_neighbour_samplings = self.sim_results[0,n_i,c_i,ecb_i,env_i,bel_i][3]
+        avg_all_tweets = np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i][2] for i in range(self.n_trials)])
+        all_neighbour_samplings = np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i][3] for i in range(self.n_trials)])
         result = {'adj_mat' : adj_mat, 'all_qs':avg_all_qs, 'all_tweets':avg_all_tweets, 'all_neighbour_sampling':all_neighbour_samplings}
         self.all_qs = avg_all_qs
         self.all_tweets = avg_all_tweets
@@ -105,13 +109,16 @@ class ParameterAnalysis(object):
     def get_overall_metrics(self):
         self.db_indices = np.zeros(len(list(self.get_param_combinations())))
         self.cluster_kls = np.zeros(len(list(self.get_param_combinations())))
-        #self.cluster_ratios = np.zeros(len(list(self.get_param_combinations())))
+        self.sampling_ratios = np.zeros((len(list(self.get_param_combinations())),2,9))
+        self.sampling_ratios_test = []
         for i, combo in enumerate(list(self.get_param_combinations())):
             self.update_params(combo)
             self.get_all_sim_results_from_parameters()
             self.db_indices[i] = np.mean(np.array([cm.davies_bouldin(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
             self.cluster_kls[i] = np.mean(np.array([cm.cluster_kl(self.all_qs[j,:,:,:])[-1] for j in range(self.n_trials)]))
-            #self.cluster_ratios[i] = np.mean(np.array([cm.cluster_ratios(self.all_qs[j,:,:,:])[-1] for j in range(self.n_trials)]))
+            self.sampling_ratios[i,:,:] = np.mean([cm.sampling_ratio(self.all_qs[i,:,:,:], self.all_neighbour_samplings[i,:,:]) for i in range(self.n_trials)],axis=0)
+            self.sampling_ratios_test.append([cm.sampling_ratio(self.all_qs[i,:,:,:], self.all_neighbour_samplings[i,:,:]) for i in range(self.n_trials)])
+
 
     def display_dropdown(self):
         display(self.n_d)

@@ -22,6 +22,7 @@ def plot_beliefs_over_time(belief_hist):
     plt.xticks(fontsize=10)
     plt.yticks(fontsize=10)
     plt.xlabel('Time',fontsize=10)
+    plt.ylim(0,1)
     plt.ylabel('Strength of belief',fontsize=10)
 
     

@@ -15,12 +15,13 @@ import csv
 import pandas as pd 
 import itertools
 
-h_idea_mapping = utils.softmax(np.eye(2) * 1.0)
+h_idea_mapping = utils.softmax(np.array([[1,0],[0,1]])* np.random.uniform(0.3,2.1))
 
-connectedness_values = [0.2,0.4,0.5,0.6,0.7,0.8]
-ecb_precision_gammas = [1,2,3,4,5,6,7,8,9,10]
 
-num_agent_values = [4,6,8,10,12,14]
+connectedness_values = [0.2,0.3,0.4,0.5,0.6,0.7,0.8]
+ecb_precision_gammas = [4,5,6,7,8,9]
+
+num_agent_values = [4,6,8]
 
 n = len(num_agent_values)
 c = len(connectedness_values)
@@ -29,7 +30,7 @@ env_precision_gammas = [10]
 b_precision_gammas = [5]
 
 r_len = len(ecb_precision_gammas)
-n_trials = 50
+n_trials = 30
 
 param_combos = itertools.product(num_agent_values, connectedness_values, ecb_precision_gammas,env_precision_gammas,b_precision_gammas)
 # %% construct network
@@ -74,13 +75,14 @@ for param_config in param_combos:
 
         all_qs = collect_idea_beliefs(G)
         all_neighbour_samplings = collect_sampling_history(G)
-        print(all_neighbour_samplings)
-        raise
+    
         adj_mat = nx.to_numpy_array(G)
         all_tweets = collect_tweets(G)
 
         believers = np.where(all_qs[-1,0,:] > 0.5)
         nonbelievers = np.where(all_qs[-1,0,:] < 0.5)
+        
+        
 
         all_results_to_store[indices] = (adj_mat, all_qs, all_tweets, all_neighbour_samplings)
 
@@ -88,8 +90,8 @@ for param_config in param_combos:
             print(iter)
         iter +=1
 
-np.savez('results/params2', all_parameters_to_store)
-np.savez('results/all_results2', all_results_to_store)
+np.savez('Analysis/results/testp2', all_parameters_to_store)
+np.savez('Analysis/results/testr2', all_results_to_store)
 
 
 

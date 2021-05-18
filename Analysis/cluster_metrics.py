@@ -66,22 +66,37 @@ def cluster_ratios(all_qs):
 
 #def ratio between in and out group samples in different time chunks 
 
-def sampling_ratio(all_qs, agent_view_per_timestep, cluster_sorted_indices, agent_neighbours):
-    believers = np.where(all_qs[-1,1,:] > 0.5)[0]
-    nonbelievers = np.where(all_qs[-1,1,:] < 0.5)[0]
-    N = agent_view_per_timestep.shape[0]
-    sample_ratio_in_group = 0    
-    #on the last time step, 
-    for i, cluster_agent_1 in enumerate(believers):
-        viewees = agent_view_per_timestep[i]
-        #for v in 
-    for i, viewer in enumerate(range(N)):
-        for j, viewee in enumerate(range(N)):
-            if i != j:
-                counts = np.count_nonzero(agent_view_per_timestep[viewer][:] == viewee)
-                view_heatmap[i, j] = counts
-    print(view_heatmap)
+def sampling_ratio(all_qs, agent_view_per_timestep):
+    #believers = np.where(all_qs[-1,1,:] > 0.5)[0]
+    #nonbelievers = np.where(all_qs[-1,1,:] < 0.5)[0]
+    in_time_step_ratios = []
+    out_time_step_ratios = []
+    sample_ratio_in_group = 0
+    sample_ratio_out_group = 0
+    chunks = np.linspace(0,all_qs.shape[0]-1,10)
+    for t in range(len(chunks)-1):
+        believers = np.where(all_qs[int(chunks[t+1]),1,:] > 0.5)[0]
+        nonbelievers = np.where(all_qs[int(chunks[t+1]),1,:] < 0.5)[0]
+        for i, cluster_agent_1 in enumerate(believers):
+            viewee = agent_view_per_timestep[int(chunks[t]):int(chunks[t+1]),cluster_agent_1]
+            for v in viewee:
+                if v in believers:
+                    sample_ratio_in_group += 1
+                elif v in nonbelievers:
+                    sample_ratio_out_group += 1
+
+        for i, cluster_agent_2 in enumerate(nonbelievers):
+            viewee = agent_view_per_timestep[int(chunks[t]):int(chunks[t+1]),cluster_agent_2]
+            for v in viewee:
+                if v in nonbelievers:
+                    sample_ratio_in_group += 1
+                elif v in believers:
+                    sample_ratio_out_group += 1
+        in_time_step_ratios.append(sample_ratio_in_group / (sample_ratio_in_group + sample_ratio_out_group))
+        out_time_step_ratios.append(sample_ratio_out_group / (sample_ratio_in_group + sample_ratio_out_group))
     
+    return in_time_step_ratios, out_time_step_ratios
+                  
 
 
 #def silhouette_coeff(all_qs):

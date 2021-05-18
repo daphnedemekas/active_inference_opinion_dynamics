@@ -368,10 +368,7 @@ class GenerativeModel(object):
     
     
     def create_idea_mapping(self):
-        h_idea_mapping = np.zeros((self.num_H, self.idea_levels))
-        h_idea_mapping = np.random.uniform(low = 1, high = 9, size=(self.num_H, self.idea_levels))
-
-        h_idea_mapping = h_idea_mapping / h_idea_mapping.sum(axis=0)
+        h_idea_mapping = utils.softmax(np.array([[0,1],[1,0]])* np.random.uniform(0.3,3))
 
         return h_idea_mapping
     
