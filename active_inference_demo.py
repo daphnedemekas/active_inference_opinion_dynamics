@@ -22,8 +22,7 @@ h_idea_mapping[:,1] = softmax(h_idea_mapping[:,1]*1.0)
 agent_params = {
 
             "neighbour_params" : {
-                # "precisions" : np.random.uniform(low=0.3, high=3.0, size=(2,)),
-                "precisions" : np.array([3.0, 3.0]),
+                "ecb_precisions" : np.random.uniform(low=0.3, high=3.0, size=(num_neighbours, idea_levels)),
                 "num_neighbours" : 2,
                 "env_determinism": 5.0,
                 "belief_determinism": np.array([6.0, 3.0])
@@ -66,7 +65,7 @@ elif my_first_neighbour == 1:
 history_of_idea_beliefs = np.zeros((T,idea_levels)) # history of my own posterior over the truth/falsity of the idea
 history_of_beliefs_about_other = np.zeros((T,agent.genmodel.num_states[1],num_neighbours)) # histoyr of my posterior beliefs about the beliefs of my two neighbours about the truth/falsity of the idea
 
-qs = agent.infer_states(True, observation)
+qs = agent.infer_states(0, observation)
 
 # %%
 history_of_idea_beliefs[0,:] = qs[0]
