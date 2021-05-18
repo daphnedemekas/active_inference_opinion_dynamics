@@ -15,12 +15,13 @@ import csv
 import pandas as pd 
 import itertools
 
-h_idea_mapping = utils.softmax(np.eye(2) * 1.0)
+h_idea_mapping = utils.softmax(np.array([[1,0],[0,1]])* np.random.uniform(0.3,2.1))
 
-connectedness_values = [0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
-ecb_precision_gammas = [9]
 
-num_agent_values = [2,3,4,5,6,7,8,9,10]
+connectedness_values = [0.2,0.3,0.4,0.5,0.6,0.7,0.8]
+ecb_precision_gammas = [4,5,6,7,8,9]
+
+num_agent_values = [4,6,8]
 
 n = len(num_agent_values)
 c = len(connectedness_values)
@@ -89,8 +90,8 @@ for param_config in param_combos:
             print(iter)
         iter +=1
 
-np.savez('results/params_best', all_parameters_to_store)
-np.savez('results/all_results_best', all_results_to_store)
+np.savez('Analysis/results/testp2', all_parameters_to_store)
+np.savez('Analysis/results/testr2', all_results_to_store)
 
 
 

@@ -54,10 +54,8 @@ class Agent(object):
 
         self.genmodel.E = self.genmodel.get_policy_prior(self.qs[0]) 
 
-        if hasattr(self.genmodel,'A_reduced'):
-            q_pi, neg_efe = update_posterior_policies_reduced(self.qs, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
-        else:
-            q_pi, neg_efe = update_posterior_policies(self.qs, self.genmodel.A, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
+        q_pi, neg_efe = update_posterior_policies_reduced(self.qs, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
+     
         self.q_pi = q_pi
         self.neg_efe = neg_efe
         return q_pi

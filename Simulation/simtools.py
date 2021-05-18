@@ -101,7 +101,7 @@ def initialize_agent_params(G,
         ecb_precisions = ecb_precisions_all[i]
         env_determinism = B_idea_precisions_all[i]
         belief_determinism = B_neighbour_precisions_all[i]
-        h_idea_mapping = h_idea_mappings_all[i]
+        h_idea_mapping = utils.softmax(np.array([[1,0],[0,1]])* np.random.uniform(0.3,3))
 
         params = [ecb_precisions,env_determinism,belief_determinism,h_idea_mapping]
         store_parameters[i] = params
