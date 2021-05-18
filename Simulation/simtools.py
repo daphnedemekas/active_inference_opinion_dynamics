@@ -2,6 +2,7 @@ import numpy as np
 import networkx as nx
 import random
 import copy
+import time
 
 from Model.agent import Agent
 from Model.pymdp import utils
@@ -15,7 +16,7 @@ def initialize_agent_params(G,
                             B_idea_precisions = None,
                             B_neighbour_precisions = None, 
                             c_params = None,
-                            reduce_A = False):
+                            optim_options = None):
     """
     Initialize dictionaries of agent-specific generative model parameters
     """
@@ -88,6 +89,9 @@ def initialize_agent_params(G,
     elif all (k in c_params for k in ("preference_shape","cohesion_exp", "cohesion_temp")):
         c_params_all = { i : c_params for i in G.nodes() }
     
+    if optim_options is None:
+        optim_options = {'reduce_A': True, 'reduce_A_inference': True, 'reduce_A_policies': True}
+    
     agent_constructor_params = {}
 
     store_parameters = utils.obj_array(len(G.nodes))
@@ -127,7 +131,9 @@ def initialize_agent_params(G,
                 },
 
             "C_params" : c_params_all[i],
-            "reduce_A": reduce_A
+            "reduce_A": optim_options['reduce_A'],
+            'reduce_A_inference': optim_options['reduce_A_inference'],
+            "reduce_A_policies": optim_options['reduce_A_policies']
         }
 
 
@@ -190,25 +196,45 @@ def run_simulation(G, T):
     G = get_observations_time_t(G,0)
 
     # run active inference loop over time
+    inference_time_cost = 0 
+    control_time_cost = 0
 
     for t in range(T):
         #print(str(t) + "/" + str(T))
-        G = run_single_timestep(G, t)
+        G, infer_time_cost_t, control_time_cost_t = run_single_timestep(G, t)
+        inference_time_cost += infer_time_cost_t
+        control_time_cost += control_time_cost_t
     
-    return G
+    return G, inference_time_cost, control_time_cost
 
 def run_single_timestep(G, t):
 
     # Two loops over agents, first to update beliefs given most recent observations and select actions, second loop to get new set of observations
     # First loop over agents: Do belief-updating (inference) and action selection
+
+    inference_time_cost = 0
+    control_time_cost = 0
+
     for i in G.nodes():
 
         node_attrs = G.nodes()[i]
 
         agent_i = node_attrs['agent']
+
+        infer_start_time = time.time()
         qs = agent_i.infer_states(t, tuple(node_attrs['o'][t,:]))
+        infer_end_time = time.time()
+
+        inference_time_cost += (infer_end_time - infer_start_time)
+
         node_attrs['qs'][t,:] = copy.deepcopy(qs) 
+
+        policy_start_time = time.time()
         q_pi = agent_i.infer_policies()
+        policy_end_time = time.time()
+
+        control_time_cost += (policy_end_time - policy_start_time)
+
         node_attrs['q_pi'][t,:] = np.copy(q_pi)
         if t == 0:
             action = agent_i.action[-2:]
@@ -220,7 +246,7 @@ def run_single_timestep(G, t):
 
         G = get_observations_time_t(G,t+1)
 
-    return G
+    return G, inference_time_cost, control_time_cost
 
 def get_observations_time_t(G, t):
 
