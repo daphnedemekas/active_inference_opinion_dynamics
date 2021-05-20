@@ -396,9 +396,7 @@ def spm_MDP_G_optim(A, x, is_test = False):
             
     # Subtract negative entropy of expectations: i.e., E[lnQ(o)]
     G = G - qo.dot(spm_log(qo))
-    end = time.time() - start
-    print("optim")
-    print(end)
+
     return G
 
 
@@ -458,9 +456,6 @@ def spm_MDP_G(A, x):
 
     # Subtract negative entropy of expectations: i.e., E[lnQ(o)]
     G = G - qo.dot(spm_log(qo))  # type: ignore
-    end = time.time() - start
-    print("OG")
-    print(end)
 
     return G
 

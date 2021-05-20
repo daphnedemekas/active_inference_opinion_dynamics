@@ -18,7 +18,7 @@ import itertools
 h_idea_mapping = utils.softmax(np.array([[1,0],[0,1]])* np.random.uniform(0.3,2.1))
 
 
-connectedness_values = [0.7,0.8]
+connectedness_values = [0.3,0.5,0.7,0.8]
 ecb_precision_gammas = [7,8,9]
 
 num_agent_values = [6,7,8,9]
@@ -27,25 +27,35 @@ n = len(num_agent_values)
 c = len(connectedness_values)
 #precision_ranges = [[1,2],[1,5],[1,9],[6,7],[6,10]]
 env_precision_gammas = [10]
-b_precision_gammas = [5]
+b_precision_gammas = [3,4,5,6,7,8]
 
 r_len = len(ecb_precision_gammas)
+e_len = len(env_precision_gammas)
+b_len = len(b_precision_gammas)
 n_trials = 30
 
 param_combos = itertools.product(num_agent_values, connectedness_values, ecb_precision_gammas,env_precision_gammas,b_precision_gammas)
 # %% construct network
 iter = 0
+length = len(list(param_combos))
+param_combos = itertools.product(num_agent_values, connectedness_values, ecb_precision_gammas,env_precision_gammas,b_precision_gammas)
 
-all_parameters_to_store = utils.obj_array((n_trials, n,c,r_len,r_len,r_len))
-all_results_to_store = utils.obj_array((n_trials, n,c,r_len,r_len,r_len))
-
+all_parameters_to_store = utils.obj_array((n_trials, n,c,r_len,e_len,b_len))
+all_results_to_store = utils.obj_array((n_trials, n,c,r_len,e_len,b_len))
+all_parameters_to_store = np.load('Analysis/results/testp2.npz',allow_pickle = True)['arr_0']
+all_results_to_store = np.load('Analysis/results/testr2.npz', allow_pickle=True)['arr_0']
+        
 for param_config in param_combos:
+    if iter < 1230:
+        iter += 30
+        print(iter)
+        continue
     num_agents_i, connectedness_i, ecb_p_i, env_precision_i, b_precision_i = param_config
     N, p, T = num_agents_i, connectedness_i, 50
 
-    all_trials_ecbs = np.random.gamma(shape=ecb_p_i,size=(n_trials,)) # one random gamma distributed precision for each trial
-    all_trials_envs = np.random.gamma(shape=env_precision_i,size=(n_trials,))
-    all_trials_bs = np.random.gamma(shape=b_precision_i,size=(n_trials,))
+    all_trials_ecbs = np.random.normal(ecb_p_i,size=(n_trials,)) # one random gamma distributed precision for each trial
+    all_trials_envs = np.random.normal(env_precision_i,size=(n_trials,))
+    all_trials_bs = np.random.normal(b_precision_i,size=(n_trials,))
     G = nx.fast_gnp_random_graph(N,p)
 
         # make sure graph is connected and all agents have at least one edge
@@ -61,13 +71,13 @@ for param_config in param_combos:
     for trial_i in range(n_trials):
         indices = (trial_i, num_agent_values.index(num_agents_i), connectedness_values.index(connectedness_i), ecb_precision_gammas.index(ecb_p_i), env_precision_gammas.index(env_precision_i), b_precision_gammas.index(b_precision_i))
 
-        ecb_precisions = all_trials_ecbs[trial_i]
-        env_precisions = all_trials_envs[trial_i]
-        b_precisions = all_trials_bs[trial_i]
+        ecb_precisions = np.random.gamma(shape = all_trials_ecbs[trial_i])
+        env_precisions = np.random.gamma(shape= all_trials_envs[trial_i])
+        b_precisions = np.random.gamma(shape = all_trials_bs[trial_i])
 
         agent_constructor_params, store_params = initialize_agent_params(G, h_idea_mappings = h_idea_mapping, \
                                     ecb_precisions = ecb_precisions, B_idea_precisions = env_precisions, \
-                                        B_neighbour_precisions = b_precisions, reduce_A=True)
+                                        B_neighbour_precisions = b_precisions)
 
         all_parameters_to_store[indices] = store_params
         G = initialize_network(G, agent_constructor_params, T = T)
@@ -81,13 +91,16 @@ for param_config in param_combos:
 
         believers = np.where(all_qs[-1,0,:] > 0.5)
         nonbelievers = np.where(all_qs[-1,0,:] < 0.5)
-        
-        
+
+
 
         all_results_to_store[indices] = (adj_mat, all_qs, all_tweets, all_neighbour_samplings)
 
         if iter % 10 ==0:
-            print(iter)
+            print(str(iter) + "/" + str(length*30))              
+            np.savez('Analysis/results/testp2', all_parameters_to_store)
+            np.savez('Analysis/results/testr2', all_results_to_store)
+
         iter +=1
 
 np.savez('Analysis/results/testp2', all_parameters_to_store)

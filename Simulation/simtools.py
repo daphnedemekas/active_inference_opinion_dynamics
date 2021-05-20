@@ -202,10 +202,8 @@ def run_simulation(G, T):
     for t in range(T):
         #print(str(t) + "/" + str(T))
         G, infer_time_cost_t, control_time_cost_t = run_single_timestep(G, t)
-        inference_time_cost += infer_time_cost_t
-        control_time_cost += control_time_cost_t
     
-    return G, inference_time_cost, control_time_cost
+    return G
 
 def run_single_timestep(G, t):
 
