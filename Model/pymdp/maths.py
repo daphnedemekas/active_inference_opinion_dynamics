@@ -351,10 +351,15 @@ def spm_MDP_G_optim(A, x, is_test = False):
     # Probability distribution over the hidden causes: i.e., Q(x)
     _, _, Ng, _ = utils.get_model_dimensions(A=A)
 
+    cross_start = time.time()
     qx = spm_cross(x)
+    cross_cost = time.time() - cross_start
+    # print(f"Time taken to run first spm_cross call: {cross_cost}\n")
     G = 0
     qo = 0
     idx = np.array(np.where(qx > np.exp(-16))).T
+
+    einsum_cost = 0
 
     if utils.is_arr_of_arr(A):
         # Accumulate expectation of entropy: i.e., E[lnP(o|x)]
@@ -378,7 +383,6 @@ def spm_MDP_G_optim(A, x, is_test = False):
             po_full = np.zeros(tuple(shape))
             po_full[tuple(po_nonzero_indices)] = po
 
-
             po = (po_full).ravel()
             qo += qx[tuple(i)] * po
             G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
@@ -388,21 +392,33 @@ def spm_MDP_G_optim(A, x, is_test = False):
 
             index_vector = [slice(0, A.shape[0])] + list(i)
             ag = (A[tuple(index_vector)])
+            
+            einsum_start = time.time()
             einsum = np.array(np.einsum('i,j->ij', po[np.nonzero(po)], ag).flatten())
+            einsum_cost += time.time() - einsum_start
+            # print(f"Time taken to run first spm_cross call: {einsum_cost}\n")
             po = np.array(einsum.flatten())
             po = po.ravel()
             qo += qx[tuple(i)] * po
             G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
             
     # Subtract negative entropy of expectations: i.e., E[lnQ(o)]
+
+    dot_prod_start = time.time()
     G = G - qo.dot(spm_log(qo))
+    dot_prod_cost = time.time() - dot_prod_start
+    # print(f"Time taken to run first dot_product call: {dot_prod_cost}\n")
     end = time.time() - start
-    print("optim")
-    print(end)
-    return G
+    # print("optim")
+    # print(end)
+
+    if is_test:
+        return G, cross_cost, einsum_cost, dot_prod_cost
+    else:
+        return G
 
 
-def spm_MDP_G(A, x):
+def spm_MDP_G(A, x, is_test = False):
     start = time.time()
     """
     Calculates the Bayesian surprise in the same way as spm_MDP_G.m does in 
@@ -430,10 +446,14 @@ def spm_MDP_G(A, x):
     _, _, Ng, _ = utils.get_model_dimensions(A=A)
 
     # Probability distribution over the hidden causes: i.e., Q(x)
+    cross_start = time.time()
     qx = spm_cross(x)
+    cross_cost = time.time() - cross_start
     G = 0
     qo = 0
     idx = np.array(np.where(qx > np.exp(-16))).T
+
+    einsum_cost = 0
 
     if utils.is_arr_of_arr(A):
         # Accumulate expectation of entropy: i.e., E[lnP(o|x)]
@@ -451,18 +471,25 @@ def spm_MDP_G(A, x):
         for i in idx:
             po = np.ones(1)
             index_vector = [slice(0, A.shape[0])] + list(i)
+            einsum_start = time.time()
             po = spm_cross(po, A[tuple(index_vector)])
+            einsum_cost += time.time() - einsum_start
             po = po.ravel()
             qo += qx[tuple(i)] * po
             G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
 
     # Subtract negative entropy of expectations: i.e., E[lnQ(o)]
+    dot_prod_start = time.time()
     G = G - qo.dot(spm_log(qo))  # type: ignore
+    dot_prod_cost = time.time() -  dot_prod_start
     end = time.time() - start
-    print("OG")
-    print(end)
+    # print("OG")
+    # print(end)
 
-    return G
+    if is_test:
+        return G, cross_cost, einsum_cost, dot_prod_cost
+    else:
+        return G
 
 
 """

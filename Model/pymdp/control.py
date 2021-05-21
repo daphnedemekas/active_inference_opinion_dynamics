@@ -190,7 +190,7 @@ def update_posterior_policies_reduced(
         if use_states_info_gain:
             for g in range(num_modalities):
                 if informative_dims[g]:
-                    #spm = spm_MDP_G(A_reduced[g], qs_pi[informative_dims[g]])
+                    # spm = spm_MDP_G(A_reduced[g], qs_pi[informative_dims[g]])
                     spm_optim = spm_MDP_G_optim(A_reduced[g], qs_pi[informative_dims[g]])
                     neg_efe[idx] += spm_optim
 
@@ -432,6 +432,7 @@ def calc_states_info_gain(A, qs_pi):
     states_surprise = 0
     for t in range(n_steps):
         spm_optim = spm_MDP_G_optim(A, qs_pi[t])
+        # spm_old   = spm_MDP_G(A, qs_pi[t])
         states_surprise += spm_optim
 
     return states_surprise
