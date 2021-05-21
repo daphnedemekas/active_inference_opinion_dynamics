@@ -97,7 +97,6 @@ class GenerativeModel(object):
 
         start = time.time()
         self.A = self.generate_likelihood()
-        print(f'Time taken to generate A matrix: {time.time() - start}\n')
         
         if reduce_A:
             self.A_reduced = obj_array(self.num_modalities)
