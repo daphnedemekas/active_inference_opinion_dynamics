@@ -1,4 +1,6 @@
 import numpy as np
+from plots import belief_similarity_matrix, get_KLDs, get_JS, get_cluster_sorted_indices
+
 # %% function to access the real parameters from the simulation
 def davies_bouldin(all_qs): # a low DB index represents low inter cluster and high intra cluster similarity 
     believers = np.where(all_qs[-1,1,:] > 0.5)[0]
@@ -34,37 +36,67 @@ def cluster_kl(all_qs):
             cluster_metrics[t] = (cluster_metric_b + cluster_metric_nb) / 2
     return cluster_metrics
 
-def conclusion_thresholds(all_qs):
+
+def eigenvalue_decay(all_qs):
+    JS_intra_beliefs = get_JS(all_qs)
+    cluster_sorted_indices = get_cluster_sorted_indices(all_qs)
+
+    distance_matrix = belief_similarity_matrix(-1, JS_intra_beliefs, cluster_sorted_indices)
+    egd = np.sort(np.absolute(np.linalg.eigvals(distance_matrix)))[::-1]
+    if len(egd) > 1:
+        return np.max(np.gradient(egd))
+    else:
+        return np.nan
+
+def is_connected(adj_mat):
+    return np.where(adj_mat == 1)
+
+def count_intersect(agent_samplings, cluster_group):
+    unique, counts = np.unique(agent_samplings, return_counts=True)
+    cluster_counts = [counts[i] for i, x in enumerate(unique) if x in cluster_group]
+    return np.sum(cluster_counts)
+
+
+def get_sampling_ratios(all_qs, adj_mat, all_neighbour_samplings):
+    sections = [0,20,40,60]
+    ratio_per_section = np.empty(len(sections)-1)
     N = all_qs.shape[2]
-    agent_thresholds = np.zeros(N)
-    for agent in range(N):
-        last_belief = all_qs[-1,1,agent] > 0.5
-        for t in reversed(range(all_qs.shape[0])):
-            if (all_qs[t,1,agent] > 0.5) != last_belief:
-                agent_thresholds[agent] = t
-                break
-    return agent_thresholds
+    cluster1, cluster2  = np.where(all_qs[-1,1,:] > 0.5)[0], np.where(all_qs[-1,1,:] < 0.5)[0]
+    agent_neighbours = [list(np.where(adj_mat[:,agent] ==1)[0]) for agent in range(N)]
+    outsider_neighbours = [np.intersect1d(agent_neighbours[agent], cluster1) if agent not in cluster1 else np.intersect1d(agent_neighbours[agent], cluster2) for agent in range(N)]
+    insider_neighbours = [np.intersect1d(agent_neighbours[agent], cluster1) if agent in cluster1 else np.intersect1d(agent_neighbours[agent], cluster2) for agent in range(N)]
+    if len(cluster1) > 0 and len(cluster2) > 0:
+        for s_idx in range(len(sections)-1):
+            outsider_average = np.zeros(N)
+            insider_average = np.zeros(N)
+            for agent_idx in range(N):
+                if len(outsider_neighbours[agent_idx]) > 0 and len(insider_neighbours[agent_idx]) > 0:
+                    agent_samplings = all_neighbour_samplings[sections[s_idx]:sections[s_idx+1],agent_idx]
+                    outsider_sum = count_intersect(agent_samplings, outsider_neighbours[agent_idx])
+                    insider_sum = count_intersect(agent_samplings, insider_neighbours[agent_idx])
+                    outsider_average[agent_idx] = outsider_sum
+                    insider_average[agent_idx] = insider_sum
+                else:
+                    outsider_average[agent_idx] = np.nan
+                    insider_average[agent_idx] = np.nan
+            if (insider_average == 0).all():
+                insider_average = np.ones(1)
+            ratio_per_section[s_idx] = np.nanmean(outsider_average) / np.nanmean(insider_average)
+    else:
+        ratio_per_section[:] = np.nan
+    return ratio_per_section
 
 
-def cluster_ratios(all_qs):
-    cluster_ratios = np.zeros((all_qs.shape[0],1))
-    believers = np.where(all_qs[-1,1,:] > 0.5)[0]
-    nonbelievers = np.where(all_qs[-1,1,:] < 0.5)[0]
-    for t in range(all_qs.shape[0]):
-        if np.sum(all_qs[t,0,believers]) == 0 or np.sum(all_qs[t,1,nonbelievers]) == 0:
-            cluster_ratio = 0
-        else:
-            cluster_ratio = np.sum(all_qs[t,0,believers]) / np.sum(all_qs[t,1,nonbelievers])
-            cluster_ratio = cluster_ratio if cluster_ratio < 1 else 1/cluster_ratio
-        cluster_ratios[t] = cluster_ratio
-    return cluster_ratios
 
-
-#average beliefs in idea over both clusters e
-#ratio of sum of believers and sum of nonbelievers 
-
-
-#def ratio between in and out group samples in different time chunks 
+def belief_cluster_sizes(all_qs):
+    cluster1 = np.zeros(30)
+    cluster2 = np.zeros(30)
+    for trial in range(30):
+        all_beliefs_t = all_qs[trial,:,:,:] 
+        cluster1[trial] = len(np.where(all_beliefs_t[-1,1,:] > 0.5)[0])
+        cluster2[trial] = len(np.where(all_beliefs_t[-1,1,:] < 0.5)[0])
+    return cluster1, cluster2
+        
 
 def sampling_ratio(all_qs, agent_view_per_timestep):
     #believers = np.where(all_qs[-1,1,:] > 0.5)[0]
@@ -95,11 +127,28 @@ def sampling_ratio(all_qs, agent_view_per_timestep):
         in_time_step_ratios.append(sample_ratio_in_group / (sample_ratio_in_group + sample_ratio_out_group))
         out_time_step_ratios.append(sample_ratio_out_group / (sample_ratio_in_group + sample_ratio_out_group))
     
-    return in_time_step_ratios, out_time_step_ratios
-                  
+    return np.nanmean(in_time_step_ratios)
 
 
-#def silhouette_coeff(all_qs):
+def sampling_frequency(parameters, all_qs, adj_mat, all_samplings):
+    for trial in range(30):
+            #what are the clusters? 
+        cluster1 = np.where(all_qs[trial][-1,1,:] > 0.5)
+        cluster2 = np.where(all_qs[trial][-1,1,:] < 0.5)
+        for agent in range(parameters[0]):
+            agent_cluster = cluster1[0] if agent in cluster1[0] else cluster2[0]
+            other_cluster = cluster1[0] if agent not in cluster1[0] else cluster2[0]
+            neighbours = list(np.where(adj_mat[:,agent,:][0] ==1)[0])
+            outsider_neighbours = np.intersect1d(neighbours, other_cluster)
+            insider_neighbours = np.intersect1d(neighbours, agent_cluster)
+            agent_samplings = all_samplings[:,:,agent][trial]
+            outsider_indices = [np.where(agent_samplings == i) for i in outsider_neighbours]
+            insider_indices = [np.where(agent_samplings == i) for i in insider_neighbours]
+
+            outsider_freq = [outsider_indices[0][0][i+1]-outsider_indices[0][0][i] for i in range(len(outsider_indices[0][0])-1)]
+            insider_freq = [insider_indices[0][0][i+1]-insider_indices[0][0][i] for i in range(len(insider_indices[0][0])-1)]
+        
+
 
 
 # %%

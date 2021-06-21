@@ -29,6 +29,26 @@ def plot_beliefs_over_time(belief_hist):
 def KL_div(array1_0, array1_1, array2_0, array2_1):
     return array1_0 * np.log(array1_0 / array2_0) + array1_1 * np.log(array1_1 / array2_1)
 
+def KL_div_alt(p, q):
+    return p * np.log(p / q) + (1. - p) * np.log((1.-p) / (1.-q))
+
+def JS_div(array1_0, array1_1, array2_0, array2_1):
+
+    m_0 = (array1_0 + array2_0) / 2.
+    m_1 = 1.0 - m_0
+    return 0.5 * (KL_div(array1_0, array1_1, m_0, m_1) + KL_div(array2_0, array2_1, m_0, m_1))
+
+def get_JS(belief_hist):
+    T = belief_hist.shape[0]
+    N = belief_hist.shape[2]
+    JS_intra_beliefs = np.zeros((N,N,T))
+
+    for a in range(N):
+        for n in range(N):
+            JS_intra_beliefs[a,n,:] = JS_div(belief_hist[:,0,a], belief_hist[:,1,a], belief_hist[:,0,n], belief_hist[:,1,n])
+    return JS_intra_beliefs
+    
+
 def get_KLDs(belief_hist):
     T = belief_hist.shape[0]
     N = belief_hist.shape[2]
@@ -39,24 +59,31 @@ def get_KLDs(belief_hist):
             KLD_intra_beliefs[a,n,:] = KL_div(belief_hist[:,0,a], belief_hist[:,1,a], belief_hist[:,0,n], belief_hist[:,1,n])
     return KLD_intra_beliefs
 
+
+def belief_similarity_matrix(t, KLD_intra_beliefs, cluster_sorted_indices):
+    single_slice = KLD_intra_beliefs[:,:,t]
+    sorted_slice = single_slice[cluster_sorted_indices,:][:,cluster_sorted_indices]
+    return sorted_slice 
+
+def get_cluster_sorted_indices(all_beliefs):
+    believers = np.where(all_beliefs[-1,0,:] > 0.5)
+    nonbelievers = np.where(all_beliefs[-1,0,:] < 0.5)
+    cluster_sorted_indices = [i for i in believers[0]]
+    for j in nonbelievers[0]:
+        cluster_sorted_indices.append(j)
+    return cluster_sorted_indices
+
 def KL_similarity_matrices(belief_hist):
     T = belief_hist.shape[0]
 
     KLD_intra_beliefs = get_KLDs(belief_hist)
-    believers = np.where(belief_hist[-1,0,:] > 0.5)
-    nonbelievers = np.where(belief_hist[-1,0,:] < 0.5)
-    cluster_sorted_indices = [i for i in believers[0]]
-    for j in nonbelievers[0]:
-        cluster_sorted_indices.append(j)
-
+    cluster_sorted_indices = get_cluster_sorted_indices(belief_hist)
     KLD_plot_images = []
     
     color_map = plt.cm.get_cmap('gray').reversed()
 
     for t in range(T)[2:-1:2]:
-
-        single_slice = KLD_intra_beliefs[:,:,t]
-        sorted_slice = single_slice[cluster_sorted_indices,:][:,cluster_sorted_indices]
+        sorted_slice = belief_similarity_matrix(t, KLD_intra_beliefs, cluster_sorted_indices)
         plt.imshow(sorted_slice, cmap = color_map)
         plt.title("Belief similarity matrix")
         plt.savefig('KLD, t = ' + str(t) + '.png')
@@ -87,10 +114,6 @@ def tweet_similarity_matrices(all_tweets, cluster_sorted_indices):
         tweet_sim_images.append('TSM, t = ' + str(t) + '.png')
         plt.clf()
     return tweet_sim_images
-
-def plot_conclusion_thresholds(conclusion_thresholds):
-    plt.bar(list(range(len(conclusion_thresholds))), conclusion_thresholds)
-    plt.title("Conclusion Thresholds")
 
 # def tweet_proportions(all_tweets):
 #     T = all_tweets.shape[0]

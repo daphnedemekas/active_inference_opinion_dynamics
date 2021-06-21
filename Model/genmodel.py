@@ -2,6 +2,8 @@ import numpy as np
 import itertools
 import time
 from .pymdp.utils import obj_array, obj_array_uniform, insert_multiple, softmax, onehot, reduce_a_matrix
+from .pymdp.maths import spm_log
+from .pymdp.learning import *
 
 class GenerativeModel(object):
 
@@ -21,6 +23,7 @@ class GenerativeModel(object):
         h_idea_mapping = None,
 
         belief2tweet_mapping = None,
+        E_lr = None,
 
         preference_shape = None,
         cohesion_exp = None,
@@ -108,6 +111,8 @@ class GenerativeModel(object):
         
         self.B = self.generate_transition()
         self.C = self.generate_prior_preferences()
+
+        self.E = np.ones(len(self.policies))
 
         self.policy_mapping = self.generate_policy_mapping()
 
@@ -296,6 +301,7 @@ class GenerativeModel(object):
                 if f_idx == self.focal_belief_idx or f_idx in self.neighbour_belief_idx: #the first N+1 hidden state factors are variations of the identity matrix based on stubborness
                     
                     D[f_idx] = np.ones(f_dim)/f_dim
+                    #D[f_idx] = np.random.uniform(0,1,f_dim)
                 
                 elif f_idx == self.h_control_idx:
                     
@@ -368,16 +374,18 @@ class GenerativeModel(object):
                 normalising_constant = (array_policies[:,self.h_control_idx] == action_idx).sum()
                 if policy[self.h_control_idx] == action_idx:
                     policy_mapping[policy_idx,:] = self.belief2tweet_mapping[action_idx,:] / normalising_constant
+
         #self.policy_mapping = policy_mapping
         return policy_mapping
     
     
     def create_idea_mapping(self):
-        h_idea_mapping = utils.softmax(np.array([[0,1],[1,0]])* np.random.uniform(0.3,3))
+        h_idea_mapping = softmax(np.array([[0,1],[1,0]])* np.random.uniform(0.3,3))
 
         return h_idea_mapping
     
     def get_policy_prior(self, qs_f):
-        E = self.policy_mapping.dot(qs_f)
+
+        E = spm_log(self.policy_mapping.dot(qs_f))
 
         return E

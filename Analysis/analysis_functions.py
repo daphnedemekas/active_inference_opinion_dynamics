@@ -5,19 +5,18 @@ import matplotlib.pyplot as plt
 import pandas as pd 
 from IPython.display import display
 import seaborn as sns
-from plots import plot_beliefs_over_time, plot_conclusion_thresholds
-# %% define values and get data file
+from plots import plot_beliefs_over_time# %% define values and get data file
 
 #fake_results = np.load('results/sbm_test0003.npz')['arr_1']
 # %% function to access the real parameters from the simulation
 
-def get_real_precisions(t,n,c,ecb, env, bel):
-    n_i = num_agent_values.index(n)
-    c_i = connectedness_values.index(c)
-    ecb_i = ecb_precision_gammas.index(ecb)
-    env_i = env_precision_gammas.index(env)
-    bel_i = b_precision_gammas.index(bel)
-    all_agent_params = param_results[t,n_i,c_i,ecb_i,env_i,bel_i]
+def get_real_precisions(params, t,n,c,ecb, env, bel):
+    n_i = params.num_agent_values.index(n)
+    c_i = params.connectedness_values.index(c)
+    ecb_i = params.ecb_precision_gammas.index(ecb)
+    env_i = params.env_precision_gammas.index(env)
+    bel_i = params.b_precision_gammas.index(bel)
+    all_agent_params = params.param_results[t,n_i,c_i,ecb_i,env_i,bel_i]
     return all_agent_params
 
 def display_dropdown(params):
@@ -32,65 +31,18 @@ def display_dropdown(params):
 # %% initialize plot
 def heatmap_of_tweets(params):
     fig, ax = plt.subplots(figsize=(6,4))
-    all_tweets = get_sim_results_from_parameters(params)['all_tweets']
+    all_tweets = params.get_sim_results_from_parameters(params)['all_tweets']
     ax = sns.heatmap(np.transpose(all_tweets))
     plt.show()
     display_dropdown(params)
 
 def beliefs_over_time(params, p):
     fig, ax = plt.subplots(figsize=(6,4))
-    belief_hist = get_sim_results_from_parameters(params)['all_qs']
+    belief_hist = params.get_sim_results_from_parameters(params)['all_qs']
     plot_beliefs_over_time(belief_hist)
     plt.title(p)
     plt.show()
     #display_dropdown(n_d, c_d, ecb_d, env_d, b_d)
-
-# %% initialize plot
-
-def evaluate_clustering(params, p):
-    results = {}
-    belief_hist = get_sim_results_from_parameters(params)['all_qs']
-    results["davies bouldin index"] = davies_bouldin(belief_hist) 
-    results["cluster kl div"] = cluster_kl(belief_hist)[-1] 
-    results["cluster meanvar"] = cluster_mean_over_variance(belief_hist)
-
-    #results["agent convergence times"] = [conclusion_thresholds(belief_hist)
-    #results["cluster ratio"] = get_cluster_ratio(belief_hist)[-1]
-    results["ECB"] = params.ecb_d.value
-    results["Graph Connnectedness"] = params.c_d.value
-    results["num agents"] = params.n_d.value
-    #display_dropdown(n_d, c_d, ecb_d, env_d, b_d)
-    return results 
-
-def cluster_ratio_over_time(params):
-    fig, ax = plt.subplots(figsize=(6,2))
-    belief_hist = get_sim_results_from_parameters(params)['all_qs']
-    cluster_ratios = get_cluster_ratio(belief_hist)
-    ax = sns.heatmap(np.transpose(cluster_ratios), vmin = 0, vmax = 1)
-    plt.show()
-    display_dropdown(params)
-
-def cluster_kl_over_time(params):
-    fig, ax = plt.subplots(figsize=(6,2))
-    belief_hist = get_sim_results_from_parameters(paramss)['all_qs']
-    cluster_metric = get_cluster_metric(belief_hist)
-    
-    ax = sns.heatmap(np.transpose(cluster_metric), vmin = 0.2, vmax = 0.8)
-    plt.show()
-    display_dropdown(n_d, c_d, ecb_d, env_d, b_d)
-
-
-#metric for sampling behaviour? larger means more variance - just make a list of who they sampled from. 
-def sampling_variance(params):
-    actions = get_sim_results_from_parameters(params)['all_neighbour_sampling']
-    sampling_variances = np.zeros(params.n_d.value)
-    for a in range(params.n_d.value):
-        sampling_variances[a] = np.var(actions[:,a])
-    return sampling_variances
-
-
-
-
 
 
 

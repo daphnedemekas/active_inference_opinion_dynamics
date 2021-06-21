@@ -1,6 +1,5 @@
 # %% imports
 #%matplotlib widget
-
 import ipywidgets as widgets
 import numpy as np
 import matplotlib.pyplot as plt 
@@ -9,7 +8,7 @@ from IPython.display import display
 import seaborn as sns
 import itertools
 #from Analysis.plots import plot_beliefs_over_time, plot_conclusion_thresholds
-from analysis_functions import *
+#from analysis_functions import *
 import cluster_metrics as cm 
 
 
@@ -24,6 +23,8 @@ class ParameterAnalysis(object):
         ecb_precision_gammas,
         env_precision_gammas,
         b_precision_gammas,   
+        lrs,
+        variances,
         n_trials
         ):       
         
@@ -34,11 +35,13 @@ class ParameterAnalysis(object):
         self.ecb_precision_gammas = ecb_precision_gammas
         self.env_precision_gammas = env_precision_gammas
         self.b_precision_gammas = b_precision_gammas
+        self.lrs = lrs
+        self.variances = variances 
         self.n_trials = n_trials
         self.n = len(num_agent_values)
         self.c = len(connectedness_values)
 
-        self.param_results = np.load(self.params_file,allow_pickle = True)['arr_0']
+        #self.param_results = np.load(self.params_file,allow_pickle = True)['arr_0']
         self.sim_results = np.load(self.results_file,allow_pickle=True)['arr_0']
         
         
@@ -48,7 +51,8 @@ class ParameterAnalysis(object):
         self.ecb_d = widgets.Dropdown(value = ecb_precision_gammas[0], options = ecb_precision_gammas, description = 'ecb precision gammas')
         self.env_d = widgets.Dropdown(value = env_precision_gammas[0], options = env_precision_gammas, description = 'env precision gammas')
         self.b_d = widgets.Dropdown(value = b_precision_gammas[0], options = b_precision_gammas, description = 'belief precision gammas') 
-
+        self.lr_d = widgets.Dropdown(value = lrs[0], options = lrs, description = "learning rates")
+        self.v_d = widgets.Dropdown(value = variances[0], options = variances, description = "variances")
 
         self.param_combinations = itertools.product(self.num_agent_values, self.connectedness_values, self.ecb_precision_gammas, self.b_precision_gammas, self.env_precision_gammas)
    
@@ -58,10 +62,12 @@ class ParameterAnalysis(object):
         ecb_i = self.ecb_precision_gammas.index(self.ecb_d.value)
         env_i = self.env_precision_gammas.index(self.env_d.value)
         bel_i = self.b_precision_gammas.index(self.b_d.value)
-        adj_mat = np.mean(np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i][0] for i in range(params.n_trials)]),axis=0)#take the average 
-        avg_all_qs = np.mean(np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i][1] for i in range(params.n_trials)]),axis=0)
-        avg_all_tweets = np.mean(np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i][2] for i in range(params.n_trials)]),axis=0)
-        all_neighbour_samplings = self.sim_results[0,n_i,c_i,ecb_i,env_i,bel_i][3]
+        lr_i = self.lrs.index(self.lr_d.value)
+        v_i = self.variances.index(self.v_d.value)
+        adj_mat = np.mean(np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i, v_i, lr_i][0] for i in range(self.n_trials)]),axis=0)#take the average 
+        avg_all_qs = np.mean(np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i, v_i, lr_i][1] for i in range(self.n_trials)]),axis=0)
+        avg_all_tweets = np.mean(np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i, v_i, lr_i][2] for i in range(self.n_trials)]),axis=0)
+        all_neighbour_samplings = self.sim_results[0,n_i,c_i,ecb_i,env_i,bel_i, v_i, lr_i][3]
         result = {'adj_mat' : adj_mat, 'all_qs':avg_all_qs, 'all_tweets':avg_all_tweets, 'all_neighbour_sampling':all_neighbour_samplings}
         #self.all_qs = avg_all_qs
         self.all_tweets = avg_all_tweets
@@ -75,10 +81,12 @@ class ParameterAnalysis(object):
         ecb_i = self.ecb_precision_gammas.index(self.ecb_d.value)
         env_i = self.env_precision_gammas.index(self.env_d.value)
         bel_i = self.b_precision_gammas.index(self.b_d.value)
-        adj_mat = np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i][0] for i in range(self.n_trials)])
-        avg_all_qs = np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i][1] for i in range(self.n_trials)])
-        avg_all_tweets = np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i][2] for i in range(self.n_trials)])
-        all_neighbour_samplings = np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i][3] for i in range(self.n_trials)])
+        lr_i = self.lrs.index(self.lr_d.value)
+        v_i = self.variances.index(self.v_d.value)
+        adj_mat = np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i, v_i, lr_i][0] for i in range(self.n_trials)])
+        avg_all_qs = np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i, v_i, lr_i][1] for i in range(self.n_trials)])
+        avg_all_tweets = np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i, v_i, lr_i][2] for i in range(self.n_trials)])
+        all_neighbour_samplings = np.array([self.sim_results[i,n_i,c_i,ecb_i,env_i,bel_i, v_i, lr_i][3] for i in range(self.n_trials)])
         result = {'adj_mat' : adj_mat, 'all_qs':avg_all_qs, 'all_tweets':avg_all_tweets, 'all_neighbour_sampling':all_neighbour_samplings}
         self.all_qs = avg_all_qs
         self.all_tweets = avg_all_tweets
@@ -86,17 +94,19 @@ class ParameterAnalysis(object):
         self.all_neighbour_samplings = all_neighbour_samplings
         return result
     
-    def get_real_precisions(t,n,c,ecb, env, bel):
-        n_i = num_agent_values.index(n)
-        c_i = connectedness_values.index(c)
-        ecb_i = ecb_precision_gammas.index(ecb)
-        env_i = env_precision_gammas.index(env)
-        bel_i = b_precision_gammas.index(bel)
-        all_agent_params = param_results[t,n_i,c_i,ecb_i,env_i,bel_i]
+    def get_real_precisions(self, t,n,c,ecb, env, bel):
+        n_i = self.num_agent_values.index(n)
+        c_i = self.connectedness_values.index(c)
+        ecb_i = self.ecb_precision_gammas.index(ecb)
+        env_i = self.env_precision_gammas.index(env)
+        bel_i = self.b_precision_gammas.index(bel)
+        lr_i = self.lrs.index(self.lr_d.value)
+        v_i = self.variances.index(self.v_d.value)
+        all_agent_params = self.param_results[t,n_i,c_i,ecb_i,env_i,bel_i, v_i, lr_i]
         return all_agent_params
 
     def get_param_combinations(self):
-        self.param_combinations = itertools.product(self.num_agent_values, self.connectedness_values, self.ecb_precision_gammas, self.b_precision_gammas, self.env_precision_gammas)
+        self.param_combinations = itertools.product(self.num_agent_values, self.connectedness_values, self.ecb_precision_gammas, self.b_precision_gammas, self.env_precision_gammas, self.variances, self.lrs)
         return self.param_combinations
 
     def update_params(self, params):
@@ -105,20 +115,26 @@ class ParameterAnalysis(object):
         self.ecb_d.value = params[2]
         self.b_d.value = params[3]
         self.env_d.value = params[4]
+        self.v_d.value = params[5]
+        self.lr_d.value = params[6]
 
     def get_overall_metrics(self):
         self.db_indices = np.zeros(len(list(self.get_param_combinations())))
         self.cluster_kls = np.zeros(len(list(self.get_param_combinations())))
+        self.egds = np.zeros(len(list(self.get_param_combinations())))
         self.sampling_ratios = np.zeros((len(list(self.get_param_combinations())),2,9))
-        self.sampling_ratios_test = []
+        self.insider_outsider_ratios = np.zeros((len(list(self.get_param_combinations())),3))
         for i, combo in enumerate(list(self.get_param_combinations())):
+            #try:
             self.update_params(combo)
             self.get_all_sim_results_from_parameters()
             self.db_indices[i] = np.mean(np.array([cm.davies_bouldin(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
             self.cluster_kls[i] = np.mean(np.array([cm.cluster_kl(self.all_qs[j,:,:,:])[-1] for j in range(self.n_trials)]))
             self.sampling_ratios[i,:,:] = np.mean([cm.sampling_ratio(self.all_qs[i,:,:,:], self.all_neighbour_samplings[i,:,:]) for i in range(self.n_trials)],axis=0)
-            self.sampling_ratios_test.append([cm.sampling_ratio(self.all_qs[i,:,:,:], self.all_neighbour_samplings[i,:,:]) for i in range(self.n_trials)])
-
+            self.egds[i] = np.mean(np.array([cm.eigenvalue_decay(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
+            self.insider_outsider_ratios[i,:] = np.nanmean(np.array([cm.get_sampling_ratios(self.all_qs[i], self.adj_mat[i], self.all_neighbour_samplings[i]) for i in range(self.n_trials)]),axis=0)
+            #except:
+            #   print("param combination " + str(combo) + "is invalid")
 
     def display_dropdown(self):
         display(self.n_d)
@@ -127,10 +143,6 @@ class ParameterAnalysis(object):
         display(self.env_d)
         display(self.b_d)
     
-    def display_both():
-        cluster_metric_over_time(self)
-        beliefs_over_time(self)
-
   #  def evaluate_clusters(self, parameters):
   #      cluster_summary = evaluate_clustering(self, parameters)
   #      return cluster_summary

@@ -2,6 +2,7 @@ import numpy as np
 from .genmodel import GenerativeModel
 from .pymdp.inference import *
 from .pymdp.control import *
+from .pymdp.learning import *
 from .pymdp.maths import spm_log
 from .pymdp import utils
 
@@ -34,6 +35,7 @@ class Agent(object):
         # self.initial_action = policy_params["initial_action"]
         self.action[-2] = policy_params["initial_action"][-2]
         self.action[-1] = policy_params["initial_action"][-1]
+        self.genmodel.E += update_E(self.action[1], self.genmodel.who_idx, self.genmodel.policies, learning_rate=policy_params["E_lr"])
 
         self.set_starting_state_and_priors()
 
@@ -61,20 +63,33 @@ class Agent(object):
 
     def infer_policies(self):
 
-        self.genmodel.E = self.genmodel.get_policy_prior(self.qs[0]) 
+        # self.genmodel.E = self.genmodel.get_policy_prior(self.qs[0]) 
+        belief_component_E = self.genmodel.get_policy_prior(self.qs[0]) 
 
-        if self.reduce_A_policies:
-            q_pi, neg_efe = update_posterior_policies_reduced(self.qs, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
-        else:
-            q_pi, neg_efe = update_posterior_policies(self.qs, self.genmodel.A, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
+        neighbour_bias = spm_log(self.genmodel.E / self.genmodel.E.sum())
+        # print(self.genmodel.E)
+        # print(neighbour_bias)
+
+        posterior_E = belief_component_E + neighbour_bias
+
+        # if self.reduce_A_policies:
+        #     q_pi, neg_efe = update_posterior_policies_reduced(self.qs, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
+        # else:
+        #     q_pi, neg_efe = update_posterior_policies(self.qs, self.genmodel.A, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
+
+        q_pi, neg_efe = update_posterior_policies_reduced(self.qs, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.B, self.genmodel.C, posterior_E, self.genmodel.policies, **self.policy_hyperparams)
 
         self.q_pi = q_pi
         self.neg_efe = neg_efe
         return q_pi
     
     def sample_action(self):
+
         action = sample_action(self.q_pi, self.genmodel.policies, self.genmodel.num_states, self.genmodel.control_factor_idx, sampling_type = 'marginal_action') #how does this work? 
         self.action = action
+
+        self.genmodel.E += update_E(action[self.genmodel.who_idx], self.genmodel.who_idx, self.genmodel.policies)
+
         return action
 
     def set_starting_state_and_priors(self):

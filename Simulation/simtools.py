@@ -15,6 +15,8 @@ def initialize_agent_params(G,
                             ecb_precisions = None, 
                             B_idea_precisions = None,
                             B_neighbour_precisions = None, 
+                            variance = None,
+                            E_noise = None,
                             c_params = None,
                             optim_options = None):
     """
@@ -96,27 +98,38 @@ def initialize_agent_params(G,
 
     store_parameters = utils.obj_array(len(G.nodes))
     for i in G.nodes():
+        print("AGENT" + str(i))
 
         num_neighbours = G.degree(i)
 
         initial_tweet, initial_neighbour_to_sample = np.random.randint(num_H), np.random.randint(num_neighbours) 
 
         # ecb_precisions = [np.random.uniform(low = ecb_precisions_all[i][0], high = ecb_precisions_all[i][1], size = (idea_levels,) ) for n in range(num_neighbours)]
-        ecb_precisions = ecb_precisions_all[i]
+        ecb_precisions = np.absolute(np.random.normal(ecb_precisions_all[i], variance, size=(num_neighbours, idea_levels)))
+        #ecb_precisions = np.ones((num_neighbours, idea_levels)) * ecb_precisions_all[i]
+        print("ECB" + str(ecb_precisions))
         env_determinism = B_idea_precisions_all[i]
-        belief_determinism = B_neighbour_precisions_all[i]
-        h_idea_mapping = utils.softmax(np.array([[1,0],[0,1]])* np.random.uniform(0.3,3))
 
+        belief_determinism = np.absolute(np.random.normal(B_neighbour_precisions_all[i], variance, size=(num_neighbours,)) )
+        #belief_determinism = B_neighbour_precisions_all[i] *np.ones((num_neighbours,))
+
+        print("BELIEF DETERMINISM" + str(belief_determinism))
+        print()
+        print()
+        #h_idea_mapping = utils.softmax(np.array([[1,0],[0,1]])* np.random.uniform(0.3,3))
+        h_idea_mapping = np.eye(num_H)
+        h_idea_mapping[:,0] = utils.softmax(h_idea_mapping[:,0]*1.0)
+        h_idea_mapping[:,1] = utils.softmax(h_idea_mapping[:,1]*1.0)
         params = [ecb_precisions,env_determinism,belief_determinism,h_idea_mapping]
         store_parameters[i] = params
 
         agent_constructor_params[i] = {
 
             "neighbour_params" : {
-                "ecb_precisions" :  ecb_precisions*np.ones((num_neighbours, idea_levels)),
+                "ecb_precisions" :  ecb_precisions,
                 "num_neighbours" : num_neighbours,
                 "env_determinism":  env_determinism,
-                "belief_determinism": belief_determinism*np.ones(num_neighbours,)
+                "belief_determinism": belief_determinism
                 },
 
             "idea_mapping_params" : {
@@ -127,7 +140,8 @@ def initialize_agent_params(G,
 
             "policy_params" : {
                 "initial_action" : [initial_tweet, initial_neighbour_to_sample],
-                "belief2tweet_mapping" : belief2tweet_mappings_all[i]
+                "belief2tweet_mapping" : belief2tweet_mappings_all[i],
+                "E_lr" : E_noise
                 },
 
             "C_params" : c_params_all[i],
