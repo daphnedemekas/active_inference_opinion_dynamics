@@ -64,8 +64,10 @@ def run_sweep(param_combos,all_parameters_to_store,all_results_to_store):
 
 
             all_results_to_store[indices] = (adj_mat, all_qs, all_tweets, all_neighbour_samplings)
-
+            plot_beliefs_over_time(all_qs)
+            plt.show()
             #if iter % 10 ==0:
+                 
             #    print(str(iter) + "/" + str(length*30))              
             #    np.savez('Analysis/results/E_p2', all_parameters_to_store)
             #    np.savez('Analysis/results/E_r2', all_results_to_store)
@@ -83,16 +85,15 @@ if __name__ == '__main__':
 
 
     connectedness_values = [0.4]
-    ecb_precision_gammas = [3,7]
+    ecb_precision_gammas = [7]
 
     #num_agent_values = [3,5,8]
-    num_agent_values = [16]
+    num_agent_values = [6]
 
     n = len(num_agent_values)
     c = len(connectedness_values)
-    #precision_ranges = [[1,2],[1,5],[1,9],[6,7],[6,10]]
     env_precision_gammas = [9]
-    b_precision_gammas = [3,7]
+    b_precision_gammas = [4,7]
     lr = [0.1,1]
 
     variances = [0.1,1]
@@ -102,7 +103,7 @@ if __name__ == '__main__':
     b_len = len(b_precision_gammas)
     v_len = len(variances)
     lr_len = len(lr)
-    n_trials = 1
+    n_trials = 5
 
     param_combos = itertools.product(num_agent_values, connectedness_values, ecb_precision_gammas,env_precision_gammas,b_precision_gammas, variances, lr)
     # %% construct network
@@ -119,39 +120,3 @@ if __name__ == '__main__':
     
     
     
-    #for ii, idx in enumerate(indices[:-1]):
-    #   print(idx)
-    #   p = multiprocessing.Process(target=run_sweep, args=(list(param_combos)[int(idx):int(indices[ii+1])],all_parameters_to_store,all_results_to_store))
-    #   processes.append(p)
-    #   p.start()
-    #    
-    #   for process in processes:
-    #       process.join()
-
-
-
-# def get_cluster_ratio(all_qs):
-#     if np.sum(all_qs[-1,0,believers]) == 0 or np.sum(all_qs[-1,1,nonbelievers]) == 0:
-#         cluster_ratio = 0
-#     else:
-#         cluster_ratio = np.sum(all_qs[-1,0,believers]) / np.sum(all_qs[-1,1,nonbelievers])
-#         cluster_ratio = cluster_ratio if cluster_ratio < 1 else 1/cluster_ratio
-#     return cluster_ratio
-
-#s = pd.Series(data,index=indices)
-
-#s.to_pickle("param_data.pkl")
-
-# combinations = []
-# for i in num_agent_values:
-#     for j in connectedness_values:
-#         for k in precision_ranges:
-#             for l in precision_ranges:
-#                 for r in precision_ranges:
-#                     combinations.append((i,j,k[0],k[1],l[0],l[1],r[0],r[1]))
-
-#tuples = list(pd.MultiIndex.from_tuples(combinations, names = ["num_agents", "connectedness", "ecb_lower", "ecb_upper", "B_idea_lower", "B_idea_upper", "B_n_lower", "B_n_upper"]))
-
-#indices = pd.MultiIndex.from_tuples(tuples)
-#data = np.zeros((num_trials, len(tuples)))
-# %%

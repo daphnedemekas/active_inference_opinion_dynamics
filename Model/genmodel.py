@@ -95,7 +95,10 @@ class GenerativeModel(object):
         self.who_idx = self.h_control_idx + 1
 
         self.control_factor_idx = [self.h_control_idx, self.who_idx]
-        
+        num_controls = [1] * self.num_factors
+        num_controls[self.h_control_idx] = self.num_H
+        num_controls[self.who_idx] = self.num_neighbours
+        self.num_controls = num_controls
         self.policies = self.generate_policies()
 
         start = time.time()
@@ -107,8 +110,8 @@ class GenerativeModel(object):
             for g in range(self.num_modalities):
                 self.A_reduced[g], factor_idx = reduce_a_matrix(self.A[g])
                 self.informative_dims.append(factor_idx)
-            # del self.A
-        
+            self.reshape_dims_per_modality, self.tile_dims_per_modality = self.generate_indices_for_policy_updating()
+
         self.B = self.generate_transition()
         self.C = self.generate_prior_preferences()
 
@@ -389,3 +392,21 @@ class GenerativeModel(object):
         E = spm_log(self.policy_mapping.dot(qs_f))
 
         return E
+    
+    def generate_indices_for_policy_updating(self):
+        
+        reshape_dims_base = np.ones(len(self.num_controls),dtype=int)
+        reshape_dims_per_modality = []
+        tile_dims_per_modality = []
+
+        for g in range(self.num_modalities):
+            tmp = reshape_dims_base.copy()
+            control_idx = np.intersect1d(self.informative_dims[g], self.control_factor_idx)
+            tmp[control_idx] = np.array(self.num_controls)[list(control_idx)]
+
+            reshape_dims_per_modality.append(tuple(tmp))
+
+            tmp = 1 + np.array(self.num_controls) - tmp
+            tile_dims_per_modality.append(tuple(tmp))
+        
+        return reshape_dims_per_modality, tile_dims_per_modality

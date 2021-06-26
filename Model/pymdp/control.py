@@ -9,97 +9,9 @@ __author__: Conor Heins, Alexander Tschantz, Brennan Klein
 
 import itertools 
 import numpy as np
-from .maths import softmax, spm_dot, spm_wnorm, spm_MDP_G, spm_MDP_G_optim
+from .maths import softmax, spm_dot, spm_wnorm, spm_MDP_G, spm_MDP_G_optim, spm_log
 from . import utils
 import copy 
-
-def update_posterior_policies(
-    qs,
-    A,
-    B,
-    C,
-    E,
-    policies,
-    use_utility=True,
-    use_states_info_gain=True,
-    use_param_info_gain=False,
-    pA=None,
-    pB=None,
-    gamma=16.0):
-    """ Updates the posterior beliefs about policies based on expected free energy prior
-
-        @TODO: Needs to be amended for use with multi-step policies (where possible_policies is a 
-        list of np.arrays (n_step x n_factor), not just a list of tuples as it is now)
-
-        Parameters
-        ----------
-        - `qs` [1D numpy array, array-of-arrays, or Categorical (either single- or multi-factor)]:
-            Current marginal beliefs about hidden state factors
-        - `A` [numpy ndarray, array-of-arrays (in case of multiple modalities), or Categorical 
-                (both single and multi-modality)]:
-            Observation likelihood model (beliefs about the likelihood mapping entertained by the agent)
-        - `B` [numpy ndarray, array-of-arrays (in case of multiple hidden state factors), or Categorical 
-                (both single and multi-factor)]:
-                Transition likelihood model (beliefs about the likelihood mapping entertained by the agent)
-        - `C` [numpy 1D-array, array-of-arrays (in case of multiple modalities), or Categorical 
-                (both single and multi-modality)]:
-            Prior beliefs about outcomes (prior preferences)
-        - `policies` [list of tuples]:
-            A list of all the possible policies, each expressed as a tuple of indices, where a given 
-            index corresponds to an action on a particular hidden state factor e.g. policies[1][2] yields the 
-            index of the action under policy 1 that affects hidden state factor 2
-        - `use_utility` [bool]:
-            Whether to calculate utility term, i.e how much expected observation confer with prior expectations
-        - `use_states_info_gain` [bool]:
-            Whether to calculate state information gain
-        - `use_param_info_gain` [bool]:
-            Whether to calculate parameter information gain @NOTE requires pA or pB to be specified 
-        - `pA` [numpy ndarray, array-of-arrays (in case of multiple modalities), or Dirichlet 
-                (both single and multi-modality)]:
-            Prior dirichlet parameters for A. Defaults to none, in which case info gain w.r.t. Dirichlet 
-            parameters over A is skipped.
-        - `pB` [numpy ndarray, array-of-arrays (in case of multiple hidden state factors), or 
-            Dirichlet (both single and multi-factor)]:
-            Prior dirichlet parameters for B. Defaults to none, in which case info gain w.r.t. 
-            Dirichlet parameters over A is skipped.
-        - `gamma` [float, defaults to 16.0]:
-            Precision over policies, used as the inverse temperature parameter of a softmax transformation 
-            of the expected free energies of each policy
-       
-        Returns
-        --------
-        - `qp` [1D numpy array or Categorical]:
-            Posterior beliefs about policies, defined here as a softmax function of the 
-            expected free energies of policies
-        - `efe` - [1D numpy array or Categorical]:
-            The expected free energies of policies
-
-    """
-    n_policies = len(policies)
-    neg_efe = np.zeros(n_policies) 
-    q_pi = np.zeros((n_policies, 1))
-
-    for idx, policy in enumerate(policies):
-        qs_pi = get_expected_states(qs, B, policy)
-        qo_pi = get_expected_obs(qs_pi, A)
-
-        if use_utility:
-            neg_efe[idx] += calc_expected_utility(qo_pi, C)
-
-        if use_states_info_gain:
-            neg_efe[idx] += calc_states_info_gain(A, qs_pi)
-
-        # if use_param_info_gain:
-        #     if pA is not None:
-        #         neg_efe[idx] += calc_pA_info_gain(pA, qo_pi, qs_pi)
-        #     if pB is not None:
-        #         neg_efe[idx] += calc_pB_info_gain(pB, qs_pi, qs, policy)
-
-    q_pi = softmax(gamma*neg_efe + E)
-
-    q_pi = q_pi / q_pi.sum(axis=0)  # type: ignore
-    
-    return q_pi, neg_efe
 
 def update_posterior_policies_reduced(
     qs,
@@ -117,7 +29,6 @@ def update_posterior_policies_reduced(
     gamma=16.0):
     """ Updates the posterior beliefs about policies based on expected free energy prior. Uses reduced A matrix
         to speed up computation time.
-
         Parameters
         ----------
         - `qs` [1D numpy array, array-of-arrays, or Categorical (either single- or multi-factor)]:
@@ -163,7 +74,6 @@ def update_posterior_policies_reduced(
             expected free energies of policies
         - `efe` - [1D numpy array or Categorical]:
             The expected free energies of policies
-
     """
     n_policies = len(policies)
     neg_efe = np.zeros(n_policies) 
@@ -190,35 +100,92 @@ def update_posterior_policies_reduced(
         if use_states_info_gain:
             for g in range(num_modalities):
                 if informative_dims[g]:
-                    # spm = spm_MDP_G(A_reduced[g], qs_pi[informative_dims[g]])
-                    spm_optim = spm_MDP_G_optim(A_reduced[g], qs_pi[informative_dims[g]])
-                    neg_efe[idx] += spm_optim
+                    spm = spm_MDP_G(A_reduced[g], qs_pi[informative_dims[g]])
+                    #spm_optim = spm_MDP_G_optim(A_reduced[g], qs_pi[informative_dims[g]])
+                    neg_efe[idx] += spm
 
     """
     @TODO / @NOTE on 18 May 2021:
     We need to optimize this function to speed it up -- our options (as I see it) include the following 
     (please add to this if there are other ideas, @Daphne):
-
     1. Continue to use the epistemic value + utility decomposition of the (-ve) EFE, but find a way to speed up
     the inner loop of spm_MDP_G, using workarounds to spm_cross. This is the idea behind Daphne's spm_MDP_G_optim,
     but we can keep going down this rabbit hole and making it faster. I remember Dimi did something where he achieved
     essentially the same output as spm_cross by doing things like :
-
     output = full_array_of_arrays[0]
     for ii in range(len(full_array_of_arrays)-1):
         output = output[..., None] * full_array_of_arrays[ii + 1]
-
     2. Try to vectorize across policies (no loop over policies). Dimi did something like this in pomdp+utils in the Space Man repo 
     (`interactive` branch) on Magnus' github https://github.com/MagnusKoudahl/space_man/blob/d3bada1af93b3100b53d6f0cfda31fcccfdabac2/pomdp_utils.py#L324
     @NOTE: This function uses the Ambiguity + Risk decomposition, but I think the same principle could be used for surprise and utility
-
     3. (-ve) Expected ambiguity + (-ve) expected risk decomposition -- this should be E_q(s)[lnP(o|s)], which I think could be computed using
     ambiguity = 0
     for g in range(num_modalities):
         ambiguity += spm_dot(spm_log(A[g]), qs_pi).sum() # sum across observation levels?
-
     But I'm not sure how to do the risk one off the top of my head (KLD(Q_pi(o) || P(o)))
     """
+    q_pi = softmax(gamma*neg_efe + E)
+
+    q_pi = q_pi / q_pi.sum(axis=0)  # type: ignore
+    
+    return q_pi, neg_efe
+
+def update_posterior_policies_reduced_vectorized(qs,
+                A_reduced,
+                B,
+                C,
+                E,
+                policies,
+                informative_dims,
+                reshape_dims_per_modality,
+                tile_dims_per_modality,
+                use_utility=True,
+                use_states_info_gain=True,
+                use_param_info_gain=False,
+                pA=None,
+                pB=None,
+                gamma=16.0):
+
+    n_policies = len(policies)
+    
+    num_modalities = len(A_reduced)
+
+    num_factors = len(qs)
+
+    num_controls = [B[f].shape[2] for f in range(num_factors)]
+
+    neg_efe = np.zeros(num_controls) 
+
+    qs_pi = utils.obj_array(num_factors)
+
+    for f in range(num_factors):
+        qs_pi[f] = (B[f] * qs[f][..., None]).sum(-2)
+
+    qo_pi = utils.obj_array(num_modalities)
+    H_pi = utils.obj_array(num_modalities)
+
+    for g in range(num_modalities):
+        informative_qs = qs_pi[informative_dims[g]]
+        qo_pi[g] = np.einsum('ij...,jl->i...l', A_reduced[g], informative_qs[0])
+
+        H_s = - np.sum(A_reduced[g] * spm_log(A_reduced[g]), 0)
+        H_pi[g] = np.einsum('j...,jl->...l', H_s, informative_qs[0])
+        for qs_f in informative_qs[1:]:
+            qo_pi[g] = np.einsum('ij...,jl->i...l', qo_pi[g], qs_f)
+            H_pi[g] = np.einsum('j...,jl->...l', H_pi[g], qs_f)
+
+        # calculate expected utility
+        lnC = spm_log(softmax(C[g][:,np.newaxis]))
+    
+        neg_efe_g = np.einsum('j...,jl->...', qo_pi[g], lnC)
+        neg_efe_g -= (qo_pi[g] * spm_log(qo_pi[g])).sum(axis=0)
+        neg_efe_g -= H_pi[g]
+
+        reshaped_efe_g = neg_efe_g.reshape(reshape_dims_per_modality[g])
+        neg_efe += np.tile(reshaped_efe_g, tile_dims_per_modality[g])
+
+    neg_efe = neg_efe.flatten()
+    
     q_pi = softmax(gamma*neg_efe + E)
 
     q_pi = q_pi / q_pi.sum(axis=0)  # type: ignore
