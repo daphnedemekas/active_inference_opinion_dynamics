@@ -17,7 +17,7 @@ import time
 def run_sweep(param_combos,all_parameters_to_store,all_results_to_store):
     iter = 0
     for param_config in param_combos:
-        print(iter)
+        start = time.time()
         print(param_config)
 
         num_agents_i, connectedness_i, ecb_p_i, env_precision_i, b_precision_i, v_i, lr_i = param_config
@@ -41,10 +41,6 @@ def run_sweep(param_combos,all_parameters_to_store,all_results_to_store):
         for trial_i in range(n_trials):
             indices = (trial_i, num_agent_values.index(num_agents_i), connectedness_values.index(connectedness_i), ecb_precision_gammas.index(ecb_p_i), env_precision_gammas.index(env_precision_i), b_precision_gammas.index(b_precision_i), variances.index(v_i), lr.index(lr_i))
 
-            ecb_precisions = np.random.gamma(shape = np.absolute(all_trials_ecbs[trial_i]))
-            env_precisions = np.random.gamma(shape= np.absolute(all_trials_envs[trial_i]))
-            b_precisions = np.random.gamma(shape = np.absolute(all_trials_bs[trial_i]))
-
             agent_constructor_params, store_params = initialize_agent_params(G, h_idea_mappings = h_idea_mapping, \
                                         ecb_precisions = ecb_p_i, B_idea_precisions = env_precision_i, \
                                             B_neighbour_precisions = b_precision_i, variance = v_i, E_noise = lr_i)
@@ -58,24 +54,19 @@ def run_sweep(param_combos,all_parameters_to_store,all_results_to_store):
             adj_mat = nx.to_numpy_array(G)
             all_tweets = collect_tweets(G)
 
-            believers = np.where(all_qs[-1,0,:] > 0.5)
-            nonbelievers = np.where(all_qs[-1,0,:] < 0.5)
-
-
-
             all_results_to_store[indices] = (adj_mat, all_qs, all_tweets, all_neighbour_samplings)
-            plot_beliefs_over_time(all_qs)
-            plt.show()
-            #if iter % 10 ==0:
+
+            if iter % 10 ==0:
                  
-            #    print(str(iter) + "/" + str(length*30))              
-            #    np.savez('Analysis/results/E_p2', all_parameters_to_store)
-            #    np.savez('Analysis/results/E_r2', all_results_to_store)
+               print(str(iter) + "/" + str(length*30))              
+               np.savez('Analysis/results/reduced_vectorized_params', all_parameters_to_store)
+               np.savez('Analysis/results/reduced_vectorized_results', all_results_to_store)
 
             iter +=1
+        print("time taken for config sweep: " + str(time.time() - start))
 
-    np.savez('Analysis/results/HK_model_uniform', all_parameters_to_store)
-    np.savez('Analysis/results/HK_model_uniform', all_results_to_store)
+    np.savez('Analysis/results/reduced_vectorized_params', all_parameters_to_store)
+    np.savez('Analysis/results/reduced_vectorized_results', all_results_to_store)
     return all_parameters_to_store,all_results_to_store
 
 
@@ -84,26 +75,26 @@ if __name__ == '__main__':
     h_idea_mapping = utils.softmax(np.array([[1,0],[0,1]])* np.random.uniform(0.3,2.1))
 
 
-    connectedness_values = [0.4]
-    ecb_precision_gammas = [7]
+    connectedness_values = [0.4, 0.6, 0.8]
+    ecb_precision_gammas = [3,4,5,6,7,8,9]
 
     #num_agent_values = [3,5,8]
-    num_agent_values = [6]
+    num_agent_values = [4, 8, 12, 16]
 
     n = len(num_agent_values)
     c = len(connectedness_values)
     env_precision_gammas = [9]
-    b_precision_gammas = [4,7]
-    lr = [0.1,1]
+    b_precision_gammas = [3,4,5,6,7,8,9]
+    lr = [0.1,0.3, 0.5, 0.7, 0.9, 1.1]
 
-    variances = [0.1,1]
+    variances = [0.01, 0.1, 0.5, 0.8, 1.1, 1.5, 2]
 
     r_len = len(ecb_precision_gammas)
     e_len = len(env_precision_gammas)
     b_len = len(b_precision_gammas)
     v_len = len(variances)
     lr_len = len(lr)
-    n_trials = 5
+    n_trials = 30
 
     param_combos = itertools.product(num_agent_values, connectedness_values, ecb_precision_gammas,env_precision_gammas,b_precision_gammas, variances, lr)
     # %% construct network

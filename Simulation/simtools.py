@@ -98,7 +98,6 @@ def initialize_agent_params(G,
 
     store_parameters = utils.obj_array(len(G.nodes))
     for i in G.nodes():
-        print("AGENT" + str(i))
 
         num_neighbours = G.degree(i)
 
@@ -107,15 +106,11 @@ def initialize_agent_params(G,
         # ecb_precisions = [np.random.uniform(low = ecb_precisions_all[i][0], high = ecb_precisions_all[i][1], size = (idea_levels,) ) for n in range(num_neighbours)]
         ecb_precisions = np.absolute(np.random.normal(ecb_precisions_all[i], variance, size=(num_neighbours, idea_levels)))
         #ecb_precisions = np.ones((num_neighbours, idea_levels)) * ecb_precisions_all[i]
-        print("ECB" + str(ecb_precisions))
         env_determinism = B_idea_precisions_all[i]
 
         belief_determinism = np.absolute(np.random.normal(B_neighbour_precisions_all[i], variance, size=(num_neighbours,)) )
         #belief_determinism = B_neighbour_precisions_all[i] *np.ones((num_neighbours,))
 
-        print("BELIEF DETERMINISM" + str(belief_determinism))
-        print()
-        print()
         #h_idea_mapping = utils.softmax(np.array([[1,0],[0,1]])* np.random.uniform(0.3,3))
         h_idea_mapping = np.eye(num_H)
         h_idea_mapping[:,0] = utils.softmax(h_idea_mapping[:,0]*1.0)
