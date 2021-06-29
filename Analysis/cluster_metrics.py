@@ -1,5 +1,5 @@
 import numpy as np
-from plots import belief_similarity_matrix, get_KLDs, get_JS, get_cluster_sorted_indices
+from .plots import belief_similarity_matrix, get_KLDs, get_JS, get_cluster_sorted_indices
 
 # %% function to access the real parameters from the simulation
 def davies_bouldin(all_qs): # a low DB index represents low inter cluster and high intra cluster similarity 
