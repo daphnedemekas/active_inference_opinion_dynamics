@@ -11,21 +11,17 @@ from matplotlib import pyplot as plt
 from Analysis.plots import *
 #import pandas as pd 
 import itertools
-import time 
+import os
 #import multiprocessing
 
-def run_sweep(param_combos,all_parameters_to_store,all_results_to_store):
+def run_sweep(param_combos):
     iter = 0
-    for param_config in param_combos:
-        start = time.time()
+    for p_idx, param_config in enumerate(param_combos):
+        #start = time.time()
         print(param_config)
 
         num_agents_i, connectedness_i, ecb_p_i, env_precision_i, b_precision_i, v_i, lr_i = param_config
         N, p, T = num_agents_i, connectedness_i, 100
-
-        all_trials_ecbs = np.random.normal(ecb_p_i,size=(n_trials,)) # one random gamma distributed precision for each trial
-        all_trials_envs = np.random.normal(env_precision_i,size=(n_trials,))
-        all_trials_bs = np.random.normal(b_precision_i,size=(n_trials,))
         G = nx.fast_gnp_random_graph(N,p)
 
             # make sure graph is connected and all agents have at least one edge
@@ -38,13 +34,16 @@ def run_sweep(param_combos,all_parameters_to_store,all_results_to_store):
             if not nx.is_connected(G):
                 G = connect_edgeless_nodes(G) # make sure graph is 
 
+        if not os.path.isdir('Analysis/results/ecb_results_structure/' + str(p_idx)  +"/"):
+            os.mkdir('Analysis/results/ecb_results_structure/' + str(p_idx)+"/")
+
         for trial_i in range(n_trials):
+            print(trial_i)
             indices = (trial_i, num_agent_values.index(num_agents_i), connectedness_values.index(connectedness_i), ecb_precision_gammas.index(ecb_p_i), env_precision_gammas.index(env_precision_i), b_precision_gammas.index(b_precision_i), variances.index(v_i), lr.index(lr_i))
 
             agent_constructor_params, store_params = initialize_agent_params(G, h_idea_mappings = h_idea_mapping, \
                                         ecb_precisions = ecb_p_i, B_idea_precisions = env_precision_i, \
                                             B_neighbour_precisions = b_precision_i, variance = v_i, E_noise = lr_i)
-            all_parameters_to_store[indices] = store_params
             G = initialize_network(G, agent_constructor_params, T = T)
             G = run_simulation(G, T = T)
 
@@ -54,20 +53,15 @@ def run_sweep(param_combos,all_parameters_to_store,all_results_to_store):
             adj_mat = nx.to_numpy_array(G)
             all_tweets = collect_tweets(G)
 
-            all_results_to_store[indices] = (adj_mat, all_qs, all_tweets, all_neighbour_samplings)
+            trial_results = np.array([adj_mat, all_qs, all_tweets, all_neighbour_samplings], dtype=object)
 
-            if iter % 10 ==0:
-                 
-               print(str(iter) + "/" + str(length*30))              
-               np.savez('Analysis/results/reduced_vectorized_params', all_parameters_to_store)
-               np.savez('Analysis/results/reduced_vectorized_results', all_results_to_store)
+
+            np.savez('Analysis/results/ecb_results_structure/' + str(p_idx) + "/" + str(trial_i) , trial_results)
 
             iter +=1
-        print("time taken for config sweep: " + str(time.time() - start))
+        #print("time taken for config sweep: " + str(time.time() - start))
 
-    np.savez('Analysis/results/reduced_vectorized_params', all_parameters_to_store)
-    np.savez('Analysis/results/reduced_vectorized_results', all_results_to_store)
-    return all_parameters_to_store,all_results_to_store
+    #np.savez('Analysis/results/reduced_vectorized_params', all_parameters_to_store)
 
 
 if __name__ == '__main__':
@@ -75,26 +69,29 @@ if __name__ == '__main__':
     h_idea_mapping = utils.softmax(np.array([[1,0],[0,1]])* np.random.uniform(0.3,2.1))
 
 
-    connectedness_values = [0.4, 0.6, 0.8]
-    ecb_precision_gammas = [3,4,5,6,7,8,9]
+    connectedness_values = [0.2,0.5,0.8]
+    #ecb_precision_gammas = [2.2,2.4,2.6,2.8,3]
+    ecb_precision_gammas = [2.6,2.8,3,3.2,3.4,3.6,3.8,4,5,6,7,8,9]
 
     #num_agent_values = [3,5,8]
-    num_agent_values = [4, 8, 12, 16]
+    #num_agent_values = [5]
+    num_agent_values = [15]
 
     n = len(num_agent_values)
     c = len(connectedness_values)
     env_precision_gammas = [9]
-    b_precision_gammas = [3,4,5,6,7,8,9]
-    lr = [0.1,0.3, 0.5, 0.7, 0.9, 1.1]
+    b_precision_gammas = [7]
+    lr = [0.3]
+    #lr = [0.001,0.01,0.1,0.3,0.5,0.7,0.9,1.2,1.4,1.6,1.8,2.0,2.2,2.5,3,4,5]
 
-    variances = [0.01, 0.1, 0.5, 0.8, 1.1, 1.5, 2]
-
+    #variances = [0.01, 0.1, 0.5, 0.8, 1.1, 1.5, 2]
+    variances = [0.1]
     r_len = len(ecb_precision_gammas)
     e_len = len(env_precision_gammas)
     b_len = len(b_precision_gammas)
     v_len = len(variances)
     lr_len = len(lr)
-    n_trials = 30
+    n_trials = 50
 
     param_combos = itertools.product(num_agent_values, connectedness_values, ecb_precision_gammas,env_precision_gammas,b_precision_gammas, variances, lr)
     # %% construct network
@@ -102,12 +99,10 @@ if __name__ == '__main__':
     print("number of combinations: " +str(length))
     param_combos = itertools.product(num_agent_values, connectedness_values, ecb_precision_gammas,env_precision_gammas,b_precision_gammas, variances, lr)
 
-    all_parameters_to_store = utils.obj_array((n_trials, n,c,r_len,e_len,b_len, v_len, lr_len))
-    all_results_to_store = utils.obj_array((n_trials, n,c,r_len,e_len,b_len, v_len, lr_len))
+    #all_parameters_to_store = utils.obj_array((n_trials, n,c,r_len,e_len,b_len, v_len, lr_len))
+    #all_results_to_store = utils.obj_array((n_trials, n,c,r_len,e_len,b_len, v_len, lr_len))
 
-    indices = np.linspace(0,length,10)
-    processes = []
-    run_sweep(param_combos, all_parameters_to_store, all_results_to_store)
+    run_sweep(param_combos)
     
     
     
