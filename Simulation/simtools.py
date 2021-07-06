@@ -212,7 +212,7 @@ def run_simulation(G, T):
         #print(str(t) + "/" + str(T))
         G, infer_time_cost_t, control_time_cost_t = run_single_timestep(G, t)
     
-    return G
+    return G, infer_time_cost_t, control_time_cost_t
 
 def run_single_timestep(G, t):
 
