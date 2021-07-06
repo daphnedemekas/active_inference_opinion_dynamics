@@ -6,6 +6,54 @@ import time
 
 from Model.agent import Agent
 from Model.pymdp import utils
+from Model.pymdp.utils import softmax
+
+
+
+def generate_quick_agent_observation(reduce_A = True, num_neighbours = 2, reduce_A_policies = True, reduce_A_inferennce = False ):
+
+    idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)
+    num_H = 2 #the number of hashtags, or observations that can shed light on the idea
+    h_idea_mapping = np.eye(num_H)
+    h_idea_mapping[:,0] = utils.softmax(h_idea_mapping[:,0]*1.0)
+    h_idea_mapping[:,1] = utils.softmax(h_idea_mapping[:,1]*1.0)
+    agent_params = {
+
+        "neighbour_params" : {
+            "ecb_precisions" : np.array([[8.0,8.0], [8.0, 8.0]]),
+            "num_neighbours" : num_neighbours,
+            "env_determinism": 9.0,
+            "belief_determinism": np.array([7.0, 7.0])
+            },
+
+        "idea_mapping_params" : {
+            "num_H" : num_H,
+            "idea_levels": idea_levels,
+            "h_idea_mapping": h_idea_mapping
+            },
+
+        "policy_params" : {
+            "initial_action" : [np.random.randint(num_H), 0],
+            "belief2tweet_mapping" : np.eye(num_H),
+            "E_lr" : 0.7
+            },
+
+        "C_params" : {
+            "preference_shape" : None,
+            "cohesion_exp" : None,
+            "cohesion_temp" : None
+            }
+    }
+    agent = Agent(**agent_params,reduce_A=reduce_A, reduce_A_policies = reduce_A_policies, reduce_A_inferennce=reduce_A_inferennce)
+    
+    
+    return agent
+
+
+
+
+
+
 
 def initialize_agent_params(G, 
                             num_H = 2, 
@@ -108,8 +156,8 @@ def initialize_agent_params(G,
         #ecb_precisions = np.ones((num_neighbours, idea_levels)) * ecb_precisions_all[i]
         env_determinism = B_idea_precisions_all[i]
 
-        belief_determinism = np.absolute(np.random.normal(B_neighbour_precisions_all[i], variance, size=(num_neighbours,)) )
-        #belief_determinism = B_neighbour_precisions_all[i] *np.ones((num_neighbours,))
+        #belief_determinism = np.absolute(np.random.normal(B_neighbour_precisions_all[i], variance, size=(num_neighbours,)) )
+        belief_determinism = np.random.normal(B_neighbour_precisions_all[i]) * np.ones((num_neighbours,))
 
         #h_idea_mapping = utils.softmax(np.array([[1,0],[0,1]])* np.random.uniform(0.3,3))
         h_idea_mapping = np.eye(num_H)
