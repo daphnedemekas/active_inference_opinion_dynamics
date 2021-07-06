@@ -81,7 +81,7 @@ def run_fpi(A, obs, n_observations, n_states, prior=None, num_iter=10, dF=1.0, d
     if prior is None:
         prior = np.empty(n_factors, dtype=object)
         for factor in range(n_factors):
-            prior[factor] = np.log(np.ones(n_states[factor]) / n_states[factor] + 1e-16)
+            prior[factor] = spm_log(np.ones(n_states[factor]) / n_states[factor])
 
     """
     =========== Step 3 ===========
@@ -113,7 +113,7 @@ def run_fpi(A, obs, n_observations, n_states, prior=None, num_iter=10, dF=1.0, d
             # List of orders in which marginal posteriors are sequentially multiplied into the joint likelihood:
             # First order loops over factors starting at index = 0, second order goes in reverse
             factor_orders = [range(n_factors), range((n_factors - 1), -1, -1)]
-
+                
             # iteratively marginalize out each posterior marginal from the joint log-likelihood
             # except for the one associated with a given factor
             for factor_order in factor_orders:
@@ -183,6 +183,14 @@ def run_fpi_factorized(obs, A_reduced, informative_dims, n_states, prior = None,
 
     curr_iter = 0
 
+    lnA = np.empty(num_modalities, dtype=object)
+    for m in range(num_modalities):
+        lnA[m] = spm_log(dot_likelihood(A_reduced[m], obs[m]))
+
+    modality_idx = []
+    for factor in range(n_factors):
+        modality_idx.append( [m for m in range(num_modalities) if factor in informative_dims[m]] )
+
     while curr_iter < num_iter: # NOTE: need to include conditions on free energy or its time-derivative being minimized beyond a certain point 
 
         for factor in range(n_factors):
@@ -190,19 +198,19 @@ def run_fpi_factorized(obs, A_reduced, informative_dims, n_states, prior = None,
             '''
             The line below filters those modalities that the current hidden state factor has positive mutual information with
             '''
-            modality_idx = [m for m in range(num_modalities) if factor in informative_dims[m]] 
 
             '''
             The lines below average the expected log likelihoods E_q(s_i/f)[ln P(o=obs|s)] for independent modalities together,
             since they may have differing dimension. This obtains a marginal log-likelihood for the current factor index `factor`,
             which includes the evidence for that particular factor afforded by the different modalities. 
             '''
-            qL_all_m = np.zeros( (n_states[factor], len(modality_idx)) )
-            for ii, m in enumerate(modality_idx):
-                lnA_m = spm_log(dot_likelihood(A_reduced[m], obs[m]))
-                qL_all_m[:,ii] = spm_dot(lnA_m, qs[informative_dims[m]], [informative_dims[m].index(factor)])
-            
-            qL = qL_all_m.mean(axis=1)
+           
+            qL = np.zeros(n_states[factor])
+
+            # for ii, m in enumerate(modality_idx):
+            for ii, m in enumerate(modality_idx[factor]):
+               
+                qL += spm_dot(lnA[m], qs[informative_dims[m]], [informative_dims[m].index(factor)])
 
             qs[factor] = softmax(qL + prior[factor])
         
