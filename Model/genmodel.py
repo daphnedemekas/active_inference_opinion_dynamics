@@ -4,7 +4,7 @@ import time
 from .pymdp.utils import obj_array, obj_array_uniform, insert_multiple, softmax, onehot, reduce_a_matrix
 from .pymdp.maths import spm_log
 from .pymdp.learning import *
-
+import warnings 
 class GenerativeModel(object):
 
     #imagine we have different types of agents such as agent_types = ['influencer','shy',etc..]
@@ -103,6 +103,8 @@ class GenerativeModel(object):
 
         start = time.time()
         self.A = self.generate_likelihood()
+
+        self.E_lr = E_lr
         
         if reduce_A:
             self.A_reduced = obj_array(self.num_modalities)
@@ -111,7 +113,7 @@ class GenerativeModel(object):
                 self.A_reduced[g], factor_idx = reduce_a_matrix(self.A[g])
                 self.informative_dims.append(factor_idx)
             self.reshape_dims_per_modality, self.tile_dims_per_modality = self.generate_indices_for_policy_updating()
-
+            del self.A
         self.B = self.generate_transition()
         self.C = self.generate_prior_preferences()
 
@@ -151,6 +153,8 @@ class GenerativeModel(object):
                                                                     # this reflects the idea that 
                     h_idea_mapping_scaled = np.copy(self.h_idea_mapping)
                     h_idea_mapping_scaled[:,truth_level] = softmax(self.ecb_precisions[o_idx-1][truth_level] * self.h_idea_mapping[:,truth_level])
+                    if h_idea_mapping_scaled[truth_level,truth_level] < self.h_idea_mapping[truth_level,truth_level]:
+                        warnings.warn('ECB precision scaling is not high enough!')
 
                     idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
                     idx_vec_o[self.focal_belief_idx+1] = slice(truth_level,truth_level+1,None)
@@ -303,8 +307,8 @@ class GenerativeModel(object):
 
                 if f_idx == self.focal_belief_idx or f_idx in self.neighbour_belief_idx: #the first N+1 hidden state factors are variations of the identity matrix based on stubborness
                     
-                    D[f_idx] = np.ones(f_dim)/f_dim
-                    #D[f_idx] = np.random.uniform(0,1,f_dim)
+                    #D[f_idx] = np.ones(f_dim)/f_dim
+                    D[f_idx] = np.random.uniform(0,1,f_dim)
                 
                 elif f_idx == self.h_control_idx:
                     
