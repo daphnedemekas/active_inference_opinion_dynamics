@@ -8,6 +8,19 @@ from Model.agent import Agent
 from Model.pymdp import utils
 from Model.pymdp.utils import softmax
 
+def generate_network(N,p):
+    G = nx.fast_gnp_random_graph(N,p) # create the graph for this trial & condition
+
+        # make sure graph is connected and all agents have at least one edge
+    if not nx.is_connected(G):
+        G = connect_edgeless_nodes(G) # make sure graph is connected
+    while np.array(list(G.degree()))[:,1].min() < 2: # make sure no agents with only 1 edge
+        #G = nx.stochastic_block_model(sizes, probs, seed=0) # create the graph for this trial & condition
+        G = nx.fast_gnp_random_graph(N,p)
+
+        if not nx.is_connected(G):
+            G = connect_edgeless_nodes(G) # make sure graph is 
+    return G
 
 
 def generate_quick_agent_observation(reduce_A = True, num_neighbours = 2, reduce_A_policies = True, reduce_A_inferennce = False ):
@@ -44,10 +57,12 @@ def generate_quick_agent_observation(reduce_A = True, num_neighbours = 2, reduce
             "cohesion_temp" : None
             }
     }
+    observation = np.zeros(num_neighbours + 3)
+    observation[2] = 1
     agent = Agent(**agent_params,reduce_A=reduce_A, reduce_A_policies = reduce_A_policies, reduce_A_inferennce=reduce_A_inferennce)
     
     
-    return agent
+    return agent, observation
 
 
 
@@ -140,7 +155,7 @@ def initialize_agent_params(G,
         c_params_all = { i : c_params for i in G.nodes() }
     
     if optim_options is None:
-        optim_options = {'reduce_A': True, 'reduce_A_inference': False, 'reduce_A_policies': True}
+        optim_options = {'reduce_A': True, 'reduce_A_inference': True, 'reduce_A_policies': True}
     
     agent_constructor_params = {}
 
@@ -249,6 +264,7 @@ def initialize_network(G, agent_constructor_params, T):
 def run_simulation(G, T):
 
     # run first timestep
+    priors_over_policies = []
 
     G = get_observations_time_t(G,0)
 
