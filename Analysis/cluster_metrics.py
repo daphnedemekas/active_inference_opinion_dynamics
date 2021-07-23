@@ -1,6 +1,8 @@
 import numpy as np
-from .plots import belief_similarity_matrix, get_KLDs, get_JS, get_cluster_sorted_indices
-
+try:
+    from .plots import belief_similarity_matrix, get_KLDs, get_JS, get_cluster_sorted_indices
+except:
+    from plots import *
 # %% function to access the real parameters from the simulation
 def davies_bouldin(all_qs): # a low DB index represents low inter cluster and high intra cluster similarity 
     believers = np.where(all_qs[-1,1,:] > 0.5)[0]
@@ -11,10 +13,20 @@ def davies_bouldin(all_qs): # a low DB index represents low inter cluster and hi
     sigma1 = np.mean([KL_div(e[0],e[1], centroid1[0],centroid1[1]) for e in all_qs[-1,:,believers]])
     sigma2 = np.mean([KL_div(e[0],e[1], centroid2[0],centroid2[1])  for e in all_qs[-1,:,nonbelievers]])
     if np.isnan(KL_div(centroid1[0],centroid1[1], centroid2[0], centroid2[1])):
-        return 1
+        return np.nan
     else:
         db = 0.5 * ((sigma1 + sigma2) / KL_div(centroid1[0],centroid1[1], centroid2[0], centroid2[1]))
     return db
+
+def average_belief_extremity(all_qs):
+    change_domain = np.absolute(np.mean(all_qs[:,1,:],axis=0) - 0.5)*2
+    return np.mean(change_domain)
+
+def average_belief_difference(all_qs):
+    highest_belief = np.max(all_qs[-1,1,:])
+    lowest_belief = np.min(all_qs[-1,1,:])
+    return np.abs(highest_belief - lowest_belief)
+
 
 def kld(arr1, arr2):
     return arr1*np.log(arr1/arr2)
@@ -56,8 +68,11 @@ def count_intersect(agent_samplings, cluster_group):
     cluster_counts = [counts[i] for i, x in enumerate(unique) if x in cluster_group]
     return np.sum(cluster_counts)
 
+def average_belief_extremity(all_qs):
+    change_domain = np.absolute(all_qs[-1,1,:] - 0.5)*2
+    return np.mean(change_domain)
 
-def get_sampling_ratios(all_qs, adj_mat, all_neighbour_samplings):
+def outsider_insider_ratio(all_qs, adj_mat, all_neighbour_samplings):
     sections = [0,20,40,60]
     ratio_per_section = np.empty(len(sections)-1)
     N = all_qs.shape[2]
@@ -79,9 +94,9 @@ def get_sampling_ratios(all_qs, adj_mat, all_neighbour_samplings):
                 else:
                     outsider_average[agent_idx] = np.nan
                     insider_average[agent_idx] = np.nan
-            if (insider_average == 0).all():
-                insider_average = np.ones(1)
-            ratio_per_section[s_idx] = np.nanmean(outsider_average) / np.nanmean(insider_average)
+            #if (insider_average == 0).all():
+            #    insider_average = np.ones(1)
+            ratio_per_section[s_idx] = np.nanmean(outsider_average) / (np.nanmean(insider_average) + np.nanmean(outsider_average))
     else:
         ratio_per_section[:] = np.nan
     return ratio_per_section
@@ -96,57 +111,6 @@ def belief_cluster_sizes(all_qs):
         cluster1[trial] = len(np.where(all_beliefs_t[-1,1,:] > 0.5)[0])
         cluster2[trial] = len(np.where(all_beliefs_t[-1,1,:] < 0.5)[0])
     return cluster1, cluster2
-        
-
-def sampling_ratio(all_qs, agent_view_per_timestep):
-    #believers = np.where(all_qs[-1,1,:] > 0.5)[0]
-    #nonbelievers = np.where(all_qs[-1,1,:] < 0.5)[0]
-    in_time_step_ratios = []
-    out_time_step_ratios = []
-    sample_ratio_in_group = 0
-    sample_ratio_out_group = 0
-    chunks = np.linspace(0,all_qs.shape[0]-1,10)
-    for t in range(len(chunks)-1):
-        believers = np.where(all_qs[int(chunks[t+1]),1,:] > 0.5)[0]
-        nonbelievers = np.where(all_qs[int(chunks[t+1]),1,:] < 0.5)[0]
-        for i, cluster_agent_1 in enumerate(believers):
-            viewee = agent_view_per_timestep[int(chunks[t]):int(chunks[t+1]),cluster_agent_1]
-            for v in viewee:
-                if v in believers:
-                    sample_ratio_in_group += 1
-                elif v in nonbelievers:
-                    sample_ratio_out_group += 1
-
-        for i, cluster_agent_2 in enumerate(nonbelievers):
-            viewee = agent_view_per_timestep[int(chunks[t]):int(chunks[t+1]),cluster_agent_2]
-            for v in viewee:
-                if v in nonbelievers:
-                    sample_ratio_in_group += 1
-                elif v in believers:
-                    sample_ratio_out_group += 1
-        in_time_step_ratios.append(sample_ratio_in_group / (sample_ratio_in_group + sample_ratio_out_group))
-        out_time_step_ratios.append(sample_ratio_out_group / (sample_ratio_in_group + sample_ratio_out_group))
-    
-    return np.nanmean(in_time_step_ratios)
-
-
-def sampling_frequency(parameters, all_qs, adj_mat, all_samplings):
-    for trial in range(30):
-            #what are the clusters? 
-        cluster1 = np.where(all_qs[trial][-1,1,:] > 0.5)
-        cluster2 = np.where(all_qs[trial][-1,1,:] < 0.5)
-        for agent in range(parameters[0]):
-            agent_cluster = cluster1[0] if agent in cluster1[0] else cluster2[0]
-            other_cluster = cluster1[0] if agent not in cluster1[0] else cluster2[0]
-            neighbours = list(np.where(adj_mat[:,agent,:][0] ==1)[0])
-            outsider_neighbours = np.intersect1d(neighbours, other_cluster)
-            insider_neighbours = np.intersect1d(neighbours, agent_cluster)
-            agent_samplings = all_samplings[:,:,agent][trial]
-            outsider_indices = [np.where(agent_samplings == i) for i in outsider_neighbours]
-            insider_indices = [np.where(agent_samplings == i) for i in insider_neighbours]
-
-            outsider_freq = [outsider_indices[0][0][i+1]-outsider_indices[0][0][i] for i in range(len(outsider_indices[0][0])-1)]
-            insider_freq = [insider_indices[0][0][i+1]-insider_indices[0][0][i] for i in range(len(insider_indices[0][0])-1)]
         
 
 

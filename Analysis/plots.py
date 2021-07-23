@@ -130,7 +130,108 @@ def tweet_similarity_matrices(all_tweets, cluster_sorted_indices):
     
 #     return tweet_proportions
 
+def isolate_metric_by(all_parameters, metric, parameter, idx):
+    metric_list = []
+    for i, e in enumerate(parameter):
+        indices = np.where(all_parameters[:,idx] == e)[0]
+        _params = all_parameters[indices]
+        metrics = np.nanmean(metric[indices])
+        metric_list.append(metrics)
+    return metric_list
 
+def plot_bifurcations(all_parameters, ecb_precisions, b_precisions, lr, variance, metric, metric_name):
+    fig, axs = plt.subplots(2, 2, figsize=(12,8))
+    belief_extremities1 = isolate_metric_by(all_parameters,metric, ecb_precisions, 2)
+    belief_extremities2 = isolate_metric_by(all_parameters,metric, b_precisions, 3)
+    belief_extremities3 = isolate_metric_by(all_parameters,metric, lr, -1)
+    belief_extremities4 = isolate_metric_by(all_parameters,metric, variance, -2)
+
+    axs[0, 0].plot(ecb_precisions, belief_extremities1)
+    axs[0, 0].set_xlabel("ECB Precision")
+    axs[0, 0].set_ylabel(metric_name)
+
+    axs[1, 0].plot(b_precisions, belief_extremities2)
+    axs[1, 0].set_xlabel("Belief Determinism")
+    axs[1, 0].set_ylabel(metric_name)
+
+    axs[0, 1].plot(lr, belief_extremities3)
+    axs[0, 1].set_xlabel("Learning Rate")
+    axs[0, 1].set_ylabel(metric_name)
+
+    axs[1, 1].plot(variance, belief_extremities4)
+    axs[1, 1].set_xlabel("Variance")
+    axs[1, 1].set_ylabel(metric_name)
+
+def plot_param_histograms(conditional_params):
+    fig, axs = plt.subplots(3, 2, figsize=(10,10))
+    axs[0, 0].hist(conditional_params[:,0])
+    axs[0,0].set_title("Number of Agents")
+    axs[0, 1].hist(conditional_params[:,1])
+    axs[0,1].set_title("Network Connectedness")
+
+    axs[1, 0].hist(conditional_params[:,2])
+    axs[1,0].set_title("ECB Precision")
+
+    axs[1, 1].hist(conditional_params[:,3])
+    axs[1,1].set_title("Belief Precision")
+
+    axs[2, 0].hist(conditional_params[:,5])
+    axs[2,0].set_title("Variance")
+
+    axs[2, 1].hist(conditional_params[:,6])
+    axs[2,1].set_title("Learning Rate")
+
+def scatterplot_metrics(params):
+    fig, axs = plt.subplots(3, 2, figsize=(10,10))
+    axs[0, 0].scatter(params.insider_outsider_ratios[:,-1], params.avg_belief_extremity)
+    axs[0,0].set_xlabel("Outsider to Insider ratios")
+    axs[0,0].set_ylabel("Average Belief Extremity")
+
+    axs[0, 1].scatter(params.cluster_kls, params.db_indices)
+    axs[0,1].set_xlabel("Cluster KL Divergence")
+    axs[0,1].set_ylabel("Davies Bouldin Index")
+    
+    axs[1, 0].scatter(params.egds, params.cluster_kls)
+    axs[1, 0].set_xlabel("Eigenvalue Decay Slopes")
+    axs[1, 0].set_ylabel("Cluster KL Divergence")
+    
+    axs[1, 1].scatter(params.avg_belief_extremity, params.egds)
+    axs[1, 1].set_xlabel("Average Belief Extremity")
+    axs[1, 1].set_ylabel("Eigenvalue Decay Slopes")
+    
+    axs[2, 0].scatter(params.avg_belief_extremity, params.cluster_kls)
+    axs[2, 0].set_xlabel("Average Belief Extremity")
+    axs[2, 0].set_ylabel("Cluster KL Divergence")
+    
+    axs[2, 1].scatter(params.avg_belief_extremity, params.db_indices)
+    axs[2, 1].set_xlabel("Average Belief Extremity")
+    axs[2, 1].set_ylabel("Davies Bouldin Index")
+    
+
+def get_2d_histogram(param1, param2, conditional_parameters, conditional_metric, param1_index, param2_index):
+    hist = np.zeros((len(param1), len(param2)))
+    for i, e in enumerate(param1):
+        indices = np.where(conditional_parameters[:,param1_index] == e)[0]
+        _params = conditional_parameters[indices]
+        metrics = conditional_metric[indices]
+        for j, l in enumerate(param2):
+            p2_indices = np.where(_params[:,param2_index]==l)[0]
+            p2_params = _params[p2_indices]
+            p2_metrics = metrics[p2_indices]
+            avg_metric = np.nanmean(p2_metrics[np.isfinite(p2_metrics)])
+            hist[i,j] = avg_metric
+    return hist
+
+def plot_2d_histogram(axs, hist, x_label, y_label, param1, param2):
+
+    im2 = axs.imshow(hist)
+    axs.set_xlabel(x_label)
+    axs.set_ylabel(y_label)
+    axs.set_xticks(np.arange(0,len(param2),1))
+    axs.set_yticks(np.arange(0,len(param1),1))
+    axs.set_xticklabels(param2)
+    axs.set_yticklabels(param1)
+    return im2
 def make_gif(filenames, gif_name):
 
     with imageio.get_writer('gifs/' + str(gif_name), mode='I') as writer:
