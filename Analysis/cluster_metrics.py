@@ -3,6 +3,7 @@ try:
     from .plots import belief_similarity_matrix, get_KLDs, get_JS, get_cluster_sorted_indices
 except:
     from plots import *
+import networkx as nx
 # %% function to access the real parameters from the simulation
 def davies_bouldin(all_qs): # a low DB index represents low inter cluster and high intra cluster similarity 
     believers = np.where(all_qs[-1,1,:] > 0.5)[0]
@@ -47,6 +48,26 @@ def cluster_kl(all_qs):
             cluster_metric_nb = np.mean(np.ones(non_believer_beliefs.shape[0])* np.log(np.ones(non_believer_beliefs.shape[0]) / non_believer_beliefs) )        
             cluster_metrics[t] = (cluster_metric_b + cluster_metric_nb) / 2
     return cluster_metrics
+
+def path_length(all_qs, adj_mat):
+    believers = np.where(all_qs[-1,1,:] > 0.5)[0]
+    nonbelievers = np.where(all_qs[-1,1,:] < 0.5)[0]
+    if len(believers) <5 or len(nonbelievers) <5:
+        return np.nan 
+    G  = nx.convert_matrix.from_numpy_array(adj_mat[0][np.ix_(believers, believers)])
+    path_lengths = nx.shortest_path_length(G)
+    path_lengths_dict = {}
+    for node_id, path_dict in enumerate(path_lengths):
+        for target_node, path_length in enumerate(path_dict[1].items()):
+            if path_length in path_lengths_dict.keys():
+                path_lengths_dict[path_length].append(all_qs[0,-1,1,node_id] - all_qs[0,-1,1,target_node])
+            else:
+                path_lengths_dict[path_length] = [all_qs[0,-1,1,node_id] -all_qs[0,-1,1,target_node]]
+    #average
+    
+    
+
+    
 
 
 def eigenvalue_decay(all_qs):
