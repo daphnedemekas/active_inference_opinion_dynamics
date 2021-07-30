@@ -17,17 +17,21 @@ import os
 def run_sweep(param_combos):
     iter = 0
     for p_idx, param_config in enumerate(param_combos):
+        if p_idx <6:
+            continue
         print(param_config)
-
+        print(p_idx)
         num_agents_i, connectedness_i, ecb_p_i, env_precision_i, b_precision_i, v_i, lr_i = param_config
         N, p, T = num_agents_i, connectedness_i, 50
         G = generate_network(N,p)
 
-        if not os.path.isdir('Analysis/results/ecb_lr_results/' + str(p_idx)  +"/"):
-            os.mkdir('Analysis/results/ecb_lr_results/' + str(p_idx)+"/")
+        if not os.path.isdir('Analysis/results/ecb_lr2/' + str(p_idx)  +"/"):
+            os.mkdir('Analysis/results/ecb_lr2/' + str(p_idx)+"/")
 
         for trial_i in range(n_trials):
-            print(trial_i)
+            if p_idx == 6:
+                if trial_i <= 50:
+                    continue
             agent_constructor_params, _ = initialize_agent_params(G, h_idea_mappings = h_idea_mapping, \
                                         ecb_precisions = ecb_p_i, B_idea_precisions = env_precision_i, \
                                             B_neighbour_precisions = b_precision_i, variance = v_i, E_noise = lr_i)
@@ -43,7 +47,7 @@ def run_sweep(param_combos):
             trial_results = np.array([adj_mat, all_qs, all_tweets, all_neighbour_samplings], dtype=object)
 
 
-            np.savez('Analysis/results/ecb_lr_results/' + str(p_idx) + "/" + str(trial_i) , trial_results)
+            np.savez('Analysis/results/ecb_lr2/' + str(p_idx) + "/" + str(trial_i) , trial_results)
 
             iter +=1
 
@@ -54,6 +58,7 @@ if __name__ == '__main__':
     connectedness_values = [0.6]
     ecb_precision_gammas = np.linspace(3.5,9,15)
     ecb_precision_gammas = np.append(ecb_precision_gammas, False)
+    #ecb_precision_gammas = [False]
     num_agent_values = [15]
 
     n = len(num_agent_values)
