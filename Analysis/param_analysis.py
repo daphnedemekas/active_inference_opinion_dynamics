@@ -58,6 +58,10 @@ class ParameterAnalysis(object):
         self.param_combinations = itertools.product(self.num_agent_values, self.connectedness_values, self.ecb_precision_gammas, self.b_precision_gammas, self.env_precision_gammas)
 
     def load_results(self, data_dir):
+        configurations = os.listdir(data_dir)
+        print(len(configurations))
+        print(len(list(self.get_param_combinations())))
+
         all_data = np.zeros((len(list(self.get_param_combinations())), self.n_trials, 4), dtype=object)
         
         configurations = os.listdir(data_dir)
@@ -129,18 +133,22 @@ class ParameterAnalysis(object):
         self.param_idx = np.where(np.all(np.array(list(self.get_param_combinations())) == params, axis=1) == True)[0].tolist()[0]
 
     def get_overall_metrics(self, from_files = False):
-        print("Hello?")
         n_parameters = len(np.array(list(self.get_param_combinations())))
         self.db_indices = np.zeros(n_parameters)
         self.cluster_kls = np.zeros(n_parameters)
-        self.egds = np.zeros(n_parameters)
+        #self.egds = np.zeros(n_parameters)
         self.insider_outsider_ratios = np.zeros((n_parameters,3))
         self.avg_belief_extremity = np.zeros(n_parameters)
         self.avg_belief_diff = np.zeros(n_parameters)
+        self.times_to_cluster = np.zeros(n_parameters)
+
+        self.i_o_std = np.zeros((n_parameters,3))
+        self.avg_belief_extremity_std = np.zeros(n_parameters)
+        self.avg_belief_diff_std = np.zeros(n_parameters)
+        self.times_to_cluster_std = np.zeros(n_parameters)
 
         for i, combo in enumerate(list(self.get_param_combinations())[:-1]):
             print(i)
-            #try:
             self.update_params(combo)
             if from_files:
                 self.get_sim_results_from_files()
@@ -148,10 +156,16 @@ class ParameterAnalysis(object):
                 self.get_all_sim_results_from_parameters()
             self.db_indices[i] = np.nanmean(np.array([cm.davies_bouldin(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
             self.cluster_kls[i] = np.mean(np.array([cm.cluster_kl(self.all_qs[j,:,:,:])[-1] for j in range(self.n_trials)]))
-            self.egds[i] = np.mean(np.array([cm.eigenvalue_decay(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
+            #self.egds[i] = np.mean(np.array([cm.eigenvalue_decay(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
             self.insider_outsider_ratios[i,:] = np.nanmean(np.array([cm.outsider_insider_ratio(self.all_qs[i], self.adj_mat[i], self.all_neighbour_samplings[i]) for i in range(self.n_trials)]),axis=0)
             self.avg_belief_extremity[i] = np.mean(np.array([cm.average_belief_extremity(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
             self.avg_belief_diff[i] = np.mean(np.array([cm.average_belief_difference(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
+            self.times_to_cluster[i] = np.mean(np.array([cm.time_to_cluster(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
+            
+            self.i_o_std[i,:] = np.nanstd(np.array([cm.outsider_insider_ratio(self.all_qs[i], self.adj_mat[i], self.all_neighbour_samplings[i]) for i in range(self.n_trials)]),axis=0)
+            self.avg_belief_extremity_std[i] = np.nanstd(np.array([cm.average_belief_extremity(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
+            self.avg_belief_diff_std[i] = np.nanstd(np.array([cm.average_belief_difference(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
+            self.times_to_cluster_std[i] = np.nanstd(np.array([cm.time_to_cluster(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
             #except:
             #   print("param combination " + str(combo) + "is invalid")
 

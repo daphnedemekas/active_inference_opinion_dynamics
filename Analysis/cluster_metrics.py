@@ -93,6 +93,17 @@ def average_belief_extremity(all_qs):
     change_domain = np.absolute(all_qs[-1,1,:] - 0.5)*2
     return np.mean(change_domain)
 
+def time_to_cluster(all_qs):
+    times = np.zeros(all_qs.shape[-1])
+    for a in range(all_qs.shape[-1]):
+        for t in range(all_qs.shape[0]):
+            if all_qs[t,1,a] > 0.9 or all_qs[t,1,a] < 0.1:
+                times[a] = t
+                break
+            if t == all_qs.shape[0] - 1:
+                times[a] = np.nan
+    return np.nanmean(times)
+
 def outsider_insider_ratio(all_qs, adj_mat, all_neighbour_samplings):
     sections = [0,20,40,60]
     ratio_per_section = np.empty(len(sections)-1)
