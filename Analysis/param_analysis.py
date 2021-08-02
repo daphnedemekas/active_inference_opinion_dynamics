@@ -59,13 +59,10 @@ class ParameterAnalysis(object):
 
     def load_results(self, data_dir):
         configurations = os.listdir(data_dir)
-        print(len(configurations))
-        print(len(list(self.get_param_combinations())))
-
         all_data = np.zeros((len(list(self.get_param_combinations())), self.n_trials, 4), dtype=object)
         
         configurations = os.listdir(data_dir)
-        for i in range(len(configurations)-1):
+        for i in range(len(list(self.get_param_combinations()))):
             for trial in range(self.n_trials):
                 all_data[i, trial] = np.load(str(data_dir) + "/" + str(i) +"/" + str(trial) + ".npz", allow_pickle = True)['arr_0']
         self.all_data = all_data
@@ -141,11 +138,12 @@ class ParameterAnalysis(object):
         self.avg_belief_extremity = np.zeros(n_parameters)
         self.avg_belief_diff = np.zeros(n_parameters)
         self.times_to_cluster = np.zeros(n_parameters)
+        self.cluster_consensus = np.zeros(n_parameters)
 
-        self.i_o_std = np.zeros((n_parameters,3))
-        self.avg_belief_extremity_std = np.zeros(n_parameters)
-        self.avg_belief_diff_std = np.zeros(n_parameters)
-        self.times_to_cluster_std = np.zeros(n_parameters)
+        #self.i_o_std = np.zeros((n_parameters,3))
+        #self.avg_belief_extremity_std = np.zeros(n_parameters)
+        #self.avg_belief_diff_std = np.zeros(n_parameters)
+        #self.times_to_cluster_std = np.zeros(n_parameters)
 
         for i, combo in enumerate(list(self.get_param_combinations())[:-1]):
             print(i)
@@ -161,11 +159,12 @@ class ParameterAnalysis(object):
             self.avg_belief_extremity[i] = np.mean(np.array([cm.average_belief_extremity(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
             self.avg_belief_diff[i] = np.mean(np.array([cm.average_belief_difference(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
             self.times_to_cluster[i] = np.mean(np.array([cm.time_to_cluster(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
+            self.cluster_consensus[i] = cm.clustering_consensus(self.all_qs)
             
-            self.i_o_std[i,:] = np.nanstd(np.array([cm.outsider_insider_ratio(self.all_qs[i], self.adj_mat[i], self.all_neighbour_samplings[i]) for i in range(self.n_trials)]),axis=0)
-            self.avg_belief_extremity_std[i] = np.nanstd(np.array([cm.average_belief_extremity(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
-            self.avg_belief_diff_std[i] = np.nanstd(np.array([cm.average_belief_difference(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
-            self.times_to_cluster_std[i] = np.nanstd(np.array([cm.time_to_cluster(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
+            #self.i_o_std[i,:] = np.nanstd(np.array([cm.outsider_insider_ratio(self.all_qs[i], self.adj_mat[i], self.all_neighbour_samplings[i]) for i in range(self.n_trials)]),axis=0)
+            #self.avg_belief_extremity_std[i] = np.nanstd(np.array([cm.average_belief_extremity(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
+            #self.avg_belief_diff_std[i] = np.nanstd(np.array([cm.average_belief_difference(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
+            #self.times_to_cluster_std[i] = np.nanstd(np.array([cm.time_to_cluster(self.all_qs[j,:,:,:]) for j in range(self.n_trials)]))
             #except:
             #   print("param combination " + str(combo) + "is invalid")
 

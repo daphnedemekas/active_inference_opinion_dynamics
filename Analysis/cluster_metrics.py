@@ -19,6 +19,22 @@ def davies_bouldin(all_qs): # a low DB index represents low inter cluster and hi
         db = 0.5 * ((sigma1 + sigma2) / KL_div(centroid1[0],centroid1[1], centroid2[0], centroid2[1]))
     return db
 
+def clustering_consensus(all_qs): # a low DB index represents low inter cluster and high intra cluster similarity 
+    cluster = 0
+    consensus = 0
+    for trial in range(all_qs.shape[0]):
+        believers = np.where(all_qs[trial, -1,1,:] > 0.7)[0]
+        nonbelievers = np.where(all_qs[trial, -1,1,:] < 0.7)[0] 
+        if len(believers) == 0 or len(nonbelievers) == 0:
+            consensus += 1
+        else:
+            cluster += 1
+    return cluster / (cluster + consensus)
+
+
+    
+    
+
 def average_belief_extremity(all_qs):
     change_domain = np.absolute(np.mean(all_qs[:,1,:],axis=0) - 0.5)*2
     return np.mean(change_domain)
