@@ -81,7 +81,7 @@ class Agent(object):
         action = sample_action(self.q_pi, self.genmodel.policies, self.genmodel.num_states, self.genmodel.control_factor_idx, sampling_type = 'marginal_action') #how does this work? 
         self.action = action
 
-        self.genmodel.E += update_E(action[self.genmodel.who_idx], self.genmodel.who_idx, self.genmodel.policies)
+        self.genmodel.E += update_E(action[self.genmodel.who_idx], self.genmodel.who_idx, self.genmodel.policies, self.genmodel.E_lr)
 
         return action
 
