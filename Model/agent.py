@@ -14,9 +14,9 @@ class Agent(object):
         idea_mapping_params,
         policy_params,
         C_params,
-        reduce_A = False,
-        reduce_A_inference = False,
-        reduce_A_policies = False   
+        reduce_A = True,
+        reduce_A_inference = True,
+        reduce_A_policies = True   
         ):            
 
         self.genmodel = GenerativeModel(reduce_A = reduce_A, **neighbour_params, **idea_mapping_params, **policy_params, **C_params)

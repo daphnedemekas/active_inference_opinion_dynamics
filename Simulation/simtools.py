@@ -23,7 +23,7 @@ def generate_network(N,p):
     return G
 
 
-def generate_quick_agent_observation(reduce_A = True, num_neighbours = 2, reduce_A_policies = True, reduce_A_inferennce = False ):
+def generate_quick_agent_observation(reduce_A = True, num_neighbours = 2, reduce_A_policies = True, reduce_A_inference = True ):
 
     idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)
     num_H = 2 #the number of hashtags, or observations that can shed light on the idea
@@ -59,7 +59,7 @@ def generate_quick_agent_observation(reduce_A = True, num_neighbours = 2, reduce
     }
     observation = np.zeros(num_neighbours + 3)
     observation[2] = 1
-    agent = Agent(**agent_params,reduce_A=reduce_A, reduce_A_policies = reduce_A_policies, reduce_A_inferennce=reduce_A_inferennce)
+    agent = Agent(**agent_params,reduce_A=reduce_A, reduce_A_policies = reduce_A_policies, reduce_A_inferennce=reduce_A_inference)
     
     
     return agent, observation
@@ -120,6 +120,8 @@ def initialize_agent_params(G,
         ecb_precisions_all = {}
         for i in G.nodes():
             ecb_precisions_all[i] = ranges[i,:]
+    elif ecb_precisions == False:
+        pass
     else:
         ecb_precisions_all = {i: np.array(ecb_precisions) for i in G.nodes()}
     
@@ -167,7 +169,10 @@ def initialize_agent_params(G,
         initial_tweet, initial_neighbour_to_sample = np.random.randint(num_H), np.random.randint(num_neighbours) 
 
         # ecb_precisions = [np.random.uniform(low = ecb_precisions_all[i][0], high = ecb_precisions_all[i][1], size = (idea_levels,) ) for n in range(num_neighbours)]
-        ecb_precisions = np.absolute(np.random.normal(ecb_precisions_all[i], variance, size=(num_neighbours, idea_levels)))
+        if ecb_precisions != False:
+            ecb_precisions_i = np.absolute(np.random.normal(ecb_precisions_all[i], variance, size=(num_neighbours, idea_levels)))
+        else:
+            ecb_precisions_i = False
         #ecb_precisions = np.ones((num_neighbours, idea_levels)) * ecb_precisions_all[i]
         env_determinism = B_idea_precisions_all[i]
 
@@ -184,7 +189,7 @@ def initialize_agent_params(G,
         agent_constructor_params[i] = {
 
             "neighbour_params" : {
-                "ecb_precisions" :  ecb_precisions,
+                "ecb_precisions" :  ecb_precisions_i,
                 "num_neighbours" : num_neighbours,
                 "env_determinism":  env_determinism,
                 "belief_determinism": belief_determinism

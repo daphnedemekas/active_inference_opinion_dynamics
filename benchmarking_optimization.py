@@ -8,17 +8,14 @@ from Model.agent import Agent
 from Simulation.simtools import initialize_agent_params, initialize_network, run_simulation
 from Model.pymdp import utils
 
-from matplotlib import pyplot as plt
-
 # %% Run simulation for different network sizes
 
-network_sizes = [5, 6, 7, 8, 10]
+network_sizes = [5,6,7,8]
 
-# optimization_options = [[False, False, False], [True, True, False], [True, False, True], [True, True, True]]
+optimization_options = [[False, False, False], [True, True, False], [True, False, True], [True, True, True]]
 # optimization_options = [[True, True, False], [True, False, True], [True, True, True]]
-optimization_options = [[True, False, True], [True, True, True]]
 
-n_trials = 10
+n_trials = 3
 
 h_idea_mapping = utils.softmax(np.eye(2) * 1.0)
 ecb_precis = 4.5
@@ -44,11 +41,11 @@ for ii, N in enumerate(network_sizes):
             G = nx.complete_graph(N)
 
             optim_options = {'reduce_A': option_list[0], 'reduce_A_inference': option_list[1], 'reduce_A_policies': option_list[2]}
-            
+
             # construct agent-specific generative model parameters
             agent_constructor_params, store_params = initialize_agent_params(G, h_idea_mappings = h_idea_mapping, \
                                                 ecb_precisions = ecb_precis, B_idea_precisions = env_precision, \
-                                                    B_neighbour_precisions = belief_precision, variance = 0.2,  E_noise = 0.1, optim_options = optim_options)
+                                                    B_neighbour_precisions = belief_precision, variance = 0.2, E_noise = 0.1, optim_options = optim_options)
 
             # fill node attributes of graph object `G` with agent-specific properties (generative model, Agent class, history of important variables)
             G = initialize_network(G, agent_constructor_params, T = T)
@@ -63,9 +60,8 @@ for ii, N in enumerate(network_sizes):
 
 # %% Run simulation
 
-plt.plot(inference_times_taken.mean(axis=2)[:,0], label = 'old')
-plt.plot(inference_times_taken.mean(axis=2)[:,1], label = 'new')
-plt.legend()
+times_taken.mean(axis=2)
 
 
-# %%
+
+
