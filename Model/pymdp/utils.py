@@ -190,7 +190,7 @@ def process_observation(obs, n_modalities, n_observations):
 
     return obs
 
-def process_prior(prior, n_factors):
+def process_prior(prior):
     """
     Helper function for formatting prior beliefs  
         """

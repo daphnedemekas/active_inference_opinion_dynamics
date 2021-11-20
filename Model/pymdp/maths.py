@@ -11,11 +11,50 @@ __author__: Conor Heins, Alexander Tschantz, Brennan Klein
 import numpy as np
 from . import utils
 from scipy import special
-
-
+from itertools import chain
+import time 
 EPS_VAL = 1e-16 # global constant for use in spm_log() function
 
 def spm_dot(X, x, dims_to_omit=None):
+    """ Dot product of a multidimensional array with `x`. The dimensions in `dims_to_omit` 
+    will not be summed across during the dot product
+    
+    Parameters
+    ----------
+    - `x` [1D numpy.ndarray] - either vector or array of arrays
+        The alternative array to perform the dot product with
+    - `dims_to_omit` [list :: int] (optional)
+        Which dimensions to omit
+    
+    Returns 
+    -------
+    - `Y` [1D numpy.ndarray] - the result of the dot product
+    """
+
+    # Construct dims to perform dot product on
+    if utils.is_arr_of_arr(x):
+        # dims = list((np.arange(0, len(x)) + X.ndim - len(x)).astype(int))
+        dims = list(range(X.ndim - len(x),len(x)+X.ndim - len(x)))
+        # dims = list(range(X.ndim))
+    else:
+        dims = [1]
+        x = utils.to_arr_of_arr(x)
+
+    if dims_to_omit is not None:
+        arg_list = [X, list(range(X.ndim))] + list(chain(*([xi, [dims[dim_i]] ] for dim_i, xi in enumerate(x) if dim_i not in dims_to_omit))) + [dims_to_omit]
+    else:
+        arg_list = [X, list(range(X.ndim))] + list(chain(*([xi, [dims[dim_i]] ] for dim_i, xi in enumerate(x)))) + [[0]]
+
+    Y = np.einsum(*arg_list)
+
+    # check to see if `Y` is a scalar
+    if np.prod(Y.shape) <= 1.0:
+        Y = Y.item()
+        Y = np.array([Y]).astype("float64")
+
+    return Y
+
+def spm_dot_classic(X, x, dims_to_omit=None):
     """ Dot product of a multidimensional array with `x`. The dimensions in `dims_to_omit` 
     will not be summed across during the dot product
     
@@ -308,15 +347,19 @@ def calc_free_energy(qs, prior, n_factors, likelihood=None):
     return free_energy
 
 def spm_MDP_G_optim(A, x, is_test = False):
+    start = time.time()
     # Probability distribution over the hidden causes: i.e., Q(x)
-
     _, _, Ng, _ = utils.get_model_dimensions(A=A)
 
+    cross_start = time.time()
     qx = spm_cross(x)
+    cross_cost = time.time() - cross_start
+    # print(f"Time taken to run first spm_cross call: {cross_cost}\n")
     G = 0
     qo = 0
-    #qo_test = 0
     idx = np.array(np.where(qx > np.exp(-16))).T
+
+    einsum_cost = 0
 
     if utils.is_arr_of_arr(A):
         # Accumulate expectation of entropy: i.e., E[lnP(o|x)]
@@ -325,7 +368,6 @@ def spm_MDP_G_optim(A, x, is_test = False):
             shape = []
             # Probability over outcomes for this combination of causes
             po = np.ones(1)
-            #po_test = np.ones(1)
             for g in range(Ng):
                 index_vector = [slice(0, A[g].shape[0])] + list(i)
                 ag = (A[g][tuple(index_vector)])
@@ -334,9 +376,6 @@ def spm_MDP_G_optim(A, x, is_test = False):
                 p_nonzero = np.nonzero(po)
                 einsum = np.array(np.einsum('i,j->ij', po[p_nonzero], ag).flatten())
                 po = np.array(einsum.flatten())
-                #if is_test:
-                    #po_test = spm_cross(po_test, A[g][tuple(index_vector)])
-
             indexlength = len(po)
             po_nonzero_indices = [np.repeat(nz, int(indexlength/len(nz[0]))) for nz in nonzeros[:-1]]
             po_nonzero_indices.append(np.tile(nonzeros[-1],int(indexlength/len(nonzeros[-1][0]))))
@@ -344,31 +383,43 @@ def spm_MDP_G_optim(A, x, is_test = False):
             po_full = np.zeros(tuple(shape))
             po_full[tuple(po_nonzero_indices)] = po
 
-            #if is_test:
-            #if not np.array_equal(po_full, po_test):
-            #    print("spm_MDP_G is not outputting the correct probability over outcomes. Maybe use spm_MDP_G_old instead.")
-            #    raise
-
             po = (po_full).ravel()
             qo += qx[tuple(i)] * po
             G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
     else:
         for i in idx:
             po = np.ones(1)
+
             index_vector = [slice(0, A.shape[0])] + list(i)
             ag = (A[tuple(index_vector)])
+            
+            einsum_start = time.time()
             einsum = np.array(np.einsum('i,j->ij', po[np.nonzero(po)], ag).flatten())
+            einsum_cost += time.time() - einsum_start
+            # print(f"Time taken to run first spm_cross call: {einsum_cost}\n")
             po = np.array(einsum.flatten())
             po = po.ravel()
             qo += qx[tuple(i)] * po
             G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
+            
     # Subtract negative entropy of expectations: i.e., E[lnQ(o)]
+
+    dot_prod_start = time.time()
     G = G - qo.dot(spm_log(qo))
+    dot_prod_cost = time.time() - dot_prod_start
+    # print(f"Time taken to run first dot_product call: {dot_prod_cost}\n")
+    end = time.time() - start
+    # print("optim")
+    # print(end)
 
-    return G
+    if is_test:
+        return G, cross_cost, einsum_cost, dot_prod_cost
+    else:
+        return G
 
 
-def spm_MDP_G(A, x):
+def spm_MDP_G(A, x, is_test = False):
+    start = time.time()
     """
     Calculates the Bayesian surprise in the same way as spm_MDP_G.m does in 
     the original matlab code.
@@ -395,10 +446,14 @@ def spm_MDP_G(A, x):
     _, _, Ng, _ = utils.get_model_dimensions(A=A)
 
     # Probability distribution over the hidden causes: i.e., Q(x)
+    cross_start = time.time()
     qx = spm_cross(x)
+    cross_cost = time.time() - cross_start
     G = 0
     qo = 0
     idx = np.array(np.where(qx > np.exp(-16))).T
+
+    einsum_cost = 0
 
     if utils.is_arr_of_arr(A):
         # Accumulate expectation of entropy: i.e., E[lnP(o|x)]
@@ -416,15 +471,25 @@ def spm_MDP_G(A, x):
         for i in idx:
             po = np.ones(1)
             index_vector = [slice(0, A.shape[0])] + list(i)
+            einsum_start = time.time()
             po = spm_cross(po, A[tuple(index_vector)])
+            einsum_cost += time.time() - einsum_start
             po = po.ravel()
             qo += qx[tuple(i)] * po
             G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
 
     # Subtract negative entropy of expectations: i.e., E[lnQ(o)]
+    dot_prod_start = time.time()
     G = G - qo.dot(spm_log(qo))  # type: ignore
+    dot_prod_cost = time.time() -  dot_prod_start
+    end = time.time() - start
+    # print("OG")
+    # print(end)
 
-    return G
+    if is_test:
+        return G, cross_cost, einsum_cost, dot_prod_cost
+    else:
+        return G
 
 
 """
