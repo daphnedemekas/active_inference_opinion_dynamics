@@ -332,7 +332,7 @@ class GenerativeModel(object):
         policy_mapping = np.zeros((num_policies, self.idea_levels))
         
         if self.belief2tweet_mapping is None:
-            self.belief2tweet_mapping = self.h_idea_mapping
+            self.belief2tweet_mapping = np.eye(self.num_H, self.idea_levels)
             #self.belief2tweet_mapping = np.random.uniform(low = 1, high = 9, size=(self.num_H , self.idea_levels))
         else:
             assert self.belief2tweet_mapping.shape == (self.num_H , self.idea_levels), "Your belief2tweet_mapping has the wrong shape. It should be (self.num_H , self.idea_levels)"
@@ -343,8 +343,6 @@ class GenerativeModel(object):
                 normalising_constant = (array_policies[:,self.h_control_idx] == action_idx).sum()
                 if policy[self.h_control_idx] == action_idx:
                     policy_mapping[policy_idx,:] = self.belief2tweet_mapping[action_idx,:] / normalising_constant
-
-        #self.policy_mapping = policy_mapping
         return policy_mapping
     
     
