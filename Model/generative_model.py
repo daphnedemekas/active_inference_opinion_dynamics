@@ -35,12 +35,13 @@ class GenerativeModelSuper(object):
 
         num_H,
         idea_levels,
-        
+    
+        initial_action = None,
+
         h_idea_mapping = None,
 
         belief2tweet_mapping = None,
         E_lr = None,
-        initial_action = None,
 
         env_determinism = 9.0,
         belief_determinism = 6,
@@ -138,6 +139,12 @@ class GenerativeModelSuper(object):
 
 
     def fill_slice(self, A_o, A_slice, irrelevant_dimensions, fill_indices, slice_indices):
+        """ 
+        A_o: the slice of A you want to fill indexed by the the observation modality index (i.e. A[0] for first observation modality)
+        A_slice: the numpy array with which you want to fill this slice 
+        irrelevant_dimesnions: the dimensions of A that are not informative for this particular slicing 
+        fill_indices: the indices of A to be filled 
+        slice indices: a list of indices which you will insert into fill_indices in the function insert_multiple() """
 
         for item in itertools.product(*[list(range(d)) for d in irrelevant_dimensions]):
             slice_ = list(item)
@@ -159,6 +166,7 @@ class GenerativeModelSuper(object):
         return A_0
 
     def po_who_given_s(self, A_o, who_obs_idx):
+        """ fill the observation modality corresponding to which neighbour the agent is sampling """
         who_obs = self.num_obs[who_obs_idx]
         sampling_A = np.eye(who_obs)
 
@@ -168,8 +176,9 @@ class GenerativeModelSuper(object):
         A_o = self.fill_slice(A_o, sampling_A, irrelevant_dimensions, fill_indices, [slice(0,who_obs), slice(0,self.num_states[self.who_idx])])
         return A_o
 
-    def scale_idea_mapping(self,neighbour_idx, o_dim, truth_level, ecb):
+    def scale_idea_mapping(self,neighbour_idx, o_dim, truth_level):
         """ Scales the hashtag to idea mapping based on corresponding beliefs (truth_level) """
+        ecb = self.ecb_precisions[neighbour_idx-1][truth_level]
         h_idea_mapping_scaled = np.copy(self.h_idea_mapping)
         h_idea_mapping_scaled[:,truth_level] = softmax(ecb * self.h_idea_mapping[:,truth_level])
         if h_idea_mapping_scaled[truth_level,truth_level] < self.h_idea_mapping[truth_level,truth_level]:
@@ -185,15 +194,18 @@ class GenerativeModelSuper(object):
         
         return h_idea_scaled_with_null, h_idea_with_null
 
-    def get_broadcast_dims(self, broadcast_dims, neighbour_i):               
+    def get_broadcast_dims(self, broadcast_dims, neighbour_i): 
+        """ gets the broadcast dimensions specifically for a given neighbour index """              
         broadcast_dims[self.focal_belief_idx+1] = 1
         broadcast_dims[self.who_idx+1] = 1
         broadcast_dims[neighbour_i+2] = 1
 
         return broadcast_dims
 
-    def scale_A_by_ecb(self, A_o, neighbour_i, h_idea_maps, state_dim, broadcast_dims_specific, idx_vec_o, reshape_vector, truth_level):
-        h_idea_scaled_with_null, h_idea_with_null = h_idea_maps[0], h_idea_maps[1]
+    def scale_A_by_ecb(self, A_o, neighbour_i, h_idea_scaled_with_null, h_idea_with_null, broadcast_dims_specific, idx_vec_o, reshape_vector, truth_level):
+        """ This scales the slice of the A matrix mapping the belief state of a neighbour to the observation of this neighbours tweet 
+        in the case that the agent and neighbour shar ebelifs, by the epistemic confirmation bias """
+        state_dim = self.num_states[neighbour_i+1]
         for belief_level in range(state_dim):
             if truth_level == belief_level:
                 idx_vec_o[neighbour_i+2] = slice(belief_level,belief_level+1,None)
@@ -207,6 +219,17 @@ class GenerativeModelSuper(object):
                 idx_vec_o[neighbour_i+2] = slice(state_dim)
         return A_o
 
+    def fill_B_states(self, matrix, precision):
+        """ Fills non-control slices of the B matrix using the volatility value (precision) with the given matrix """
+        B_s = np.expand_dims(softmax(matrix * precision),axis = 2)
+        return B_s
+
+    def fill_B_control_states(self, modality_shape, num_actions):
+        """ Fills the control slices of the B matrix such that actions correspond to the control states """
+        B_s = np.zeros(modality_shape)
+        for action in range(num_actions):
+            B_s[action,:,action] = np.ones(num_actions)
+        return B_s
 
     def generate_policies(self):
         """Generate a set of policies
