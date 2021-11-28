@@ -1,12 +1,12 @@
 #%%
 import numpy as np
-from Model.genmodel import GenerativeModel
-from Model.agent import Agent
+from model.genmodel import GenerativeModel
+from model.agent import Agent
 import networkx as nx
-from Model.pymdp import utils
-from Model.pymdp.utils import obj_array, index_list_to_onehots, sample, reduce_a_matrix
-from Model.pymdp.maths import softmax, spm_dot, spm_log, get_joint_likelihood, calc_free_energy
-from Model.pymdp.inference import update_posterior_states
+from model.pymdp import utils
+from model.pymdp.utils import obj_array, index_list_to_onehots, sample, reduce_a_matrix
+from model.pymdp.maths import softmax, spm_dot, spm_log, get_joint_likelihood, calc_free_energy
+from model.pymdp.inference import update_posterior_states
 
 import seaborn as sns
 from matplotlib import pyplot as plt
@@ -27,7 +27,7 @@ def agent_p(belief_d, env_d=None, ecb=None, learning_rate = None):
 
                 "neighbour_params" : {
                     "ecb_precisions" : np.array([[ecb,ecb], [ecb, ecb]]),
-                    "num_neighbours" : 2,
+                    "num_neighbours" : num_neighbours,
                     "env_determinism": env_d,
                     "belief_determinism": np.array([belief_d, belief_d])
                     },
@@ -44,11 +44,6 @@ def agent_p(belief_d, env_d=None, ecb=None, learning_rate = None):
                     "E_lr" : learning_rate
                     },
 
-                "C_params" : {
-                    "preference_shape" : None,
-                    "cohesion_exp" : None,
-                    "cohesion_temp" : None
-                    }
             }
     return agent_params
         # %%
