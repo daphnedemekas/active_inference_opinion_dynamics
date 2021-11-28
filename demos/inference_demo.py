@@ -96,12 +96,12 @@
 # %%
 #%%
 import numpy as np
-from Model.genmodel import GenerativeModel
-from Model.agent import Agent
+from model.genmodel import GenerativeModel
+from model.agent import Agent
 import networkx as nx
-from Model.pymdp.utils import obj_array, index_list_to_onehots, sample
-from Model.pymdp.maths import softmax, spm_log
-from Model.pymdp.inference import update_posterior_states
+from model.pymdp.utils import obj_array, index_list_to_onehots, sample
+from model.pymdp.maths import softmax, spm_log
+from model.pymdp.inference import update_posterior_states
 
 import seaborn as sns
 from matplotlib import pyplot as plt
@@ -136,11 +136,6 @@ def agent_p(belief_d, env_d=None, ecb=None):
                     "E_lr" : 0.7
                     },
 
-                "C_params" : {
-                    "preference_shape" : None,
-                    "cohesion_exp" : None,
-                    "cohesion_temp" : None
-                    }
             }
     return agent_params
 plt.figure(figsize=(12,8))
@@ -162,8 +157,8 @@ for i, ecb in enumerate(np.linspace(3,10,2)):
         history_of_idea_beliefs = np.zeros((T,idea_levels))
         history_of_beliefs_about_other = np.zeros((T,2))
         
-        qs = agent.infer_states(False, observation)
-        #print(qs)
+        qs = agent.infer_states(0, observation)
+        print(qs)
         history_of_idea_beliefs[1,:] = qs[0]
         history_of_beliefs_about_other[1,:] = qs[1]
 
@@ -171,21 +166,18 @@ for i, ecb in enumerate(np.linspace(3,10,2)):
 
         for t in range(1,T):
 
-            #if t % 10 == 0:
-            #    observation = (0, 2, 0, 0)
+            if t % 10 == 0:
+                observation = (0, 2, 0, 0)
 
             empirical_prior = obj_array(agent.genmodel.num_factors)
             for f in range(agent.genmodel.num_factors):   
                 empirical_prior[f] = spm_log(agent.genmodel.B[f][:,:, constant_action[f]].dot(qs[f]))
 
-            qs2 = agent.infer_states(True, observation)
-            if t < 13 and t > 8:
-                average += qs2[0][0] - qs[0][0]
-            qs = qs2
+            qs = agent.infer_states(1, observation)
+            print(qs[0])
             
             history_of_idea_beliefs[t,:] = qs[0]
             history_of_beliefs_about_other[t,:] = qs[1]
-        print(average)
         idea_beliefs[i, j] = average
         #neighbour_beliefs[i, j] = average
         plt.plot(history_of_idea_beliefs[:,0],label="env_d:  " +str(env_d) + ", ecb: " + str(ecb))
