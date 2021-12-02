@@ -1,9 +1,9 @@
 import numpy as np 
 import itertools
 import time
-from .pymdp.utils import obj_array, obj_array_uniform,softmax, onehot, reduce_a_matrix
-from .pymdp.maths import spm_log
-from .pymdp.learning import *
+from pymdp.utils import obj_array, obj_array_uniform,softmax, onehot, reduce_a_matrix
+from pymdp.maths import spm_log
+from pymdp.learning import *
 import warnings 
 
 class GenerativeModelSuper(object):
@@ -43,8 +43,8 @@ class GenerativeModelSuper(object):
         belief2tweet_mapping = None,
         E_lr = None,
 
-        env_determinism = 9.0,
-        belief_determinism = 6,
+        env_determinism = 9,
+        belief_determinism = None,
 
         reduce_A = True
 
@@ -63,11 +63,12 @@ class GenerativeModelSuper(object):
         self.ecb_precisions = ecb_precisions
         self.num_neighbours = num_neighbours
 
-
+        
         assert np.isscalar(env_determinism), "Your env_determinism has the wrong shape. It should be a scalar"
         self.env_determinism = float(env_determinism)
 
-
+        if belief_determinism is None:
+            belief_determinism = np.ones((num_neighbours,))*6
         self.belief_determinism = belief_determinism   
         assert self.belief_determinism.shape == (num_neighbours,), "Your belief_determinism has the wrong shape. It should be (num_neighbours,)"
 
@@ -96,26 +97,8 @@ class GenerativeModelSuper(object):
         num_controls[self.who_idx] = self.num_neighbours
         self.num_controls = num_controls
         self.policies = self.generate_policies()
-
-        self.A = self.generate_likelihood()
-
         self.E_lr = E_lr
         self.initial_action = initial_action
-        
-        if reduce_A:
-            self.A_reduced = obj_array(self.num_modalities)
-            self.informative_dims = []
-            for g in range(self.num_modalities):
-                self.A_reduced[g], factor_idx = reduce_a_matrix(self.A[g])
-                self.informative_dims.append(factor_idx)
-            self.reshape_dims_per_modality, self.tile_dims_per_modality = self.generate_indices_for_policy_updating()
-            del self.A
-        self.B = self.generate_transition()
-        self.C = self.generate_prior_preferences()
-
-        self.E = np.ones(len(self.policies))
-
-        self.policy_mapping = self.generate_policy_mapping()
 
 
     def insert_multiple(self, s, indices, items):
@@ -157,11 +140,11 @@ class GenerativeModelSuper(object):
             which should map via h_control_mapping (default identity matrix) to which hashtag state the agent is in """
         num_observable_hashtags = self.h_control_mapping.shape[0]
         dimensions = [num_observable_hashtags] + self.num_states #this is the shape of the modality-specific A matrix A[o_idx] the first index is the dimension of the observation modality and then the rest is the full dimensionality of the states
-        fill_indices = [0,self.h_control_idx+1] # these are indices of the dimensions we need to fill for this modality. we have to add 1 to h_control_idx because the first dimensions corresponds to the observation
+        informative_dimensions = [0,self.h_control_idx+1] # these are indices of the dimensions we need to fill for this modality. we have to add 1 to h_control_idx because the first dimensions corresponds to the observation
         
-        irrelevant_dimensions = np.delete(dimensions, fill_indices) #these are the lagging dimensions that don't matter for this mapping
+        uninformative_dimensions = np.delete(dimensions, informative_dimensions) #these are the lagging dimensions that don't matter for this mapping
         
-        A_0 = self.fill_slice(A_0, self.h_control_mapping,irrelevant_dimensions, fill_indices, [slice(0,num_observable_hashtags), slice(0,num_observable_hashtags)])
+        A_0 = self.fill_slice(A_0, self.h_control_mapping,uninformative_dimensions, informative_dimensions, [slice(0,num_observable_hashtags), slice(0,num_observable_hashtags)])
 
         return A_0
 
@@ -171,9 +154,9 @@ class GenerativeModelSuper(object):
         sampling_A = np.eye(who_obs)
 
         dimensions = [who_obs] + self.num_states #this is the shape of the modality-specific A matrix A[o_idx]
-        fill_indices = [0,self.who_idx+1] # these are the indices of the dimensions we need to fill for this modality
-        irrelevant_dimensions = np.delete(dimensions, fill_indices) 
-        A_o = self.fill_slice(A_o, sampling_A, irrelevant_dimensions, fill_indices, [slice(0,who_obs), slice(0,self.num_states[self.who_idx])])
+        informative_dimensions = [0,self.who_idx+1] # these are the indices of the dimensions we need to fill for this modality
+        uninformative_dimensions = np.delete(dimensions, informative_dimensions) 
+        A_o = self.fill_slice(A_o, sampling_A, uninformative_dimensions, informative_dimensions, [slice(0,who_obs), slice(0,self.num_states[self.who_idx])])
         return A_o
 
     def scale_idea_mapping(self,neighbour_idx, o_dim, truth_level):

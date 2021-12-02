@@ -3,29 +3,87 @@
 """ 
 
 SELF ESTEEM 
+Desired outcome: seeing groups formed based on the reward observation modality rather than only the beliefs 
 
-observation: [what i tweeted, what my neighbours tweeted, who i observed] 
+observation: [what i tweeted, my reward, what my neighbours tweeted, my neighbours reward,  who i observed] 
+
+[H, R] 
+my neighbours reward, - a function of the generative process 
 
 We want to add an additional observation modality which corresponds to how well I correspond to my neighbours (my self esteem)
 
-This will be based on some metric that gets higher if me and my neighbours tweet the same thing (or the same sequence of things) and lower if not
+OBSERVATION - self esteem [ reward, neutral, rejection] 
 
-OBSERVATOIN - self esteem [ reward, rejection] 
+the mapping in the A matrix p(my reward | states) is a function of similarity between beliefs about idea and beliefs about the neighbours' beliefs
 
-reward vs rejection is just defined by a threshold on the metric described above ^ 
+p( my reward | states) -- if what you believe your neighbour believes aligns with what you believe then you observe reward (depending on the extent of agreement)
 
-you have a preference over level 1 (Reward) in the C matrix so you prefer to agree and that should drive you to tweet what your neighbours tweet 
-if you are being rejected, this should drive you to change who you choose to select to observe 
+p(my neighbours reward | states) -- observing your neighbours' reward lends evidence to the whole network (yuor  beliefs about all of your neighbours beliefs) 
+bumps it up in the direction of what your observed neighbour believes (smaller update than the update to the directly observed neighbour)
 
-
-The agent will then have a preference encoded in the C matrix to be closer to the group 
-
-if rejection occurs with agent A then preference to sample agent A goes down 
-
-if rejection occurs then self esteem gets lower 
+--C--
+preference over high reward 
 
 
-SEQUENCING 
+Next level: include a hidden state factor and another observation modality, hidden state factor that maps to the action of "liking" a tweet and the observation modality 
+which incentivizes liking a person's tweet 
+
+
+
+SEQUENCING (mirroring)
+
+ABCDEF
+
+hidden state: [no sequence, sequencing, sequence finished]
+p(observe A, : | sequence started)
+p(observe not A or C | in sequence)
+p(mirroring | in sequence)
+p(not mirroring | not in sequence)
+p(observe F | sequence finished)
+
+
+p(sampling not X | sampled X, in sequence) = 0
+
+preference over mirroring -- observation modality of mirroring 
+
+
+
+seuqence observation [no sequence, sequencing, sequence complete]
+you have a temporal preference to start and complete 
+
+
+
+
+
+p(neighbour tweeted A, : | sequence started)
+p(observe not A or C, neighbour hasn't changed | in sequence)
+p(observe F, neighbour hasn't changed | sequence finished)
+
+hidden state that corresponds to what stage of the sequence you're in [no sequence, sequencing, sequenced ] 
+this hidden state maps to the observation of what your agents will tweet 
+
+p(neighbour_i tweeting B | and they tweeted A)
+
+that observation maps to whether or 
+
+add a hidden state factor about what they are tweeting (isomorphic to observation)
+your belief about what teh sequence is affects your belief about what they will tweet 
+
+learning a b matrix <--> identifying a sequence 
+
+preference over mirroring 
+
+first iteration: you have a hardcoded B matrix and you learn the B matrix of your agents
+B[indexed at the states that correspond to your neighbours tweet 
+
+beliefs about sequences of who you aren't looking at decays if you're not looking at them 
+
+
+ABC - sequence itself is encoded in B matrix 
+
+hidden state factor: where in the sequence you are [no sequence sequencing, sequenced ] 
+
+A A -- p(observing A | tweeted A,)
 
 B matrix p (st | s(t-1) )
 

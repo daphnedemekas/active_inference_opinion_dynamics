@@ -1,11 +1,11 @@
 import numpy as np 
 import itertools
 import time
-from .pymdp.utils import obj_array, obj_array_uniform, insert_multiple, softmax, onehot, reduce_a_matrix
-from .pymdp.maths import spm_log
-from .pymdp.learning import *
+from pymdp.utils import obj_array, obj_array_uniform, insert_multiple, softmax, onehot, reduce_a_matrix
+from pymdp.maths import spm_log
+from pymdp.learning import *
 import warnings 
-from .generative_model import GenerativeModelSuper
+from generative_model import GenerativeModelSuper
 
 
 class GenerativeModel(GenerativeModelSuper):
@@ -25,7 +25,7 @@ class GenerativeModel(GenerativeModelSuper):
         belief2tweet_mapping = None,
         E_lr = None,
 
-        env_determinism = None,
+        env_determinism = 9,
         belief_determinism = None,
 
         reduce_A = False
@@ -35,18 +35,29 @@ class GenerativeModel(GenerativeModelSuper):
 
         super().__init__(ecb_precisions, num_neighbours, num_H,idea_levels,initial_action, h_idea_mapping,belief2tweet_mapping ,E_lr ,env_determinism,belief_determinism,reduce_A)
 
-        
-        self.A = self.generate_likelihood()
+        """ We need to overwrite the number of observations"""
+        #observation: [what i tweeted, what my neighbours tweeted, who i observed, my self esteem, neighbours' esteem] 
+        self.num_esteem_levels = 3
+
+        self.num_obs = [self.num_H]+ (self.num_neighbours) * [self.num_H+1] +  [self.num_neighbours]  + [self.num_esteem_levels] +(self.num_neighbours) * [self.num_esteem_levels]  # list that contains the dimensionalities of each observation modality 
+        self.num_modalities = len(self.num_obs) # total number of observation modalities
+
+        self.focal_esteem_idx = self.who_idx + 1
+        self.neighbour_esteem_idx =  [(self.focal_esteem_idx + n +1) for n in range(self.num_neighbours)] 
+
 
         
-        if reduce_A:
-            self.A_reduced = obj_array(self.num_modalities)
-            self.informative_dims = []
-            for g in range(self.num_modalities):
-                self.A_reduced[g], factor_idx = reduce_a_matrix(self.A[g])
-                self.informative_dims.append(factor_idx)
-            self.reshape_dims_per_modality, self.tile_dims_per_modality = self.generate_indices_for_policy_updating()
-            del self.A
+        #self.A = self.generate_likelihood()
+
+        
+        # if reduce_A:
+        #     self.A_reduced = obj_array(self.num_modalities)
+        #     self.informative_dims = []
+        #     for g in range(self.num_modalities):
+        #         self.A_reduced[g], factor_idx = reduce_a_matrix(self.A[g])
+        #         self.informative_dims.append(factor_idx)
+        #     self.reshape_dims_per_modality, self.tile_dims_per_modality = self.generate_indices_for_policy_updating()
+        #     del self.A
         self.B = self.generate_transition()
         self.C = self.generate_prior_preferences()
 
@@ -84,7 +95,7 @@ class GenerativeModel(GenerativeModelSuper):
             if o_idx == self.focal_h_idx: #this happens for o_idx == 0 -- we are in observation modality corresponding to the agent's observation of its own tweet 
                 A[o_idx] = self.po_h_given_s(A[o_idx])
 
-            if o_idx in self.neighbour_h_idx: # now we're considering one of the observation modalities corresponding to seeing my neighbour's tweets
+            elif o_idx in self.neighbour_h_idx: # now we're considering one of the observation modalities corresponding to seeing my neighbour's tweets
                 null_matrix = self.get_null_matrix(o_dim, o_idx) # create the null matrix to tile throughout the appropriate dimensions (this matrix is for the case when you're _not_ sampling the neighbour whose modality we're considering)
 
                 for truth_level in range(self.num_states[self.focal_belief_idx]): # the precision of the mapping is dependent on the truth value of the hidden state 
@@ -107,8 +118,33 @@ class GenerativeModel(GenerativeModelSuper):
                             null_matrix_reshaped = np.reshape(null_matrix,reshape_vector)
                             A[o_idx][tuple(idx_vec_o)] = np.tile(null_matrix_reshaped, tuple(broadcast_dims_specific))
 
-            if o_idx == self.who_obs_idx:   #this is the observation modality corresponding to which neighbour the agent is samplign 
+            elif o_idx == self.who_obs_idx:   #this is the observation modality corresponding to which neighbour the agent is samplign 
                 A[o_idx] = self.po_who_given_s(A[o_idx], o_idx)
+                
+            elif o_idx == self.focal_esteem_idx: 
+                #high esteem lends evidence to the idea being true (focal_idx)
+                dimensions = [self.num_esteem_levels] + [self.idea_levels] + [self.idea_levels]*self.num_neighbours + [self.num_H] + [self.num_neighbours]
+                
+                uninformative_dimensions = np.delete(dimensions,[0,self.focal_belief_idx+1]) #only need to fill the first dimension
+                A_slice = np.array([[0.6,0.6],[0.3,0.3],[0.1,0.1]])
+
+                #for truth_level in range(self.num_states[self.focal_belief_idx]):
+                A[o_idx] = self.fill_slice(A[o_idx], A_slice,uninformative_dimensions, [0,self.focal_belief_idx+1], [slice(0,self.num_esteem_levels), slice(0, self.num_states[self.focal_belief_idx])])
+
+            elif o_idx in self.neighbour_esteem_idx:
+                #high neighbour esteem leads to higher evidence for all neighbour beliefs being the truth level 
+                informative_dimensions = [0] + [n+1 for n in self.neighbour_belief_idx]
+                uninformative_dimensions = np.delete(dimensions, informative_dimensions)
+                
+                for truth_level in range(self.num_states[self.focal_belief_idx]): # the precision of the mapping is dependent on the truth value of the hidden state 
+                    for neighbour_i in range(self.num_states[self.who_idx]):
+                        broadcast_dims_specific = self.get_broadcast_dims(broadcast_dims, neighbour_i)
+
+                        idx_vec_o[neighbour_i+2] = slice(truth_level,truth_level+1,None)
+                        belief_level_specific_column = np.reshape(A_slice[:,truth_level],reshape_vector)
+                        A[o_idx][tuple(idx_vec_o)] = np.tile(belief_level_specific_column, tuple(broadcast_dims_specific)) 
+                        idx_vec_o[neighbour_i+2] = slice(o_dim)
+
         
         return A
 
@@ -149,12 +185,14 @@ class GenerativeModel(GenerativeModelSuper):
 
 
     def generate_prior_preferences(self):
-        # Currently there are no prior preferences
         C = obj_array(self.num_modalities)
 
         for o_idx, o_dim in enumerate(self.num_obs): 
             
+            if o_idx == self.focal_esteem_idx:
+                C[o_idx] = [10,3,-5]
             C[o_idx] = np.zeros(o_dim)
+
                 
         return C
     
