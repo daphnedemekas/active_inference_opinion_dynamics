@@ -4,9 +4,9 @@ import random
 import copy
 import time
 
-from Model.agent import Agent
-from Model.pymdp import utils
-from Model.pymdp.utils import softmax
+from model.agent import Agent
+from model.pymdp import utils
+from model.pymdp.utils import softmax
 
 def generate_network(N,p):
     G = nx.fast_gnp_random_graph(N,p) # create the graph for this trial & condition
@@ -169,10 +169,8 @@ def initialize_agent_params(G,
         initial_tweet, initial_neighbour_to_sample = np.random.randint(num_H), np.random.randint(num_neighbours) 
 
         # ecb_precisions = [np.random.uniform(low = ecb_precisions_all[i][0], high = ecb_precisions_all[i][1], size = (idea_levels,) ) for n in range(num_neighbours)]
-        if ecb_precisions != False:
-            ecb_precisions_i = np.absolute(np.random.normal(ecb_precisions_all[i], variance, size=(num_neighbours, idea_levels)))
-        else:
-            ecb_precisions_i = False
+        ecb_precisions_i = np.absolute(np.random.normal(ecb_precisions_all[i], size=(num_neighbours, idea_levels)))
+
         #ecb_precisions = np.ones((num_neighbours, idea_levels)) * ecb_precisions_all[i]
         env_determinism = B_idea_precisions_all[i]
 
@@ -281,7 +279,7 @@ def run_simulation(G, T):
         #print(str(t) + "/" + str(T))
         G, infer_time_cost_t, control_time_cost_t = run_single_timestep(G, t)
     
-    return G, infer_time_cost_t, control_time_cost_t
+    return G
 
 def run_single_timestep(G, t):
 

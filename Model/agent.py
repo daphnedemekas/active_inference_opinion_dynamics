@@ -72,13 +72,7 @@ class Agent(object):
 
         q_pi, neg_efe = update_posterior_policies_reduced_vectorized(self.qs, self.genmodel.A_reduced, self.genmodel.B, self.genmodel.C, posterior_E, self.genmodel.policies, self.genmodel.informative_dims, self.genmodel.reshape_dims_per_modality, self.genmodel.tile_dims_per_modality, **self.policy_hyperparams)
 
-<<<<<<< HEAD
-=======
-        if hasattr(self.genmodel,'A_reduced'):
-            q_pi, neg_efe = update_posterior_policies_reduced(self.qs, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
-        else:
-            q_pi, neg_efe = update_posterior_policies(self.qs, self.genmodel.A, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
->>>>>>> main
+        q_pi, neg_efe = update_posterior_policies_reduced(self.qs, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.B, self.genmodel.C, self.genmodel.E, self.genmodel.policies, **self.policy_hyperparams)
         self.q_pi = q_pi
         self.neg_efe = neg_efe
         return q_pi

@@ -2,11 +2,11 @@
 
 import numpy as np
 import networkx as nx
-from Model.agent import Agent
+from model.agent import Agent
 from Simulation.simtools import initialize_agent_params, initialize_network, run_simulation, connect_edgeless_nodes, clip_edges
-from Analysis.analysis_tools import collect_idea_beliefs, collect_sampling_history, collect_tweets
-from Model.pymdp import maths
-from Model.pymdp import utils
+from analysis.analysis_tools import collect_idea_beliefs, collect_sampling_history, collect_tweets
+from model.pymdp import maths
+from model.pymdp import utils
 import copy
 from matplotlib import pyplot as plt
 import seaborn as sns
@@ -30,21 +30,20 @@ while np.array(list(G.degree()))[:,1].min() < 2: # make sure no agents with only
         G = connect_edgeless_nodes(G) # make sure graph is 
 
 h_idea_mapping = utils.softmax(np.eye(2) * 1.0)
-ecb_precis = 4.5
+ecb_precis = 6.0
 env_precision = 8.5
 belief_precision = 5.5
 
 # construct agent-specific generative model parameters
 agent_constructor_params, store_params = initialize_agent_params(G, h_idea_mappings = h_idea_mapping, \
                                     ecb_precisions = ecb_precis, B_idea_precisions = env_precision, \
-                                        B_neighbour_precisions = belief_precision, reduce_A=True)
+                                        B_neighbour_precisions = belief_precision)
 
 # fill node attributes of graph object `G` with agent-specific properties (generative model, Agent class, history of important variables)
 G = initialize_network(G, agent_constructor_params, T = T)
 
 # %% Run simulation
 G = run_simulation(G, T = T)
-
 all_qs = collect_idea_beliefs(G)
 
 plt.plot(all_qs[:,0,:])
