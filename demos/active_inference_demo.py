@@ -1,6 +1,5 @@
 #%%
 import numpy as np
-from model.genmodel import GenerativeModel
 from model.agent import Agent
 import networkx as nx
 from model.pymdp import utils

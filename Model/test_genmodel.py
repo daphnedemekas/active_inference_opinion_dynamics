@@ -10,7 +10,12 @@ ecb_precisions = np.ones((num_neighbours, idea_levels))*8
 genmodel = GenerativeModel(ecb_precisions, num_neighbours, num_H, idea_levels, reduce_A=True)
 
 genmodel.initialize_A()
-genmodel.generate_likelihood()
+A = genmodel.generate_likelihood()
 
 
 # %%
+
+
+#TODO: copy the active inference demo -- and print stuff to see if this is working
+#make it nnice
+#then do sequencing

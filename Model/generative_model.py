@@ -1,10 +1,15 @@
 import numpy as np 
 import itertools
 import time
-from pymdp.utils import obj_array, obj_array_uniform,softmax, onehot, reduce_a_matrix
-from pymdp.maths import spm_log
+from pymdp.utils import obj_array, obj_array_uniform, onehot, reduce_a_matrix
+from pymdp.maths import *
 from pymdp.learning import *
 import warnings 
+def spm_log(arr):
+    """
+    Adds small epsilon value to an array before natural logging it
+    """
+    return np.log(arr + EPS_VAL)
 
 class GenerativeModelSuper(object):
 
@@ -75,9 +80,9 @@ class GenerativeModelSuper(object):
         self.belief2tweet_mapping = belief2tweet_mapping 
         self.h_control_mapping = np.eye(self.num_H)
         
-        self.num_obs = [self.num_H] + (self.num_neighbours) * [self.num_H+1] + [self.num_neighbours]  # list that contains the dimensionalities of each observation modality 
+        #self.num_obs = [self.num_H] + (self.num_neighbours) * [self.num_H+1] + [self.num_neighbours]  # list that contains the dimensionalities of each observation modality 
 
-        self.num_modalities = len(self.num_obs) # total number of observation modalities
+        #self.num_modalities = len(self.num_obs) # total number of observation modalities
         self.num_states = (1+ self.num_neighbours) * [self.idea_levels] + [self.num_H] + [self.num_neighbours] #list that contains the dimensionality of each state factor 
         self.num_factors = len(self.num_states) # total number of hidden state factors
 
@@ -131,7 +136,7 @@ class GenerativeModelSuper(object):
 
         for item in itertools.product(*[list(range(d)) for d in irrelevant_dimensions]):
             slice_ = list(item)
-            A_indices = self.insert_multiple(slice_, fill_indices, slice_indices) #here we insert the correct values for the fill indices for this slice                    
+            A_indices = self.insert_multiple(slice_, fill_indices, slice_indices) #here we insert the correct values for the fill indices for this slice    
             A_o[tuple(A_indices)] = A_slice
         return A_o   
 
@@ -285,7 +290,7 @@ class GenerativeModelSuper(object):
 
         return E
     
-    def generate_indices_for_policy_updating(self):
+    def generate_indices_for_policy_updating(self, informative_dims):
         
         reshape_dims_base = np.ones(len(self.num_controls),dtype=int)
         reshape_dims_per_modality = []
@@ -293,7 +298,7 @@ class GenerativeModelSuper(object):
 
         for g in range(self.num_modalities):
             tmp = reshape_dims_base.copy()
-            control_idx = np.intersect1d(self.informative_dims[g], self.control_factor_idx)
+            control_idx = np.array(np.intersect1d(informative_dims[g], self.control_factor_idx),dtype=int)
             tmp[control_idx] = np.array(self.num_controls)[list(control_idx)]
 
             reshape_dims_per_modality.append(tuple(tmp))
