@@ -44,12 +44,12 @@ G = initialize_network(G, agent_constructor_params, T = T)
 
 # %% Run simulation
 G = run_simulation(G, T = T)
-all_qs = collect_idea_beliefs(G)
+all_qs = collect_idea_beliefs(G) # a matrix of posterior beliefs about the idea
 
 plt.plot(all_qs[:,0,:])
 
-all_neighbour_samplings = collect_sampling_history(G)
-all_tweets = collect_tweets(G)
+all_neighbour_samplings = collect_sampling_history(G) #all of the neighbour samplings
+all_tweets = collect_tweets(G) #all of the agetn tweets
 
 believers = np.where(all_qs[-1,0,:] > 0.5)
 nonbelievers = np.where(all_qs[-1,0,:] < 0.5)
@@ -60,7 +60,5 @@ adj_mat = nx.to_numpy_array(G)
 # from tempfile import TemporaryFile
 # outfile = TemporaryFile()
 
-fname = 'results/sbm_test' 
-np.savez(fname, adj_mat, all_qs, all_tweets)
 
-
+plt.show()
