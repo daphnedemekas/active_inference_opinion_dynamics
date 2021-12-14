@@ -143,8 +143,8 @@ def initialize_agent_params(G,
 
         initial_tweet, initial_neighbour_to_sample = np.random.randint(num_H), np.random.randint(num_neighbours) 
 
- 
-        ecb_precisions = np.ones((num_neighbours, idea_levels)) * ecb_precisions_all[i]
+        ecb_precisions = np.absolute(np.random.normal(ecb_precisions_all[i], size=(num_neighbours, idea_levels)))
+        #ecb_precisions = np.ones((num_neighbours, idea_levels)) * ecb_precisions_all[i]
         env_determinism = B_idea_precisions_all[i]
 
         #belief_determinism = np.absolute(np.random.normal(B_neighbour_precisions_all[i], variance, size=(num_neighbours,)) )

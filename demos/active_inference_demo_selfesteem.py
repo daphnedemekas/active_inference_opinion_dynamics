@@ -64,7 +64,7 @@ neighbour_0_tweets = 1*np.ones(T) # neighbour 1 tweets a bunch of Hashtag 1's
 neighbour_1_tweets = 2*np.ones(T) # neighbour 2 tweets a bunch of Hashtag 2's
 
 neighbour_0_rewards = 1*np.ones(T) # neighbour 1 tweets a bunch of Hashtag 1's
-neighbour_1_rewards = 2*np.ones(T) # neighbour 2 tweets a bunch of Hashtag 2's
+neighbour_1_rewards = 0*np.ones(T) # neighbour 2 tweets a bunch of Hashtag 2's
 
 my_first_neighbour = 0 #initial action 
 my_first_tweet = 0 #initial action 
@@ -73,15 +73,16 @@ my_first_reward = 0
 
 
 if my_first_neighbour == 0:
-    observation = (my_first_tweet, int(neighbour_0_tweets[0]), 0, my_first_neighbour, my_first_reward, neighbour_0_rewards[0])
+    observation = (my_first_tweet, int(neighbour_0_tweets[0]), 0,0, my_first_neighbour, my_first_reward, int(neighbour_0_rewards[0]),  int(neighbour_1_rewards[0]),int(neighbour_1_rewards[0]))
 elif my_first_neighbour == 1:
-    observation = (my_first_tweet, 0, int(neighbour_1_tweets[0]), my_first_neighbour, my_first_reward, neighbour_1_rewards[0])
+    observation = (my_first_tweet, 0, 0,int(neighbour_1_tweets[0]), my_first_neighbour, my_first_reward, int(neighbour_0_rewards[0]),int(neighbour_1_rewards[0]),int(neighbour_1_rewards[0]))
 
 #just initializing arrays for the plots 
 history_of_idea_beliefs = np.zeros((T,idea_levels)) # history of my own posterior over the truth/falsity of the idea
 history_of_beliefs_about_other = np.zeros((T,agent.genmodel.num_states[1],num_neighbours)) # histoyr of my posterior beliefs about the beliefs of my two neighbours about the truth/falsity of the idea
 
 #the first posterior distribution over states for timestep 0
+print(observation)
 qs = agent.infer_states(0, observation)
 
 #initializing the beliefs to start at 0.5

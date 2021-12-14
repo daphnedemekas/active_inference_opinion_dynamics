@@ -39,13 +39,11 @@ class GenerativeModel(GenerativeModelSuper):
         #observation: [what i tweeted, what my neighbours tweeted, who i observed, my self esteem, neighbours' esteem] 
         self.num_esteem_levels = 3
 
-        self.num_obs = [self.num_H]+ (self.num_neighbours) * [self.num_H+1] +  [self.num_neighbours]  + [self.num_esteem_levels] *2 # list that contains the dimensionalities of each observation modality 
+        self.num_obs = [self.num_H]+ (self.num_neighbours) * [self.num_H+1] +  [self.num_neighbours]  + [self.num_esteem_levels] * (1+self.num_neighbours)# list that contains the dimensionalities of each observation modality 
         self.num_modalities = len(self.num_obs) # total number of observation modalities
 
         self.focal_esteem_idx = self.who_obs_idx + 1
-        self.neighbour_esteem_idx = self.focal_esteem_idx + 1
-
-
+        self.neighbour_esteem_idx = [self.focal_esteem_idx + 1+ n for n in range(self.num_neighbours)]
  
         self.B = self.generate_transition()
         self.C = self.generate_prior_preferences()
@@ -122,23 +120,38 @@ class GenerativeModel(GenerativeModelSuper):
             elif o_idx == self.focal_esteem_idx:
                 #high esteem lends evidence to the idea being true (focal_idx)
                 dimensions = [self.num_esteem_levels] + self.num_states 
+                A_slice = np.zeros((self.num_esteem_levels, 2,2))
                 
-                uninformative_dimensions = np.delete(dimensions,[0,self.focal_belief_idx+1]) #only need to fill the first dimension
-                A_slice = np.array([[0.6,0.6],[0.3,0.3],[0.1,0.1]]) #TODO: generalise this with a parameter 
+                A_slice[0,0] = [0.8,0.2] #high esteem given focal agent believes 0 lends evidence to neighbour believing 0
+                A_slice[0,1] = [0.2,0.8] #high esteem given focal agent believes 1 lends evidence to neighbour believing 1
 
-                #for truth_level in range(self.num_states[self.focal_belief_idx]):
-                A[o_idx] = self.fill_slice(A[o_idx], A_slice,uninformative_dimensions, [0,self.focal_belief_idx+1], 
-                                [slice(0,self.num_esteem_levels), slice(0, self.num_states[self.focal_belief_idx])])
+                A_slice[1,0] = [0.6,0.4]
+                A_slice[1,1] = [0.4,0.6]
 
-            elif o_idx == self.neighbour_esteem_idx:
-                #high neighbour esteem leads to higher evidence for all neighbour beliefs being the truth level 
+                A_slice[2,0] = [0.3,0.7] #low esteem given focal agent believes 0 lends evidence to neighbour believing 1
+                A_slice[2,1] = [0.7,0.3] #loq esteem given focal agent believes 1 lends evidence to neighbour believing 0
+
                 for n in self.neighbour_belief_idx:
-                    print(n)
-                    informative_dimensions = [0,n+1]
-                    uninformative_dimensions = np.delete(dimensions, informative_dimensions)
+                    informative_dimensions = [0,self.focal_belief_idx+1,n+1]
 
-                    A[o_idx] = self.fill_slice(A[o_idx], A_slice,uninformative_dimensions, informative_dimensions,
-                                    [slice(0,self.num_esteem_levels), slice(0,self.num_states[n])])
+                    uninformative_dimensions = np.delete(dimensions,informative_dimensions) #only need to fill the first dimension
+
+                    A[o_idx] = self.fill_slice(A[o_idx], A_slice,uninformative_dimensions,informative_dimensions, 
+                                    [slice(0,self.num_esteem_levels), slice(0, self.num_states[self.focal_belief_idx]),slice(0, self.num_states[self.focal_belief_idx])])
+            elif o_idx in self.neighbour_esteem_idx:
+
+                current_neighbour = self.neighbour_belief_idx[o_idx - (self.num_neighbours+ 3)]
+
+                for n in self.neighbour_belief_idx:
+                    if n == current_neighbour:
+                        continue
+                    informative_dimensions = [0,current_neighbour+1,n+1]
+                    uninformative_dimensions = np.delete(dimensions,informative_dimensions) #only need to fill the first dimension
+                    A[o_idx] = self.fill_slice(A[o_idx], A_slice,uninformative_dimensions,informative_dimensions, 
+                                    [slice(0,self.num_esteem_levels), slice(0, self.num_states[self.focal_belief_idx]),slice(0, self.num_states[self.focal_belief_idx])])
+
+
+
 
         if self.reduce_A:
             self.A_reduced = obj_array(self.num_modalities)
