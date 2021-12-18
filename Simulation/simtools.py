@@ -7,7 +7,6 @@ import time
 from model.agent import Agent
 from model.pymdp import utils
 from model.pymdp.utils import softmax
-from analysis.analysis_tools import collect_idea_beliefs
 
 def generate_network(N,p):
     G = nx.fast_gnp_random_graph(N,p) # create the graph for this trial & condition
@@ -81,7 +80,8 @@ def initialize_agent_params(G,
                             B_neighbour_precisions = None, 
                             variance = None,
                             E_noise = None,
-                            reduce_A = None):
+                            c_params = None,
+                            optim_options = None):
     """
     Initialize dictionaries of agent-specific generative model parameters
     """
@@ -114,7 +114,16 @@ def initialize_agent_params(G,
         belief2tweet_mappings_all = {i: belief2tweet_mappings for i in G.nodes()}
     
     # set every single agent's ecb precision parameters, if not provided (min and max parameters of a uniform distribution)
-    ecb_precisions_all = {i: np.array(ecb_precisions) for i in G.nodes()}
+    if ecb_precisions is None:
+        mins = np.random.gamma(4.0,size = (num_agents, ))
+        ranges = np.hstack( (mins.reshape(-1,1), mins.reshape(-1,1) + ecb_spread )) # min and maxes of random uniform distributions
+        ecb_precisions_all = {}
+        for i in G.nodes():
+            ecb_precisions_all[i] = ranges[i,:]
+    elif ecb_precisions == False:
+        pass
+    else:
+        ecb_precisions_all = {i: np.array(ecb_precisions) for i in G.nodes()}
     
     if B_idea_precisions is None:
         mins = np.random.gamma(5.0,size = (num_agents, ))
@@ -133,7 +142,23 @@ def initialize_agent_params(G,
             B_neighbour_precisions_all[i] = ranges[i,:]
     else:
         B_neighbour_precisions_all = {i: np.array(B_neighbour_precisions) for i in G.nodes()}
-
+    
+    # set every single agent's prior preference parameters
+    # @ TODO: Make the cohesion_exp and cohension_temps, if not provided, drawn from some distribution (e.g. a Gamma distribution or something)
+    if c_params is None:
+        c_params_all = {}
+        for i in G.nodes():
+            c_params_all[i] = {
+                "preference_shape" : None,
+                "cohesion_exp" : None,
+                "cohesion_temp" : None
+                }
+    elif all (k in c_params for k in ("preference_shape","cohesion_exp", "cohesion_temp")):
+        c_params_all = { i : c_params for i in G.nodes() }
+    
+    if optim_options is None:
+        optim_options = {'reduce_A': True, 'reduce_A_inference': True, 'reduce_A_policies': True}
+    
     agent_constructor_params = {}
 
     store_parameters = utils.obj_array(len(G.nodes))
@@ -143,7 +168,11 @@ def initialize_agent_params(G,
 
         initial_tweet, initial_neighbour_to_sample = np.random.randint(num_H), np.random.randint(num_neighbours) 
 
-        ecb_precisions = np.absolute(np.random.normal(ecb_precisions_all[i], size=(num_neighbours, idea_levels)))
+        # ecb_precisions = [np.random.uniform(low = ecb_precisions_all[i][0], high = ecb_precisions_all[i][1], size = (idea_levels,) ) for n in range(num_neighbours)]
+        if ecb_precisions != False:
+            ecb_precisions_i = np.absolute(np.random.normal(ecb_precisions_all[i], variance, size=(num_neighbours, idea_levels)))
+        else:
+            ecb_precisions_i = False
         #ecb_precisions = np.ones((num_neighbours, idea_levels)) * ecb_precisions_all[i]
         env_determinism = B_idea_precisions_all[i]
 
@@ -159,27 +188,31 @@ def initialize_agent_params(G,
 
         agent_constructor_params[i] = {
 
-                "neighbour_params" : {
-                    "ecb_precisions" : ecb_precisions,
-                    "num_neighbours" : num_neighbours,
-                    "env_determinism": 9,
-                    "belief_determinism": belief_determinism
-                    },
+            "neighbour_params" : {
+                "ecb_precisions" :  ecb_precisions_i,
+                "num_neighbours" : num_neighbours,
+                "env_determinism":  env_determinism,
+                "belief_determinism": belief_determinism
+                },
 
-                "idea_mapping_params" : {
-                    "num_H" : num_H,
-                    "idea_levels": idea_levels,
-                    "h_idea_mapping": h_idea_mapping
-                    },
+            "idea_mapping_params" : {
+                "num_H" : num_H,
+                "idea_levels": idea_levels,
+                "h_idea_mapping": h_idea_mapping
+                },
 
-                "policy_params" : {
-                    "initial_action" : [initial_tweet, initial_neighbour_to_sample],
-                    "belief2tweet_mapping" : belief2tweet_mappings_all[i],
-                    "E_lr" : E_noise
-                    },
+            "policy_params" : {
+                "initial_action" : [initial_tweet, initial_neighbour_to_sample],
+                "belief2tweet_mapping" : belief2tweet_mappings_all[i],
+                "E_lr" : E_noise
+                },
 
-            }
-        
+            "C_params" : c_params_all[i],
+            "reduce_A": optim_options['reduce_A'],
+            'reduce_A_inference': optim_options['reduce_A_inference'],
+            "reduce_A_policies": optim_options['reduce_A_policies']
+        }
+
 
     return agent_constructor_params, store_parameters
 
@@ -218,7 +251,7 @@ def initialize_network(G, agent_constructor_params, T):
         single_node_attrs['q_pi'][agent_i] = np.empty((T, len(agent.genmodel.policies)), dtype=object) # history of the posterior beliefs about policies of `agent_i` 
 
         single_node_attrs['o'][agent_i] = np.zeros((T+1, agent.genmodel.num_modalities), dtype=int) # history of the indices of the observations made by `agent_i`. One extra time index for the last timestep, which has no subsequent active inference loop 
-
+      
         single_node_attrs['selected_actions'][agent_i] = np.zeros((T, 2),  dtype=int) # history indices of the actions selected by `agent_i`
 
         single_node_attrs['my_tweet'][agent_i] = np.zeros(T+1) # history of indices of `my_tweet` (same as G.nodes()[agent_i][`o`][:,0])
@@ -233,7 +266,7 @@ def initialize_network(G, agent_constructor_params, T):
     
     return G
 
-def run_simulation(G, T, esteem_model =True):
+def run_simulation(G, T):
 
     # run first timestep
     priors_over_policies = []
@@ -246,20 +279,18 @@ def run_simulation(G, T, esteem_model =True):
 
     for t in range(T):
         #print(str(t) + "/" + str(T))
-        G, infer_time_cost_t, control_time_cost_t = run_single_timestep(G, t, esteem_model)
+        G, infer_time_cost_t, control_time_cost_t = run_single_timestep(G, t)
     
     return G, infer_time_cost_t, control_time_cost_t
 
-def run_single_timestep(G, t, esteem_model = True):
+def run_single_timestep(G, t):
 
     # Two loops over agents, first to update beliefs given most recent observations and select actions, second loop to get new set of observations
     # First loop over agents: Do belief-updating (inference) and action selection
 
     inference_time_cost = 0
-
     control_time_cost = 0
-    print("t")
-    print(t)
+
     for i in G.nodes():
 
         node_attrs = G.nodes()[i]
@@ -267,9 +298,6 @@ def run_single_timestep(G, t, esteem_model = True):
         agent_i = node_attrs['agent']
 
         infer_start_time = time.time()
-        print(agent_i.genmodel.A_reduced.shape)
-        print(agent_i.genmodel.num_neighbours)
-        print(tuple(node_attrs['o'][t,:]))
         qs = agent_i.infer_states(t, tuple(node_attrs['o'][t,:]))
         infer_end_time = time.time()
 
@@ -290,78 +318,23 @@ def run_single_timestep(G, t, esteem_model = True):
             action = agent_i.sample_action()[-2:]
         node_attrs['selected_actions'][t,:] = action
     
-    if esteem_model:
-        all_qs = collect_idea_beliefs(G)
-        all_esteem_levels = calculate_esteem(all_qs)
-
     for i in G.nodes(): # get observations for next timestep
-        
-        G = get_observations_time_t(G,t+1, all_esteem_levels)
 
-
+        G = get_observations_time_t(G,t+1)
 
     return G, inference_time_cost, control_time_cost
 
-
-
-def calculate_esteem(all_qs, t, threshold_high = 3, threshold_low = 1):
-    """ all_qs is a numpy array of shape (timesteps, idea_levels, num_agents) 
-        t: the current timestep
-    
-    The esteem for each agent will be a functionn of how much their belief differs from the average beliefs of the group"""
-    num_agents = all_qs.shape[-1]
-
-    #average of everybody's qs_0 and calculate the difference between the agent's qs_0
-
-    #return the norm of a tuple (float)
-    
-    #observation = [reward, neutral, rejection]
-
-    #TODO: make the values into global parameters
-    agent_esteems = np.zeros(num_agents)
-
-    for agent in num_agents:
-        agent_belief = all_qs[t,:,agent] #array of len(idea_levels)
-        neighbour_belief_avg = np.average(all_qs[t,:,[np.arange(num_agents)!=agent]], axis = 0) #array of len(idea_levels) 
-        agent_std = np.std([agent_belief, neighbour_belief_avg]) #standard deviation between the agent and the norm 
-
-        if agent_std == 0:
-            #division by zero 
-            raise 
-
-        difference = np.linalg.norm(agent_belief - neighbour_belief_avg)
-        num_stds = (difference / agent_std)[0]
-
-        if num_stds < threshold_low: #agent is sufficiently close to the norm 
-            esteem = 0  #reward 
-        elif num_stds > threshold_high: #agent is sufficiently fara way from the norm 
-            esteem = 2  #rejection
-        else:
-            esteem = 1
-        agent_esteems[agent] = esteem 
-    return agent_esteems 
-
-
-def get_observations_time_t(G, t, all_esteem_levels = None):
-
-    #TODO: create observation_indices dictionary
-
-    #agent A 5 neighbours
-    #[my_tweet, neighbour1_tweet, neighbour2_tweet, neighbour3_tweet, neighbour$_Tweet, neighbour5_tweet, who_idx, my_Esteem_neighbour_esteem ]
-
-    #agent A 3 neighbours
-    #[my_tweet, neighbour1_tweet, neighbour2_tweet, neighbour3_tweet, who_idx, my_Esteem_neighbour_esteem ]
+def get_observations_time_t(G, t):
 
     for i in G.nodes():
 
         node_attrs = G.nodes()[i] # get attributes for the i-th node
         agent_i = node_attrs['agent']      # get agent class for the i-th node
-        num_neighbours = agent_i.genmodel.num_neighbours
         
         node_attrs['o'][t,0] = int(agent_i.action[-2])      # my first observation is what I'm tweeting
         node_attrs['my_tweet'][t] = int(agent_i.action[-2]) # what I'm tweeting
 
-        node_attrs['o'][t,num_neighbours + 1] = int(agent_i.action[-1]) # who_idx 
+        node_attrs['o'][t,-1] = int(agent_i.action[-1]) # my last observation is who I'm sampling
         which_neighbour = int(agent_i.action[-1]) # who I'm sampling
 
         global_neighbour_idx = node_attrs['self_global_label_mapping'][which_neighbour] # convert from 'local' (focal-agent-relative) neighbour index to global (network-relative) index
@@ -373,13 +346,7 @@ def get_observations_time_t(G, t, all_esteem_levels = None):
         node_attrs['other_tweet'][t] = int(sampled_node_attrs['agent'].action[-2]+1) # what they're tweeting, offset by +1 to account for the 0-th observation in my-reading-them modality (the null observation)
 
         node_attrs['o'][t,which_neighbour+1] = node_attrs['other_tweet'][t] # my observation in the (neighbour+1)-th modality is my neighbour's tweet (their 0-th control factor action) 
-        
-
-        if all_esteem_levels is not None:
-
-            node_attrs['o'][t,-num_neighbours-1] = all_esteem_levels[i]
-            node_attrs['o'][t,num_neighbours+3+which_neighbour] = all_esteem_levels[global_neighbour_idx] #index into the item in the observations of your neighbours' reward for the relevant neighbour that you just sampled
-        
+    
     return G
 
 def connect_edgeless_nodes(G):
