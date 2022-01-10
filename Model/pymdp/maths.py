@@ -346,7 +346,7 @@ def calc_free_energy(qs, prior, n_factors, likelihood=None):
         free_energy -= accuracy
     return free_energy
 
-def spm_MDP_G_optim(A, x, is_test = False):
+def spm_MDP_G(A, x, is_test = False):
     start = time.time()
     # Probability distribution over the hidden causes: i.e., Q(x)
     _, _, Ng, _ = utils.get_model_dimensions(A=A)
@@ -418,7 +418,7 @@ def spm_MDP_G_optim(A, x, is_test = False):
         return G
 
 
-def spm_MDP_G(A, x, is_test = False):
+def spm_MDP_G_optim(A, x, is_test = False):
     start = time.time()
     """
     Calculates the Bayesian surprise in the same way as spm_MDP_G.m does in 

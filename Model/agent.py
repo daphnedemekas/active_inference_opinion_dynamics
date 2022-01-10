@@ -51,10 +51,10 @@ class Agent(object):
                 empirical_prior[f] = spm_log(self.genmodel.B[f][:,:, int(self.action[f])].dot(self.qs[f]))
         
         if self.reduce_A_inference:
-            print(self.genmodel.informative_dims)
-            print(len(self.genmodel.informative_dims))
-            #qs = update_posterior_states_factorized(observation, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.num_states, prior = empirical_prior, **self.inference_params)
-            qs = update_posterior_states(observation, self.genmodel.A, prior=empirical_prior, **self.inference_params)
+            #print(self.genmodel.informative_dims)
+            #print(len(self.genmodel.informative_dims))
+            qs = update_posterior_states_factorized(observation, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.num_states, prior = empirical_prior, **self.inference_params)
+            #qs = update_posterior_states(observation, self.genmodel.A, prior=empirical_prior, **self.inference_params)
 
         else:
             qs = update_posterior_states(observation, self.genmodel.A, prior=empirical_prior, **self.inference_params)
@@ -74,7 +74,7 @@ class Agent(object):
         posterior_E = belief_component_E + neighbour_bias
 
        # q_pi, neg_efe = update_posterior_policies_reduced_vectorized(self.qs, self.genmodel.A_reduced, self.genmodel.B, self.genmodel.C, posterior_E, self.genmodel.policies, self.genmodel.informative_dims, self.genmodel.reshape_dims_per_modality, self.genmodel.tile_dims_per_modality, **self.policy_hyperparams)
-        q_pi, neg_efe = update_posterior_policies_reduced_vectorized(self.qs, self.genmodel.A_reduced, self.genmodel.B, self.genmodel.C, posterior_E, self.genmodel.policies, self.genmodel.informative_dims, self.genmodel.reshape_dims_per_modality, self.genmodel.tile_dims_per_modality, **self.policy_hyperparams)
+        q_pi, neg_efe = update_posterior_policies(self.qs, self.genmodel.A,self.genmodel.B, self.genmodel.C, self.genmodel.policies, **self.policy_hyperparams)
 
         self.q_pi = q_pi
         self.neg_efe = neg_efe
