@@ -1,6 +1,8 @@
 
 import numpy as np
 
+from model.pymdp.maths import EPS_VAL
+
 """ Utility functions
 
 __author__: Conor Heins, Alexander Tschantz, Brennan Klein
@@ -119,11 +121,12 @@ def get_model_dimensions(A=None, B=None):
 
 
 def norm_dist(dist):
+    dist = dist + EPS_VAL
     if len(dist.shape) == 3:
         new_dist = np.zeros_like(dist)
         for c in range(dist.shape[2]):
             new_dist[:, :, c] = np.divide(dist[:, :, c], dist[:, :, c].sum(axis=0))
-        return new_dist
+        return new_dist 
     else:
         return np.divide(dist, dist.sum(axis=0))
 

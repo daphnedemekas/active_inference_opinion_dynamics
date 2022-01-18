@@ -28,7 +28,12 @@ class GenerativeModel(GenerativeModelSuper):
         env_determinism = 9,
         belief_determinism = None,
 
-        reduce_A = False
+        reduce_A = False, 
+
+        esteem_parameters = []
+
+
+
 
 
     ):
@@ -118,7 +123,6 @@ class GenerativeModel(GenerativeModelSuper):
 
 
             elif o_idx == self.focal_esteem_idx:
-                print(o_idx)
                 A_slice = np.zeros((3,2,2))
                 A_slice[0,0] = [0.8,0.2] #high esteem given focal agent believes 0 lends evidence to neighbour believing 0
                 A_slice[0,1] = [0.2,0.8] #high esteem given focal agent believes 1 lends evidence to neighbour believing 1
@@ -126,52 +130,46 @@ class GenerativeModel(GenerativeModelSuper):
                 A_slice[1,0] = [0.6,0.4] #medium esteem given focal agent believes 0 lends (less) evidence to neighbour believing 0
                 A_slice[1,1] = [0.4,0.6] #medium esteem given focal agent believes 1 lends (less) evidence to neighbour believing 1
 
-                A_slice[2,0] = [0.7,0.3] #low esteem given focal agent believes 0 lends evidence to neighbour believing 1
-                A_slice[2,1] = [0.3,0.7]#loq esteem given focal agent believes 1 lends evidence to neighbour believing 0
-                """
-                for neighbour_i in range(self.num_states[self.who_idx]): 
-                    broadcast_dims = [1] + self.num_states
-                    idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
-                    idx_vec_o[self.who_idx] = slice(neighbour_i,neighbour_i+1,None)
-                    idx_vec_o[neighbour_i+1] = slice(0,2,None)
+                A_slice[2,0] = [0.3,0.7] #low esteem given focal agent believes 0 lends evidence to neighbour believing 1
+                A_slice[2,1] = [0.7,0.3]#loq esteem given focal agent believes 1 lends evidence to neighbour believing 0
 
-                    #idx_vec_o[self.who_idx+1] = slice(0,2,None)
 
-                    my_shape = A[o_idx][tuple(idx_vec_o)].shape
-                    print(my_shape)
-                    A[o_idx][tuple(idx_vec_o)] = np.tile(A_slice, 2**(self.num_neighbours)).reshape(my_shape)
-                """
+                idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
 
-                belief_slice_shape = A[o_idx][:,:,:,:,:,0,0].shape
 
                 #iterate over hashtag state and who_idx state and copy over the template matrix for each neighbour
-                for j in range(self.num_H):
-                    for i in range(self.num_neighbours):
-                        A[o_idx][:,:,:,:,:,j,i] = np.tile(A_slice, 2**(self.num_neighbours-1)).reshape(belief_slice_shape)
-            
-                # print("high focal esteem for the same belief (A[o_idx][0,0,0,0,0,0,:])")
-                # print(A[o_idx][0,0,0,0,0,0,:])
 
-                # print()
-                # print("high focal esteem and different belief (A[o_idx][0,0,1,1,1,0,:])")
-                # print(A[o_idx][0,0,1,1,1,0,:])
-                # print("Medium esteem and the same belief (A[o_idx][1,0,0,0,0,0,:]")
-                # print(A[o_idx][1,0,0,0,0,0,:])
+                for i in range(self.num_neighbours):
 
-                # print("Medium focal esteem and different belief (A[o_idx][1,0,1,1,1,0,:])")
-                # print(A[o_idx][1,0,1,1,1,0,:])
+                    reshape_vec = np.ones(len(self.num_states), dtype = int)
+                    reshape_vec[0] = self.num_esteem_levels
+                    reshape_vec[1] = self.idea_levels
+                    reshape_vec[i+2] = self.idea_levels
+                    
+                    broadcast_dims = np.ones(len(self.num_states), dtype = int) 
+                    other_neighbours = list(set(list(range(2,self.num_neighbours+2))) - set([i+2])) 
+                    broadcast_dims[np.array(other_neighbours)] = int(self.idea_levels)
 
-
-                # print()     
-                # print("Low esteem and the same belief (A[o_idx][2,0,0,0,0,0,:])")
-                # print(A[o_idx][2,0,0,0,0,0,:])
-
-                # print("Low focal esteem and different belief (A[o_idx][2,0,1,1,1,0,:]")
-                # print(A[o_idx][2,0,1,1,1,0,:])xw
+                    broadcast_dims[-1] = int(self.num_H)
 
                 
+                    print(np.tile(A_slice.reshape(reshape_vec), tuple(broadcast_dims)).shape)
+
+
+                    idx_vec_o[-1] = i
+
+                    A[o_idx][tuple(idx_vec_o)] = np.tile(A_slice.reshape(reshape_vec), tuple(broadcast_dims))
+
+                print("high focal esteem for the same belief (A[o_idx][0,0,0,0,0,0,:])")
+
+                print(A[o_idx][:,:,0,0,0,0,0])
+                print(A[o_idx][:,:,1,0,0,0,0])
+
+                print(A[o_idx][:,:,0,0,0,0,1])
+                print(A[o_idx][:,:,1,0,0,0,1])
+
+                raise
             elif o_idx in self.neighbour_esteem_idx:
-                print("HEllo?")
                 n_idx = o_idx - 1 - self.focal_esteem_idx
 
                 print(n_idx)

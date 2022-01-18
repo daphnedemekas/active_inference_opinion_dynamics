@@ -88,7 +88,7 @@ class GenerativeModel(GenerativeModelSuper):
     ):
         super().__init__(ecb_precisions, num_neighbours, num_H,idea_levels,initial_action, h_idea_mapping,belief2tweet_mapping ,E_lr ,env_determinism,belief_determinism,reduce_A)
 
-        self.num_obs = [self.num_H] + (self.num_neighbours) * [self.num_H+1] + [self.num_neighbours] + [2] # list that contains the dimensionalities of each observation modality 
+        self.num_obs = [self.num_H] + (self.num_neighbours) * [self.num_H+1] + [self.num_neighbours] + [2]# list that contains the dimensionalities of each observation modality 
 
         self.num_modalities = len(self.num_obs) # total number of observation modalities
 
@@ -364,6 +364,8 @@ class GenerativeModel(GenerativeModelSuper):
             if o_idx == self.who_obs_idx:   #this is the observation modality corresponding to which neighbour the agent is samplign 
                 A[o_idx] = self.po_who_given_s(A[o_idx], o_idx)
 
+        A[-1] = utils.norm_dist(A[-1]) #normalise the final slice (TODO: fill this out)
+        
         if self.reduce_A:
             self.A_reduced = obj_array(self.num_modalities)
             informative_dims = []
@@ -373,6 +375,8 @@ class GenerativeModel(GenerativeModelSuper):
             self.informative_dims = informative_dims
             
             self.reshape_dims_per_modality, self.tile_dims_per_modality = self.generate_indices_for_policy_updating(informative_dims)
+
+        
         self.A = A
         return A
 

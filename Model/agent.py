@@ -1,5 +1,5 @@
 import numpy as np
-from .genmodel_self_esteem import GenerativeModel
+from .genmodel_sequencing import GenerativeModel
 from .pymdp.inference import *
 from .pymdp.control import *
 from .pymdp.learning import *
