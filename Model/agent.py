@@ -1,5 +1,7 @@
 import numpy as np
-from .genmodel_sequencing import GenerativeModel
+from .genmodel_self_esteem import GenerativeModel as GenModSE
+from .genmodel_sequencing import GenerativeModel as GenModSQ
+
 from .pymdp.inference import *
 from .pymdp.control import *
 from .pymdp.learning import *
@@ -15,10 +17,15 @@ class Agent(object):
         policy_params,
         reduce_A = True,
         reduce_A_inference = True,
-        reduce_A_policies = True   
-        ):            
+        reduce_A_policies = True,
+        model = "self_esteem"   
+        ):       
 
-        self.genmodel = GenerativeModel(reduce_A = reduce_A, **neighbour_params, **idea_mapping_params, **policy_params)
+        if model == "self_esteem":     
+            self.genmodel = GenModSE(reduce_A = reduce_A, **neighbour_params, **idea_mapping_params, **policy_params)
+        elif model == "sequencing":
+            self.genmodel = GenModSQ(reduce_A = reduce_A, **neighbour_params, **idea_mapping_params, **policy_params)
+        self.model = model
         self.action = np.zeros(len(self.genmodel.num_states),dtype=int)
 
         self.reduce_A_inference = reduce_A_inference

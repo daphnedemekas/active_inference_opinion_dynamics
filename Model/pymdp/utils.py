@@ -1,7 +1,7 @@
 
 import numpy as np
 
-from model.pymdp.maths import EPS_VAL
+EPS_VAL = 1e-16 # global constant for use in spm_log() function
 
 """ Utility functions
 

@@ -156,3 +156,5 @@ for i, ecb in enumerate(np.linspace(3,9,2)):
         plt.ylabel("Neighbour")
         plt.xlabel("Time")
         #plt.savefig("test2")
+
+#TODO: rewrite the code to make a 3 agent demo and then calculate the esteem kinda hardcoded each time 

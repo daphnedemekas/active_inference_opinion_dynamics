@@ -13,6 +13,8 @@ from . import utils
 from scipy import special
 from itertools import chain
 import time 
+
+
 EPS_VAL = 1e-16 # global constant for use in spm_log() function
 
 def spm_dot(X, x, dims_to_omit=None):

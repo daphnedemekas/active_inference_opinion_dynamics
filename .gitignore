@@ -1,1 +1,5 @@
 analysis/data/
+demos/__pycache__/
+Model/__pycache__/
+Model/pymdp/__pycache__/
+Simulation/__pycache__/

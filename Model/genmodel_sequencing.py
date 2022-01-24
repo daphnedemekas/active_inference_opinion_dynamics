@@ -1,9 +1,9 @@
 import numpy as np 
 import itertools
 import time
-from pymdp.utils import obj_array, obj_array_uniform, onehot, reduce_a_matrix
-from pymdp.maths import *
-from pymdp.learning import *
+from .pymdp.utils import obj_array, obj_array_uniform, onehot, reduce_a_matrix
+from .pymdp.maths import *
+from .pymdp.learning import *
 import warnings 
 from .generative_model import GenerativeModelSuper
 

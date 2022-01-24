@@ -1,9 +1,9 @@
 import numpy as np 
 import itertools
 import time
-from pymdp.utils import obj_array, obj_array_uniform, insert_multiple, onehot, reduce_a_matrix
-from pymdp.maths import *
-from pymdp.learning import *
+from .pymdp.utils import obj_array, obj_array_uniform, insert_multiple, onehot, reduce_a_matrix
+from .pymdp.maths import *
+from .pymdp.learning import *
 import warnings 
 from .generative_model import GenerativeModelSuper
 
@@ -127,74 +127,77 @@ class GenerativeModel(GenerativeModelSuper):
                 A_slice[0,0] = [0.8,0.2] #high esteem given focal agent believes 0 lends evidence to neighbour believing 0
                 A_slice[0,1] = [0.2,0.8] #high esteem given focal agent believes 1 lends evidence to neighbour believing 1
 
-                A_slice[1,0] = [0.6,0.4] #medium esteem given focal agent believes 0 lends (less) evidence to neighbour believing 0
-                A_slice[1,1] = [0.4,0.6] #medium esteem given focal agent believes 1 lends (less) evidence to neighbour believing 1
+                A_slice[1,0] = [0.5,0.5] #medium esteem given focal agent believes 0 lends (less) evidence to neighbour believing 0
+                A_slice[1,1] = [0.5,0.5] #medium esteem given focal agent believes 1 lends (less) evidence to neighbour believing 1
 
                 A_slice[2,0] = [0.3,0.7] #low esteem given focal agent believes 0 lends evidence to neighbour believing 1
                 A_slice[2,1] = [0.7,0.3]#loq esteem given focal agent believes 1 lends evidence to neighbour believing 0
 
 
                 idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
-
-
                 #iterate over hashtag state and who_idx state and copy over the template matrix for each neighbour
 
                 for i in range(self.num_neighbours):
 
                     reshape_vec = np.ones(len(self.num_states), dtype = int)
-                    reshape_vec[0] = self.num_esteem_levels
-                    reshape_vec[1] = self.idea_levels
-                    reshape_vec[i+2] = self.idea_levels
+                    reshape_vec[0] = self.num_esteem_levels #first dimension is the levels of the esteem observation modality 
+                    reshape_vec[1] = self.idea_levels #second dimension is the focal agent's own belief 
+                    reshape_vec[i+2] = self.idea_levels #third dimensions is the beliefs of the sampled neighbour  
                     
                     broadcast_dims = np.ones(len(self.num_states), dtype = int) 
-                    other_neighbours = list(set(list(range(2,self.num_neighbours+2))) - set([i+2])) 
+                    other_neighbours = list(set(list(range(2,self.num_neighbours+2))) - set([i+2])) #we broadcast over all of the remaining neighbours 
                     broadcast_dims[np.array(other_neighbours)] = int(self.idea_levels)
 
                     broadcast_dims[-1] = int(self.num_H)
-
-                
-                    print(np.tile(A_slice.reshape(reshape_vec), tuple(broadcast_dims)).shape)
-
 
                     idx_vec_o[-1] = i
 
                     A[o_idx][tuple(idx_vec_o)] = np.tile(A_slice.reshape(reshape_vec), tuple(broadcast_dims))
 
-                print("high focal esteem for the same belief (A[o_idx][0,0,0,0,0,0,:])")
+                """
+                    print("high focal esteem for the same belief (A[o_idx][0,0,0,0,0,0,:])")
 
-                print(A[o_idx][:,:,0,0,0,0,0])
-                print(A[o_idx][:,:,1,0,0,0,0])
+                    print(A[o_idx][:,:,0,0,0,0,0])
+                    print(A[o_idx][:,:,1,0,0,0,0])
 
-                print(A[o_idx][:,:,0,0,0,0,1])
-                print(A[o_idx][:,:,1,0,0,0,1])
-
-                raise
+                    print(A[o_idx][:,:,0,0,0,0,1])
+                    print(A[o_idx][:,:,1,0,0,0,1])
+                    """
             elif o_idx in self.neighbour_esteem_idx:
-                n_idx = o_idx - 1 - self.focal_esteem_idx
+                n_idx = o_idx - self.who_obs_idx -2
 
                 print(n_idx)
-                for j in range(self.num_H):
-                    A[o_idx][:,:,:,:,:,j,n_idx] = np.tile(A_slice, 2**(self.num_neighbours-1)).reshape(belief_slice_shape)
-                
-                print("high focal esteem for the same belief (A[o_idx][0,0,0,0,0,0,:])")
-                print(A[o_idx][0,0,0,0,0,0,:])
+                idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
+                #iterate over hashtag state and who_idx state and copy over the template matrix for each neighbour
 
-                #print(A[o_idx][0,0,:,:,:,1,:])
-                print()
-                print("high focal esteem and different belief (A[o_idx][0,0,1,1,1,0,:])")
-                print(A[o_idx][0,0,1,1,1,0,:])
-                print("Medium esteem and the same belief (A[o_idx][1,0,0,0,0,0,:]")
-                print(A[o_idx][1,0,0,0,0,0,:])
+                for i in range(self.num_neighbours):
+                    if i == n_idx:
+                        continue
+                    
+                    reshape_vec = np.ones(len(self.num_states), dtype = int)
+                    reshape_vec[0] = self.num_esteem_levels #first dimension is the levels of the esteem observation modality
+                    reshape_vec[n_idx+2] = self.idea_levels #second dimension is the esteem-observed neighbours' beliefs 
+                    reshape_vec[i+2] = self.idea_levels #third dimension is the sampled neighbours' belief 
 
-                print("Medium focal esteem and different belief (A[o_idx][1,0,1,1,1,0,:])")
-                print(A[o_idx][1,0,1,1,1,0,:])
+                    broadcast_dims = np.ones(len(self.num_states), dtype = int) 
+                    other_neighbours = list(set([1] + list(range(2,self.num_neighbours+2))) - set([i+2, n_idx+2])) 
+                    broadcast_dims[np.array(other_neighbours)] = int(self.idea_levels)
 
-                print()     
-                print("Low esteem and the same belief (A[o_idx][2,0,0,0,0,0,:])")
-                print(A[o_idx][2,0,0,0,0,0,:])
+                    broadcast_dims[-1] = int(self.num_H)
 
-                print("Low focal esteem and different belief (A[o_idx][2,0,1,1,1,0,:]")
-                print(A[o_idx][2,0,1,1,1,0,:])
+                    idx_vec_o[-1] = i
+
+                    A[o_idx][tuple(idx_vec_o)] = np.tile(A_slice.reshape(reshape_vec), tuple(broadcast_dims))
+                    """
+                    print("high focal esteem for the same belief (A[o_idx][0,0,0,0,0,0,:])")
+
+                    print(A[o_idx][:,0,0,:,0,0,1])
+                    print(A[o_idx][:,0,1,:,0,0,1])
+
+                    print(A[o_idx][:,1,:,0,0,0,1])
+                    print(A[o_idx][:,0,:,0,0,0,1])
+                    """
+        
         if self.reduce_A:
             self.A_reduced = obj_array(self.num_modalities)
             informative_dims = []
@@ -202,11 +205,9 @@ class GenerativeModel(GenerativeModelSuper):
                 self.A_reduced[g], factor_idx = reduce_a_matrix(A[g])
                 informative_dims.append(factor_idx)
             self.informative_dims = informative_dims
-            print(self.informative_dims)
             
             self.reshape_dims_per_modality, self.tile_dims_per_modality = self.generate_indices_for_policy_updating(informative_dims)
-            A = self.A_reduced 
-        self.A = A
+        self.A = A 
         return A
 
 
