@@ -8,6 +8,13 @@ import warnings
 from .generative_model import GenerativeModelSuper
 
 
+"""TODO: need to add the ability to choose not to tweet anything
+- extend the action space to "say nothing"
+probability of performing the do nothing action in B matrix -- if you are less certain about your beliefs, you are less likely to tweet 
+- can also include some parameter for each agent which is just inherently how likely they are to tweet (extroverted)
+"power dynamics" - people who are confident will be the "loudest" - will want to investigate whether those "extroverted" ideas dominate
+"""
+
 class GenerativeModel(GenerativeModelSuper):
 
     def __init__(

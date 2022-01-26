@@ -52,11 +52,8 @@ fig.set_figwidth(20)
 env_d = 8
 c = 0
 for i, ecb in enumerate(np.linspace(3,9,2)):
-    print("ECB")
-    print(ecb)
     for j, belief_d in enumerate(np.linspace(3,9,2)):
-        print("BELIEF D")
-        print(belief_d)
+
         agent_params = agent_p(belief_d = belief_d, env_d = env_d, ecb = ecb, learning_rate = 0.3)
         
         agent = Agent(**agent_params,reduce_A=True)
@@ -158,3 +155,4 @@ for i, ecb in enumerate(np.linspace(3,9,2)):
         #plt.savefig("test2")
 
 #TODO: rewrite the code to make a 3 agent demo and then calculate the esteem kinda hardcoded each time 
+#put all this shit in functions

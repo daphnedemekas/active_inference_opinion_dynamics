@@ -101,7 +101,7 @@ def initialize_agent_params(G,
     return agent_constructor_params
 
 
-def initialize_network(G, agent_constructor_params, T):
+def initialize_network(G, agent_constructor_params, T, model):
     """
     Initializes a network object G that stores agent-level information (e.g. parameters of individual
     generative models, global node-indices, ...) and information about the generative process.
@@ -123,7 +123,7 @@ def initialize_network(G, agent_constructor_params, T):
     
     for agent_i in G.nodes():
 
-        agent = Agent(**agent_constructor_params[agent_i])
+        agent = Agent(**agent_constructor_params[agent_i], model = model)
         self_global_label_mapping = dict(zip(range(G.degree(agent_i)), list(nx.neighbors(G, agent_i))))
 
         single_node_attrs['agent'][agent_i] = agent
@@ -173,7 +173,6 @@ def get_observations_time_t(G, t, model):
 
         node_attrs['o'][t,agent_i.genmodel.who_obs_idx] = int(agent_i.action[agent_i.genmodel.who_idx]) # my last observation is who I'm sampling
 
-
         which_neighbour = int(agent_i.action[agent_i.genmodel.who_idx]) # who I'm sampling
 
         global_neighbour_idx = node_attrs['self_global_label_mapping'][which_neighbour] # convert from 'local' (focal-agent-relative) neighbour index to global (network-relative) index
@@ -198,14 +197,18 @@ def get_observations_time_t(G, t, model):
                 node_attrs['o'][t,agent_i.genmodel.focal_esteem_idx] = focal_esteem #calculated using a threshold on the number of standard deviations between the focal agent's belief and the average belief
                 for i, idx in enumerate(agent_i.genmodel.neighbour_esteem_idx):
                     global_neighbour_idx = node_attrs['self_global_label_mapping'][i] # convert from 'local' (focal-agent-relative) neighbour index to global (network-relative) index
+                    
                     neighbour_esteem = calculate_esteem(G.nodes()[global_neighbour_idx]['qs'][t-1,0], belief_mu, belief_std) #calculated using a threshold on the number of standard deviations between the neighbours' belief and the average belief
                     node_attrs['o'][t,idx] = neighbour_esteem
+
+                    #here i would need to get the expected state for each agent 
 
                 # node_attrs['o'][t,idx] = calculate_esteem(agent_i.qs[i+1], belief_mu, belief_std) #calculated using a threshold on the number of standard deviations between the focal agent's belief about the neighbours' belief and the average belief
                     #TODO: should we be using the focal agent's belief about the neighbours' belief or the neighbours actual belief to generate the focal agent's observation of the neighbours' esteem?
     return G
 
 def calculate_esteem(qs, belief_mu, belief_std):
+    """ This function measures the number of standard deviations away the qs is from the average belief"""
     difference = np.absolute(qs - belief_mu)
     num_stds = np.mean(difference / belief_std)
     if num_stds < 0.8: 
@@ -213,6 +216,19 @@ def calculate_esteem(qs, belief_mu, belief_std):
     if num_stds > 1.3: 
         return 2
     return 1
+
+def calculate_esteem_as_KL(expected_state, real_state):
+    """ This function should generate the esteem observation for all agents at any time step"""
+
+    """Should be a KL divergence between the expected state and the real state"""
+
+    """ Input: a vector of the expected states for each agent as well as the real state at that time step
+    Output: The KL divergence (scalar) for each agent between those two vectors 
+            Need to convert this into three distinct thresholds for generating the esteem observation """ 
+    
+    pass 
+
+
 
 def run_simulation(G, T, model = None):
 
@@ -234,20 +250,25 @@ def run_single_timestep(G, t, model = None):
         node_attrs = G.nodes()[i]
 
         agent_i = node_attrs['agent']
-        print("observation: " + str(tuple(node_attrs['o'][t,:])))
+        #print("observation: " + str(tuple(node_attrs['o'][t,:])))
         qs = agent_i.infer_states(t, tuple(node_attrs['o'][t,:]))
 
         node_attrs['qs'][t,:] = copy.deepcopy(qs) 
+        #print("qs")
+        #print(qs)
 
         q_pi = agent_i.infer_policies()
-
+        #print("Q_pi")
+        #print(q_pi)
         node_attrs['q_pi'][t,:] = np.copy(q_pi)
         if t == 0:
             action = agent_i.action[[agent_i.genmodel.h_control_idx, agent_i.genmodel.who_idx] ]
         else:
 
-            action = agent_i.sample_action()[[agent_i.genmodel.h_control_idx, agent_i.genmodel.who_idx]]
-
+            action = agent_i.sample_action()
+           # print("Action: " + str(action))
+            action = action[[[agent_i.genmodel.h_control_idx, agent_i.genmodel.who_idx]]
+]
         node_attrs['selected_actions'][t,:] = action
     
     for i in G.nodes(): # get observations for next timestep
