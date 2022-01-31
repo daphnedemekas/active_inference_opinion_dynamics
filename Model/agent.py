@@ -15,16 +15,15 @@ class Agent(object):
         neighbour_params,
         idea_mapping_params,
         policy_params,
+        model_params,
         reduce_A = True,
         reduce_A_inference = True,
         reduce_A_policies = True,
-        model = "self_esteem"   
+        model = None
         ):       
 
-        if model == "self_esteem":     
-            self.genmodel = GenModSE(reduce_A = reduce_A, **neighbour_params, **idea_mapping_params, **policy_params)
-        elif model == "sequencing":
-            self.genmodel = GenModSQ(reduce_A = reduce_A, **neighbour_params, **idea_mapping_params, **policy_params)
+        self.genmodel = GenModSE(reduce_A = reduce_A, **neighbour_params, **idea_mapping_params, **policy_params, **model_params)
+
         self.model = model
         self.action = np.zeros(len(self.genmodel.num_states),dtype=int)
 

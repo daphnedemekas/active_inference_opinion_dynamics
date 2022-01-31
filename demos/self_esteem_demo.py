@@ -62,10 +62,13 @@ N = 4
 p = 1
 
 G = generate_network(N,p)
+esteem_parameters = [1.5,0.2,-1.5]
+
+model_parameters = { "esteem_parameters": esteem_parameters}
 
 agent_constructor_params = initialize_agent_params(G, h_idea_mapping = h_idea_mapping, \
                                     ecb_precisions = ecb, B_idea_precisions = env_d, \
-                                        B_neighbour_precisions = belief_d)
+                                        B_neighbour_precisions = belief_d, model = "self_esteem", model_parameters = model_parameters)
 
 G = initialize_network(G, agent_constructor_params, T = T, model = "self_esteem")
 

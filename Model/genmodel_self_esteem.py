@@ -37,9 +37,7 @@ class GenerativeModel(GenerativeModelSuper):
 
         reduce_A = False, 
 
-        esteem_parameters = []
-
-
+        esteem_parameters = [1.5,0.2,-1.5]
 
 
 
@@ -66,11 +64,16 @@ class GenerativeModel(GenerativeModelSuper):
 
         self.reduce_A = reduce_A
 
+        A_slice = np.zeros((self.num_esteem_levels,2,2))
+        for i in range(A_slice.shape[0]):
+            A_slice[i] = softmax(np.eye(2)*esteem_parameters[i])
+
+
         self.initialize_A()
-        self.generate_likelihood()
+        self.generate_likelihood(A_slice)
 
 
-    def generate_likelihood(self):
+    def generate_likelihood(self,A_slice):
 
         """ This function generates the A matrix mapping states to observations 
         The logic of this function is as followsL 
@@ -130,16 +133,6 @@ class GenerativeModel(GenerativeModelSuper):
 
 
             elif o_idx == self.focal_esteem_idx:
-                A_slice = np.zeros((3,2,2))
-                A_slice[0,0] = [0.8,0.2] #high esteem given focal agent believes 0 lends evidence to neighbour believing 0
-                A_slice[0,1] = [0.2,0.8] #high esteem given focal agent believes 1 lends evidence to neighbour believing 1
-
-                A_slice[1,0] = [0.5,0.5] #medium esteem given focal agent believes 0 lends (less) evidence to neighbour believing 0
-                A_slice[1,1] = [0.5,0.5] #medium esteem given focal agent believes 1 lends (less) evidence to neighbour believing 1
-
-                A_slice[2,0] = [0.3,0.7] #low esteem given focal agent believes 0 lends evidence to neighbour believing 1
-                A_slice[2,1] = [0.7,0.3]#loq esteem given focal agent believes 1 lends evidence to neighbour believing 0
-
 
                 idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
                 #iterate over hashtag state and who_idx state and copy over the template matrix for each neighbour
@@ -173,7 +166,6 @@ class GenerativeModel(GenerativeModelSuper):
             elif o_idx in self.neighbour_esteem_idx:
                 n_idx = o_idx - self.who_obs_idx -2
 
-                print(n_idx)
                 idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
                 #iterate over hashtag state and who_idx state and copy over the template matrix for each neighbour
 
@@ -234,7 +226,6 @@ class GenerativeModel(GenerativeModelSuper):
         Similarly for the state factor corresponding to which neighbour the agent is sampling, this should be identically mapped
         for the slice conditioned on the action of which neighbour the agent is sampling """
 
-        transition_identity = np.eye(self.idea_levels, self.num_H)
         B = obj_array(self.num_factors)
 
         for f_idx, f_dim in enumerate(self.num_states): #iterate over the state factors
@@ -274,10 +265,13 @@ class GenerativeModel(GenerativeModelSuper):
             for f_idx, f_dim in enumerate(self.num_states):
 
                 if f_idx == self.focal_belief_idx or f_idx in self.neighbour_belief_idx: #the first N+1 hidden state factors are variations of the identity matrix based on stubborness
-                    
-                    D[f_idx] = np.ones(f_dim)/f_dim
-                    #D[f_idx] = np.random.uniform(0,1,f_dim) #this is if we want the prior preferences to be uniform 
-                
+                    r = np.random.randint(0,2)
+                    #D[f_idx] = np.ones(f_dim)/f_dim
+                    if r == 0:
+                        D[f_idx] = np.random.uniform(0.1,0.4,f_dim) #this is if we want the prior preferences to be uniform 
+                    elif r == 1:
+                        D[f_idx] = np.random.uniform(0.6,0.9,f_dim) #this is if we want the prior preferences to be uniform 
+
                 elif f_idx == self.h_control_idx:
                     
                     D[f_idx] = onehot(initial_action[f_idx],f_dim)

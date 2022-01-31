@@ -51,7 +51,10 @@ class GenerativeModelSuper(object):
         env_determinism = 9,
         belief_determinism = None,
 
-        reduce_A = True
+        reduce_A = True,
+
+        model = "generic",
+        esteem_parameters  = None
 
     ):
 

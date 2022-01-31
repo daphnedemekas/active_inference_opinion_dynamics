@@ -33,7 +33,9 @@ def initialize_agent_params(G,
                             E_noise = None,
                             ecb_spread = 0.1,
                             volatility_spread = 0.1,
-                            optim_options = None):
+                            optim_options = None,
+                            model = None,
+                            model_parameters = None):
     """
     Initialize dictionaries of agent-specific generative model parameters
     """
@@ -95,6 +97,8 @@ def initialize_agent_params(G,
                 "belief2tweet_mapping" : belief2tweet_mappings_all[i],
                 "E_lr" : E_noise
                 },
+            
+            "model_params": model_parameters
 
         }
 
@@ -157,7 +161,6 @@ def get_observations_time_t(G, t, model):
         belief_mu =  np.mean([G.nodes[i]['qs'][t-1,0] for i in range(len(G.nodes()))],axis=0)
         belief_std =  np.std([G.nodes[i]['qs'][t-1,0] for i in range(len(G.nodes()))],axis=0)
        # print("average beliefs: " + str(belief_mu))
-       # print("belief std: " + str(belief_std))
     
     else: 
         belief_mu = belief_std = None
@@ -267,8 +270,8 @@ def run_single_timestep(G, t, model = None):
 
             action = agent_i.sample_action()
            # print("Action: " + str(action))
-            action = action[[[agent_i.genmodel.h_control_idx, agent_i.genmodel.who_idx]]
-]
+            action = action[tuple([[agent_i.genmodel.h_control_idx, agent_i.genmodel.who_idx]])]
+
         node_attrs['selected_actions'][t,:] = action
     
     for i in G.nodes(): # get observations for next timestep
