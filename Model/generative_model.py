@@ -53,9 +53,6 @@ class GenerativeModelSuper(object):
 
         reduce_A = True,
 
-        model = "generic",
-        esteem_parameters  = None
-
     ):
 
         
@@ -107,7 +104,6 @@ class GenerativeModelSuper(object):
         self.policies = self.generate_policies()
         self.E_lr = E_lr
         self.initial_action = initial_action
-
 
     def insert_multiple(self, s, indices, items):
         for idx in range(len(items)):

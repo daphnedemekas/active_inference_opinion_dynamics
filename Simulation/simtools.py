@@ -127,6 +127,7 @@ def initialize_network(G, agent_constructor_params, T, model):
     
     for agent_i in G.nodes():
 
+
         agent = Agent(**agent_constructor_params[agent_i], model = model)
         self_global_label_mapping = dict(zip(range(G.degree(agent_i)), list(nx.neighbors(G, agent_i))))
 

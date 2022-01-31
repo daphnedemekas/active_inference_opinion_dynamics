@@ -37,7 +37,8 @@ class GenerativeModel(GenerativeModelSuper):
 
         reduce_A = False, 
 
-        esteem_parameters = [1.5,0.2,-1.5]
+        esteem_parameters = [1.5,0.2,-1.5],
+        C_params = np.array([0,0,0])
 
 
 
@@ -56,7 +57,6 @@ class GenerativeModel(GenerativeModelSuper):
         self.neighbour_esteem_idx = [self.focal_esteem_idx + 1+ n for n in range(self.num_neighbours)]
  
         self.B = self.generate_transition()
-        self.C = self.generate_prior_preferences()
 
         self.E = np.ones(len(self.policies))
 
@@ -71,6 +71,7 @@ class GenerativeModel(GenerativeModelSuper):
 
         self.initialize_A()
         self.generate_likelihood(A_slice)
+        self.C = self.generate_prior_preferences(C_params)
 
 
     def generate_likelihood(self,A_slice):
@@ -244,14 +245,15 @@ class GenerativeModel(GenerativeModelSuper):
         return B
 
 
-    def generate_prior_preferences(self):
+    def generate_prior_preferences(self, C_params):
         C = obj_array(self.num_modalities)
 
         for o_idx, o_dim in enumerate(self.num_obs): 
             
             if o_idx == self.focal_esteem_idx: #the agent should prefer reward to rejection
-                C[o_idx] = [10,3,-5]
-            C[o_idx] = np.zeros(o_dim)
+                C[o_idx] = np.array(C_params)
+            else :
+                C[o_idx] = np.zeros(o_dim)
 
                 
         return C

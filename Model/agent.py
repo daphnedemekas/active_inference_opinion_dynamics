@@ -21,7 +21,6 @@ class Agent(object):
         reduce_A_policies = True,
         model = None
         ):       
-
         self.genmodel = GenModSE(reduce_A = reduce_A, **neighbour_params, **idea_mapping_params, **policy_params, **model_params)
 
         self.model = model
