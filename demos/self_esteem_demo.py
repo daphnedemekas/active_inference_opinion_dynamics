@@ -56,8 +56,8 @@ h_idea_mapping[:,1] = softmax(h_idea_mapping[:,1]*1.0)
 env_d = 8
 c = 0
 ecb = 4
-belief_d = 7
-T = 10 #the number of timesteps 
+belief_d = 4
+T = 50 #the number of timesteps 
 N = 4
 p = 1
 
