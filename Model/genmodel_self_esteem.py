@@ -73,6 +73,11 @@ class GenerativeModel(GenerativeModelSuper):
         self.generate_likelihood(A_slice)
         self.C = self.generate_prior_preferences(C_params)
 
+    def get_idea_mapping(self, neighbour_idx, o_dim):
+        h_idea_with_null = np.zeros((o_dim,self.num_states[neighbour_idx-1]))
+
+        h_idea_with_null[1:,:] = np.copy(self.h_idea_mapping) 
+        return h_idea_with_null  
 
     def generate_likelihood(self,A_slice):
 
@@ -109,7 +114,7 @@ class GenerativeModel(GenerativeModelSuper):
                 null_matrix = self.get_null_matrix(o_dim, o_idx) # create the null matrix to tile throughout the appropriate dimensions (this matrix is for the case when you're _not_ sampling the neighbour whose modality we're considering)
 
                 for truth_level in range(self.num_states[self.focal_belief_idx]): # the precision of the mapping is dependent on the truth value of the hidden state 
-                    h_idea_scaled_with_null, h_idea_with_null = self.scale_idea_mapping(o_idx, o_dim, truth_level)
+                    h_idea_with_null = self.get_idea_mapping(o_idx, o_dim, truth_level)
                     idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
                     idx_vec_o[self.focal_belief_idx+1] = slice(truth_level,truth_level+1,None)
                     
@@ -122,7 +127,7 @@ class GenerativeModel(GenerativeModelSuper):
                         reshape_vector = [o_dim] + [1] * self.num_factors
 
                         if (o_idx - 1) == neighbour_i: # this is the case when the observation modality in question `o_idx` corresponds to the modality of the neighbour we're sampling `who_i`               
-                            A[o_idx] = self.scale_A_by_ecb(A[o_idx] , neighbour_i, h_idea_scaled_with_null, h_idea_with_null, broadcast_dims_specific, idx_vec_o, reshape_vector, truth_level)
+                            A[o_idx] = self.fill_A(A[o_idx], neighbour_i, h_idea_with_null, broadcast_dims_specific, idx_vec_o, reshape_vector)
 
                         else: # this is the case when the observation modality in question `o_idx` corresponds to a modality _other than_ the neighbour we're sampling `who_i` 
                             reshape_vector[neighbour_i+2] = self.num_states[neighbour_i+1]

@@ -35,7 +35,7 @@ def initialize_agent_params(G,
                             volatility_spread = 0.1,
                             optim_options = None,
                             model = None,
-                            model_parameters = None):
+                            model_parameters = {}):
     """
     Initialize dictionaries of agent-specific generative model parameters
     """
@@ -140,7 +140,8 @@ def initialize_network(G, agent_constructor_params, T, model):
         single_node_attrs['q_pi'][agent_i] = np.empty((T, len(agent.genmodel.policies)), dtype=object) # history of the posterior beliefs about policies of `agent_i` 
 
         single_node_attrs['o'][agent_i] = np.zeros((T+1, agent.genmodel.num_modalities), dtype=int) # history of the indices of the observations made by `agent_i`. One extra time index for the last timestep, which has no subsequent active inference loop 
-      
+
+        #todo: generalize the 2 to be the number of control states
         single_node_attrs['selected_actions'][agent_i] = np.zeros((T, 2),  dtype=int) # history indices of the actions selected by `agent_i`
 
         single_node_attrs['my_tweet'][agent_i] = np.zeros(T+1) # history of indices of `my_tweet` (same as G.nodes()[agent_i][`o`][:,0])
@@ -173,6 +174,7 @@ def get_observations_time_t(G, t, model):
 
         node_attrs['o'][t,agent_i.genmodel.focal_h_idx] = int(agent_i.action[agent_i.genmodel.h_control_idx])      # my first observation is what I'm tweeting
         
+        #redundant
         node_attrs['my_tweet'][t] = int(agent_i.action[agent_i.genmodel.h_control_idx]) # what I'm tweeting
 
         node_attrs['o'][t,agent_i.genmodel.who_obs_idx] = int(agent_i.action[agent_i.genmodel.who_idx]) # my last observation is who I'm sampling
@@ -222,13 +224,17 @@ def calculate_esteem(qs, belief_mu, belief_std):
     return 1
 
 def calculate_esteem_as_KL(expected_state, real_state):
-    """ This function should generate the esteem observation for all agents at any time step"""
+    """ sum of action of "likes" which depends on KL divergence between focal belief and belief about neighbours' belief""
 
-    """Should be a KL divergence between the expected state and the real state"""
 
-    """ Input: a vector of the expected states for each agent as well as the real state at that time step
-    Output: The KL divergence (scalar) for each agent between those two vectors 
-            Need to convert this into three distinct thresholds for generating the esteem observation """ 
+def calculate_esteem_as_KL(expected_state, real_state):
+This function should generate the esteem observation for all agents at any time step
+
+Should be a KL divergence between the expected state and the real state
+
+Input: a vector of the expected states for each agent as well as the real state at that time step
+Output: The KL divergence (scalar) for each agent between those two vectors 
+Need to convert this into three distinct thresholds for generating the esteem observation """ 
     
     pass 
 
@@ -258,12 +264,9 @@ def run_single_timestep(G, t, model = None):
         qs = agent_i.infer_states(t, tuple(node_attrs['o'][t,:]))
 
         node_attrs['qs'][t,:] = copy.deepcopy(qs) 
-        #print("qs")
-        #print(qs)
 
         q_pi = agent_i.infer_policies()
-        #print("Q_pi")
-        #print(q_pi)
+ 
         node_attrs['q_pi'][t,:] = np.copy(q_pi)
         if t == 0:
             action = agent_i.action[[agent_i.genmodel.h_control_idx, agent_i.genmodel.who_idx] ]

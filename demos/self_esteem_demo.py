@@ -55,15 +55,24 @@ h_idea_mapping[:,1] = softmax(h_idea_mapping[:,1]*1.0)
 """ Set parameters and generate agents"""
 env_d = 8
 c = 0
-ecb = 4
-belief_d = 4
-T = 50 #the number of timesteps 
+ecb = 4 #just eliminate epistemic confirmation bias
+#in the rewritten generate_likelihood() function you just h_idea_mapping directly 
+
+belief_d = 4 #just fix this valeu 
+
+
+T = 20 #the number of timesteps 
+
+
+
+""" Parameter space """
+esteem_parameters = [1.5,0.2,-1.5]
+C_params = [1,0,-2]
 N = 4
 p = 1
 
 G = generate_network(N,p)
-esteem_parameters = [1.5,0.2,-1.5]
-C_params = [1,0,-2]
+
 
 model_parameters = { "esteem_parameters": esteem_parameters, "C_params":C_params}
 

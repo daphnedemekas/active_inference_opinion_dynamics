@@ -20,8 +20,11 @@ class Agent(object):
         reduce_A_inference = True,
         reduce_A_policies = True,
         model = None
-        ):       
-        self.genmodel = GenModSE(reduce_A = reduce_A, **neighbour_params, **idea_mapping_params, **policy_params, **model_params)
+        ):
+        if model == "self_esteem":       
+            self.genmodel = GenModSE(reduce_A = reduce_A, **neighbour_params, **idea_mapping_params, **policy_params, **model_params)
+        elif model == "sequencing":
+            self.genmodel = GenModSQ(reduce_A = reduce_A, **neighbour_params, **idea_mapping_params, **policy_params, **model_params)
 
         self.model = model
         self.action = np.zeros(len(self.genmodel.num_states),dtype=int)
@@ -36,7 +39,6 @@ class Agent(object):
         self.policy_hyperparams = {"use_utility": True,
                                    "use_states_info_gain": True,
                                    "use_param_info_gain": False}
-        # self.initial_action = policy_params["initial_action"]
         self.action[-2] = policy_params["initial_action"][-2]
         self.action[-1] = policy_params["initial_action"][-1]
         self.genmodel.E += update_E(self.action[1], self.genmodel.who_idx, self.genmodel.policies, learning_rate=policy_params["E_lr"])
@@ -54,7 +56,9 @@ class Agent(object):
             for f, ns in enumerate(self.genmodel.num_states):
 
                 empirical_prior[f] = spm_log(self.genmodel.B[f][:,:, int(self.action[f])].dot(self.qs[f]))
-        
+                
+
+
         if self.reduce_A_inference:
             qs = update_posterior_states_factorized(observation, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.num_states, prior = empirical_prior, **self.inference_params)
 
@@ -62,6 +66,7 @@ class Agent(object):
             qs = update_posterior_states(observation, self.genmodel.A, prior=empirical_prior, **self.inference_params)
 
         self.qs = qs
+
 
         return qs
 
@@ -73,6 +78,7 @@ class Agent(object):
         neighbour_bias = spm_log(self.genmodel.E / self.genmodel.E.sum())
 
         posterior_E = belief_component_E + neighbour_bias
+     #   q_pi, neg_efe = update_posterior_policies(self.qs, self.genmodel.A,  self.genmodel.B, self.genmodel.C, self.genmodel.policies, **self.policy_hyperparams)
 
         q_pi, neg_efe = update_posterior_policies_reduced(self.qs, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.B, self.genmodel.C, posterior_E, self.genmodel.policies, **self.policy_hyperparams)
 

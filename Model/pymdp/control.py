@@ -314,23 +314,23 @@ def get_expected_states(qs, B, policy, return_numpy=False):
 
         # initialise expected states after first action using current posterior (t = 0)
         for control_factor, control in enumerate(policy[0, :]):
-            qs_pi[0][control_factor] = spm_dot(B[control_factor][:, :, control], qs[control_factor])
+            qs_pi[0][control_factor] = np.dot(B[control_factor][:, :, control], qs[control_factor])
 
         # get expected states over time
         if n_steps > 1:
             for t in range(1, n_steps):
                 for control_factor, control in enumerate(policy[t, :]):
-                    qs_pi[t][control_factor] = spm_dot(
+                    qs_pi[t][control_factor] = np.dot(
                         B[control_factor][:, :, control], qs_pi[t - 1][control_factor]
                     )
     else:
         # initialise expected states after first action using current posterior (t = 0)
-        qs_pi.append(spm_dot(B[:, :, policy[0, 0]], qs))
+        qs_pi.append(np.dot(B[:, :, policy[0, 0]], qs))
 
         # then loop over future timepoints
         if n_steps > 1:
             for t in range(1, n_steps):
-                qs_pi.append(spm_dot(B[:, :, policy[t, 0]], qs_pi[t - 1]))
+                qs_pi.append(np.dot(B[:, :, policy[t, 0]], qs_pi[t - 1]))
 
     if len(qs_pi) == 1:
         return qs_pi[0]

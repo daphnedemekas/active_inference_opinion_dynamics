@@ -1,3 +1,4 @@
+
 import numpy as np 
 import itertools
 import time
@@ -88,7 +89,7 @@ class GenerativeModel(GenerativeModelSuper):
     ):
         super().__init__(ecb_precisions, num_neighbours, num_H,idea_levels,initial_action, h_idea_mapping,belief2tweet_mapping ,E_lr ,env_determinism,belief_determinism,reduce_A)
 
-        self.num_obs = [self.num_H] + (self.num_neighbours) * [self.num_H+1] + [self.num_neighbours] + [2]# list that contains the dimensionalities of each observation modality 
+        self.num_obs = [self.num_H] + (self.num_neighbours) * [self.num_H+1] + [self.num_neighbours] # list that contains the dimensionalities of each observation modality 
 
         self.num_modalities = len(self.num_obs) # total number of observation modalities
 
@@ -164,26 +165,12 @@ class GenerativeModel(GenerativeModelSuper):
         A_o = self.fill_slice(A_o, sampling_A, uninformative_dimensions, informative_dimensions, [slice(0,who_obs), slice(0,self.num_states[self.who_idx])])
         return A_o
 
-    def scale_idea_mapping(self,neighbour_idx, o_dim, truth_level):
-        """ Scales the hashtag to idea mapping based on corresponding beliefs (truth_level) """
-        ecb = self.ecb_precisions[neighbour_idx-1][truth_level]
-
-        h_idea_mapping_scaled = np.copy(self.h_idea_mapping)
-        print(truth_level)
-        print(self.h_idea_mapping)
-        h_idea_mapping_scaled[:,truth_level] = softmax(ecb * self.h_idea_mapping[:,truth_level])
-        if h_idea_mapping_scaled[truth_level,truth_level] < self.h_idea_mapping[truth_level,truth_level]:
-            warnings.warn('ECB precision scaling is not high enough!')
-
-        # augment the h->idea mapping matrix with a row of 0s on top to account for the the null observation (this is for the case when you are sampling the agent whose modality we're considering)
-        h_idea_scaled_with_null = np.zeros((o_dim,self.num_states[neighbour_idx-1]))
-        h_idea_scaled_with_null[1:,:] = np.copy(h_idea_mapping_scaled)
-
+    def get_idea_mapping(self, neighbour_idx, o_dim):
         h_idea_with_null = np.zeros((o_dim,self.num_states[neighbour_idx-1]))
 
-        h_idea_with_null[1:,:] = np.copy(self.h_idea_mapping)
-        
-        return h_idea_scaled_with_null, h_idea_with_null
+        h_idea_with_null[1:,:] = np.copy(self.h_idea_mapping) 
+        return h_idea_with_null  
+
 
     def get_broadcast_dims(self, broadcast_dims, neighbour_i): 
         """ gets the broadcast dimensions specifically for a given neighbour index """              
@@ -192,35 +179,6 @@ class GenerativeModel(GenerativeModelSuper):
         broadcast_dims[neighbour_i+2] = 1
 
         return broadcast_dims
-
-    def scale_A_by_ecb(self, A_o, neighbour_i, h_idea_scaled_with_null, h_idea_with_null, broadcast_dims_specific, idx_vec_o, reshape_vector, truth_level):
-        """ This scales the slice of the A matrix mapping the belief state of a neighbour to the observation of this neighbours tweet 
-        in the case that the agent and neighbour shar ebelifs, by the epistemic confirmation bias """
-        state_dim = self.num_states[neighbour_i+1]
-        for belief_level in range(state_dim):
-            if truth_level == belief_level:
-                idx_vec_o[neighbour_i+2] = slice(belief_level,belief_level+1,None)
-                belief_level_specific_column = np.reshape(h_idea_scaled_with_null[:,truth_level],reshape_vector)
-                A_o[tuple(idx_vec_o)] = np.tile(belief_level_specific_column, tuple(broadcast_dims_specific)) 
-                idx_vec_o[neighbour_i+2] = slice(state_dim)
-            else:
-                idx_vec_o[neighbour_i+2] = slice(belief_level,belief_level+1,None)
-                belief_level_specific_column = np.reshape(h_idea_with_null[:,belief_level],reshape_vector)
-                A_o[tuple(idx_vec_o)] = np.tile(belief_level_specific_column, tuple(broadcast_dims_specific)) 
-                idx_vec_o[neighbour_i+2] = slice(state_dim)
-        return A_o
-
-    def fill_B_states(self, matrix, precision):
-        """ Fills non-control slices of the B matrix using the volatility value (precision) with the given matrix """
-        B_s = np.expand_dims(softmax(matrix * precision),axis = 2)
-        return B_s
-
-    def fill_B_control_states(self, modality_shape, num_actions):
-        """ Fills the control slices of the B matrix such that actions correspond to the control states """
-        B_s = np.zeros(modality_shape)
-        for action in range(num_actions):
-            B_s[action,:,action] = np.ones(num_actions)
-        return B_s
 
     def generate_policies(self):
         """Generate a set of policies
@@ -342,7 +300,8 @@ class GenerativeModel(GenerativeModelSuper):
                 null_matrix = self.get_null_matrix(o_dim, o_idx) # create the null matrix to tile throughout the appropriate dimensions (this matrix is for the case when you're _not_ sampling the neighbour whose modality we're considering)
 
                 for truth_level in range(self.num_states[self.focal_belief_idx]): # the precision of the mapping is dependent on the truth value of the hidden state 
-                    h_idea_scaled_with_null, h_idea_with_null = self.scale_idea_mapping(o_idx, o_dim, truth_level)
+                    _, h_idea_with_null = self.get_idea_mapping(o_idx, o_dim, truth_level)
+
                     idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
                     idx_vec_o[self.focal_belief_idx+1] = slice(truth_level,truth_level+1,None)
                     
@@ -354,7 +313,7 @@ class GenerativeModel(GenerativeModelSuper):
                         reshape_vector = [o_dim] + [1] * self.num_factors
 
                         if (o_idx - 1) == neighbour_i: # this is the case when the observation modality in question `o_idx` corresponds to the modality of the neighbour we're sampling `who_i`               
-                            A[o_idx] = self.scale_A_by_ecb(A[o_idx] , neighbour_i, h_idea_scaled_with_null, h_idea_with_null, broadcast_dims_specific, idx_vec_o, reshape_vector, truth_level)
+                            A[o_idx] = self.fill_A(A[o_idx] , neighbour_i, h_idea_with_null, broadcast_dims_specific, idx_vec_o, reshape_vector)
 
                         else: # this is the case when the observation modality in question `o_idx` corresponds to a modality _other than_ the neighbour we're sampling `who_i` 
                             reshape_vector[neighbour_i+2] = self.num_states[neighbour_i+1]
@@ -373,6 +332,7 @@ class GenerativeModel(GenerativeModelSuper):
                 self.A_reduced[g], factor_idx = reduce_a_matrix(A[g])
                 informative_dims.append(factor_idx)
             self.informative_dims = informative_dims
+
             
             self.reshape_dims_per_modality, self.tile_dims_per_modality = self.generate_indices_for_policy_updating(informative_dims)
 
@@ -397,13 +357,10 @@ class GenerativeModel(GenerativeModelSuper):
         Similarly for the state factor corresponding to which neighbour the agent is sampling, this should be identically mapped
         for the slice conditioned on the action of which neighbour the agent is sampling """
 
-        transition_identity = np.eye(self.idea_levels, self.num_H)
         B = obj_array(self.num_factors)
 
         for f_idx, f_dim in enumerate(self.num_states): #iterate over the state factors
-            print
-            print(f_idx)
-            print(f_dim)
+
             if f_idx == self.focal_belief_idx: #the state factor corresponding to what the agent is tweeting 
                 B[f_idx] = self.fill_B_states(matrix = np.eye(f_dim, f_dim), precision = self.env_determinism)
                 
@@ -411,10 +368,10 @@ class GenerativeModel(GenerativeModelSuper):
                 B[f_idx] = self.fill_B_states(matrix = np.eye(f_dim, f_dim), precision = self.belief_determinism[f_idx-1])
 
             if f_idx == self.h_control_idx: #for the hashtag control state we have rows of ones corresponding to the next state
-                B[f_idx] = self.fill_B_control_states(modality_shape = self.num_H*[f_dim] + [self.num_H], num_actions = self.num_H)
-            
+                B[f_idx] = self.fill_B_control_states(num_states = f_dim, num_actions = self.num_H)
+
             if f_idx == self.who_idx: #same as above for the who control state
-                B[f_idx] = self.fill_B_control_states(modality_shape = 2*[self.num_neighbours] + [self.num_neighbours], num_actions = self.num_neighbours)
+                B[f_idx] = self.fill_B_control_states(num_states = self.num_neighbours, num_actions = self.num_neighbours) 
         return B
 
 

@@ -99,9 +99,11 @@ class GenerativeModelSuper(object):
         self.control_factor_idx = [self.h_control_idx, self.who_idx]
         num_controls = [1] * self.num_factors
         num_controls[self.h_control_idx] = self.num_H
+
         num_controls[self.who_idx] = self.num_neighbours
         self.num_controls = num_controls
         self.policies = self.generate_policies()
+
         self.E_lr = E_lr
         self.initial_action = initial_action
 
@@ -189,6 +191,15 @@ class GenerativeModelSuper(object):
 
         return broadcast_dims
 
+    def fill_A(self, A_o, neighbour_i, h_idea_with_null, broadcast_dims_specific, idx_vec_o, reshape_vector):
+        state_dim = self.num_states[neighbour_i+1]
+        for belief_level in range(state_dim):
+            idx_vec_o[neighbour_i+2] = slice(belief_level,belief_level+1,None)
+            belief_level_specific_column = np.reshape(h_idea_with_null[:,belief_level],reshape_vector)
+            A_o[tuple(idx_vec_o)] = np.tile(belief_level_specific_column, tuple(broadcast_dims_specific)) 
+            idx_vec_o[neighbour_i+2] = slice(state_dim)
+        return A_o 
+        
     def scale_A_by_ecb(self, A_o, neighbour_i, h_idea_scaled_with_null, h_idea_with_null, broadcast_dims_specific, idx_vec_o, reshape_vector, truth_level):
         """ This scales the slice of the A matrix mapping the belief state of a neighbour to the observation of this neighbours tweet 
         in the case that the agent and neighbour shar ebelifs, by the epistemic confirmation bias """
@@ -211,9 +222,10 @@ class GenerativeModelSuper(object):
         B_s = np.expand_dims(softmax(matrix * precision),axis = 2)
         return B_s
 
-    def fill_B_control_states(self, modality_shape, num_actions):
+    def fill_B_control_states(self, num_states, num_actions):
         """ Fills the control slices of the B matrix such that actions correspond to the control states """
-        B_s = np.zeros(modality_shape)
+        
+        B_s = np.zeros(2*[num_states] + [num_actions])
         for action in range(num_actions):
             B_s[action,:,action] = np.ones(num_actions)
         return B_s
