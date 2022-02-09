@@ -14,6 +14,8 @@ def spm_log(arr):
     """
     return np.log(arr + EPS_VAL)
 
+#the observation of mirroring should lend evidence to the observed neighbour believing what the focal agent believes 
+
 
 """
 
@@ -89,7 +91,8 @@ class GenerativeModel(GenerativeModelSuper):
     ):
         super().__init__(ecb_precisions, num_neighbours, num_H,idea_levels,initial_action, h_idea_mapping,belief2tweet_mapping ,E_lr ,env_determinism,belief_determinism,reduce_A)
 
-        self.num_obs = [self.num_H] + (self.num_neighbours) * [self.num_H+1] + [self.num_neighbours] # list that contains the dimensionalities of each observation modality 
+        self.num_mirroring_levels = 2 #mirroring or not mirroring 
+        self.num_obs = [self.num_H] + (self.num_neighbours) * [self.num_H+1] + [self.num_neighbours] + [self.num_mirroring_levels]# list that contains the dimensionalities of each observation modality 
 
         self.num_modalities = len(self.num_obs) # total number of observation modalities
 
@@ -101,169 +104,19 @@ class GenerativeModel(GenerativeModelSuper):
         self.policy_mapping = self.generate_policy_mapping()
 
         self.reduce_A = reduce_A
+        
+        self.mirroring_idx = self.who_obs_idx + 1
 
         self.initialize_A()
         self.generate_likelihood()
 
 
-
-    def insert_multiple(self, s, indices, items):
-        for idx in range(len(items)):
-            s.insert(indices[idx], items[idx])
-        return s
-        
-
-    def initialize_A(self):
-        """initialize the A matrix and fill the modalities with their correct shape"""
-        A = obj_array(self.num_modalities)
-        for o_idx, o_dim in enumerate(self.num_obs): 
-            modality_shape = [o_dim] + self.num_states # num_obs[m] rows and as many lagging dimensions as there are hidden states, with each lagging dimension == num_states[i]
-            A[o_idx] = np.zeros(modality_shape)
-        return A
-
-    def get_null_matrix(self, o_dim, o_idx):
-        null_matrix = np.zeros((o_dim,self.num_states[o_idx-1]))
-        null_matrix[0,:] = np.ones(self.num_states[o_idx-1]) # create a matrix that corresponds to NOT sampling the current neighbour -- every observation is the 'null' observation because we're sampling someone else
-        return null_matrix
-
-
-    def fill_slice(self, A_o, A_slice, irrelevant_dimensions, fill_indices, slice_indices):
-        """ 
-        A_o: the slice of A you want to fill indexed by the the observation modality index (i.e. A[0] for first observation modality)
-        A_slice: the numpy array with which you want to fill this slice 
-        irrelevant_dimesnions: the dimensions of A that are not informative for this particular slicing 
-        fill_indices: the indices of A to be filled 
-        slice indices: a list of indices which you will insert into fill_indices in the function insert_multiple() """
-
-        for item in itertools.product(*[list(range(d)) for d in irrelevant_dimensions]):
-            slice_ = list(item)
-            A_indices = self.insert_multiple(slice_, fill_indices, slice_indices) #here we insert the correct values for the fill indices for this slice    
-            A_o[tuple(A_indices)] = A_slice
-        return A_o   
-
-    def po_h_given_s(self, A_0):
-        """ fill the 0th sensory modality which corresponds to the agent's observation of which hashtag it has tweeted
-            which should map via h_control_mapping (default identity matrix) to which hashtag state the agent is in """
-        num_observable_hashtags = self.h_control_mapping.shape[0]
-        dimensions = [num_observable_hashtags] + self.num_states #this is the shape of the modality-specific A matrix A[o_idx] the first index is the dimension of the observation modality and then the rest is the full dimensionality of the states
-        informative_dimensions = [0,self.h_control_idx+1] # these are indices of the dimensions we need to fill for this modality. we have to add 1 to h_control_idx because the first dimensions corresponds to the observation
-        
-        uninformative_dimensions = np.delete(dimensions, informative_dimensions) #these are the lagging dimensions that don't matter for this mapping
-        
-        A_0 = self.fill_slice(A_0, self.h_control_mapping,uninformative_dimensions, informative_dimensions, [slice(0,num_observable_hashtags), slice(0,num_observable_hashtags)])
-
-        return A_0
-
-    def po_who_given_s(self, A_o, who_obs_idx):
-        """ fill the observation modality corresponding to which neighbour the agent is sampling """
-        who_obs = self.num_obs[who_obs_idx]
-        sampling_A = np.eye(who_obs)
-
-        dimensions = [who_obs] + self.num_states #this is the shape of the modality-specific A matrix A[o_idx]
-        informative_dimensions = [0,self.who_idx+1] # these are the indices of the dimensions we need to fill for this modality
-        uninformative_dimensions = np.delete(dimensions, informative_dimensions) 
-        A_o = self.fill_slice(A_o, sampling_A, uninformative_dimensions, informative_dimensions, [slice(0,who_obs), slice(0,self.num_states[self.who_idx])])
-        return A_o
-
     def get_idea_mapping(self, neighbour_idx, o_dim):
+
         h_idea_with_null = np.zeros((o_dim,self.num_states[neighbour_idx-1]))
+        h_idea_with_null[1:,:] = np.copy(self.h_idea_mapping)
 
-        h_idea_with_null[1:,:] = np.copy(self.h_idea_mapping) 
-        return h_idea_with_null  
-
-
-    def get_broadcast_dims(self, broadcast_dims, neighbour_i): 
-        """ gets the broadcast dimensions specifically for a given neighbour index """              
-        broadcast_dims[self.focal_belief_idx+1] = 1
-        broadcast_dims[self.who_idx+1] = 1
-        broadcast_dims[neighbour_i+2] = 1
-
-        return broadcast_dims
-
-    def generate_policies(self):
-        """Generate a set of policies
-
-        Each policy is encoded as a numpy.ndarray of shape (n_steps, n_factors), where each 
-        value corresponds to the index of an action for a given time step and control factor. The variable 
-        `policies` that is returned is a list of each policy-specific numpy nd.array.
-
-        If `self.control_fac_idx` does not exist, then the control factors are set to all the hidden state factors
-
-        Returns:
-        -------
-        - `policies`: list of np.ndarrays, where each array within the list is a 
-                        numpy.ndarray of shape (n_steps, n_factors).
-                    Each value in a policy array corresponds to the index of an action for 
-                    a given timestep and control factor.
-        """
-
-        if self.control_factor_idx is None:
-            self.control_factor_idx = list(range(self.num_factors))
-        
-        n_control = []
-        for f_idx, f_dim in enumerate(self.num_states):
-            if f_idx in self.control_factor_idx:
-                n_control.append(f_dim)
-            else:
-                n_control.append(1)
-
-        policies = list(itertools.product(*[list(range(i)) for i in n_control]))
-
-        for pol_i in range(len(policies)):
-            policies[pol_i] = np.array(policies[pol_i]).reshape(1, self.num_factors)
-
-        return policies
-
-    def generate_policy_mapping(self):
-        """
-        Creates a 'link' function that maps current beliefs about the Idea (in practice, qx[0], the first marginal
-        factor of the posterior beliefs about hidden states) to the prior over policies - the E matrix. 
-        First, a belief2tweet_mapping is created that parameterises the weights linking the belief state
-        to the probability to tweet one of the `num_H` hashtags. Then the full policy mapping (over all policies, 
-        which also include other control factors like the which_neighbour factor) is generated from this
-        policy mapping over just the `hashtag` control factor.
-        """
-        num_policies = len(self.policies)
-        policy_mapping = np.zeros((num_policies, self.idea_levels))
-        
-        if self.belief2tweet_mapping is None:
-            self.belief2tweet_mapping = np.eye(self.num_H, self.idea_levels)
-        else:
-            assert self.belief2tweet_mapping.shape == (self.num_H , self.idea_levels), "Your belief2tweet_mapping has the wrong shape. It should be (self.num_H , self.idea_levels)"
-        self.belief2tweet_mapping = self.belief2tweet_mapping / self.belief2tweet_mapping.sum(axis=0)
-        array_policies = np.array(self.policies).squeeze()
-        for policy_idx, policy in enumerate(array_policies):
-            for action_idx in range(self.num_H):
-                normalising_constant = (array_policies[:,self.h_control_idx] == action_idx).sum()
-                if policy[self.h_control_idx] == action_idx:
-                    policy_mapping[policy_idx,:] = self.belief2tweet_mapping[action_idx,:] / normalising_constant
-        return policy_mapping
-    
-    
-    def get_policy_prior(self, qs_f):
-
-        E = spm_log(self.policy_mapping.dot(qs_f))
-
-        return E
-    
-    def generate_indices_for_policy_updating(self, informative_dims):
-        
-        reshape_dims_base = np.ones(len(self.num_controls),dtype=int)
-        reshape_dims_per_modality = []
-        tile_dims_per_modality = []
-
-        for g in range(self.num_modalities):
-            tmp = reshape_dims_base.copy()
-            control_idx = np.array(np.intersect1d(informative_dims[g], self.control_factor_idx),dtype=int)
-            tmp[control_idx] = np.array(self.num_controls)[list(control_idx)]
-
-            reshape_dims_per_modality.append(tuple(tmp))
-
-            tmp = 1 + np.array(self.num_controls) - tmp
-            tile_dims_per_modality.append(tuple(tmp))
-        
-        return reshape_dims_per_modality, tile_dims_per_modality
-
+        return h_idea_with_null
     
 
     def generate_likelihood(self):
@@ -300,7 +153,7 @@ class GenerativeModel(GenerativeModelSuper):
                 null_matrix = self.get_null_matrix(o_dim, o_idx) # create the null matrix to tile throughout the appropriate dimensions (this matrix is for the case when you're _not_ sampling the neighbour whose modality we're considering)
 
                 for truth_level in range(self.num_states[self.focal_belief_idx]): # the precision of the mapping is dependent on the truth value of the hidden state 
-                    _, h_idea_with_null = self.get_idea_mapping(o_idx, o_dim, truth_level)
+                    h_idea_with_null = self.get_idea_mapping(o_idx, o_dim)
 
                     idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
                     idx_vec_o[self.focal_belief_idx+1] = slice(truth_level,truth_level+1,None)
@@ -322,6 +175,34 @@ class GenerativeModel(GenerativeModelSuper):
 
             if o_idx == self.who_obs_idx:   #this is the observation modality corresponding to which neighbour the agent is samplign 
                 A[o_idx] = self.po_who_given_s(A[o_idx], o_idx)
+
+            elif o_idx == self.mirroring_idx:
+                #we want to create a mapping such that if mirroring == 0 (mirroring is happening)
+                #this makes the focal agent believe increase the probability that the observed neighbour believes what the focal agent believes 
+
+                A_slice = np.array([[0.7]*self.idea_levels, [0.3]*self.idea_levels])
+                A_slice = np.zeros((self.num_mirroring_levels, self.idea_levels, self.idea_levels))
+
+                A_slice[0]= softmax(np.eye(3)*2)
+                A_slice[1] = softmax(np.eye(3)*-1)
+
+                idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
+                #iterate over hashtag state and who_idx state and copy over the template matrix for each neighbour
+
+                for i in range(self.num_neighbours):
+
+                    reshape_vec = np.ones(len(self.num_states), dtype = int)
+                    reshape_vec[0] = self.num_mirroring_levels #first dimension is the levels of the esteem observation modality 
+                    reshape_vec[1] = self.idea_levels #second dimension is the focal agent's own belief 
+                    reshape_vec[i+2] = self.idea_levels #third dimensions is the beliefs of the sampled neighbour  
+                    
+                    broadcast_dims = np.ones(len(self.num_states), dtype = int) 
+                    broadcast_dims[-1] = int(self.num_H)
+
+                    idx_vec_o[-1] = i
+
+                    A[o_idx][tuple(idx_vec_o)] = np.tile(A_slice.reshape(reshape_vec), tuple(broadcast_dims))
+
 
         A[-1] = utils.norm_dist(A[-1]) #normalise the final slice (TODO: fill this out)
         

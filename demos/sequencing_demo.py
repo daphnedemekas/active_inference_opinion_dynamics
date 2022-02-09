@@ -53,9 +53,6 @@ single_node_attrs = {
     }
 
 
-
-
-
 G = generate_network(N,p)
 
 

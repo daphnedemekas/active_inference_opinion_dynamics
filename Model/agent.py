@@ -58,7 +58,6 @@ class Agent(object):
                 empirical_prior[f] = spm_log(self.genmodel.B[f][:,:, int(self.action[f])].dot(self.qs[f]))
                 
 
-
         if self.reduce_A_inference:
             qs = update_posterior_states_factorized(observation, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.num_states, prior = empirical_prior, **self.inference_params)
 

@@ -64,7 +64,7 @@ class GenerativeModel(GenerativeModelSuper):
 
         self.reduce_A = reduce_A
 
-        A_slice = np.zeros((self.num_esteem_levels,2,2))
+        A_slice = np.zeros((self.num_esteem_levels,self.idea_levels,self.idea_levels))
         for i in range(A_slice.shape[0]):
             A_slice[i] = softmax(np.eye(2)*esteem_parameters[i])
 
@@ -114,7 +114,7 @@ class GenerativeModel(GenerativeModelSuper):
                 null_matrix = self.get_null_matrix(o_dim, o_idx) # create the null matrix to tile throughout the appropriate dimensions (this matrix is for the case when you're _not_ sampling the neighbour whose modality we're considering)
 
                 for truth_level in range(self.num_states[self.focal_belief_idx]): # the precision of the mapping is dependent on the truth value of the hidden state 
-                    h_idea_with_null = self.get_idea_mapping(o_idx, o_dim, truth_level)
+                    h_idea_with_null = self.get_idea_mapping(o_idx, o_dim)
                     idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
                     idx_vec_o[self.focal_belief_idx+1] = slice(truth_level,truth_level+1,None)
                     
@@ -160,15 +160,6 @@ class GenerativeModel(GenerativeModelSuper):
 
                     A[o_idx][tuple(idx_vec_o)] = np.tile(A_slice.reshape(reshape_vec), tuple(broadcast_dims))
 
-                """
-                    print("high focal esteem for the same belief (A[o_idx][0,0,0,0,0,0,:])")
-
-                    print(A[o_idx][:,:,0,0,0,0,0])
-                    print(A[o_idx][:,:,1,0,0,0,0])
-
-                    print(A[o_idx][:,:,0,0,0,0,1])
-                    print(A[o_idx][:,:,1,0,0,0,1])
-                    """
             elif o_idx in self.neighbour_esteem_idx:
                 n_idx = o_idx - self.who_obs_idx -2
 
@@ -193,15 +184,7 @@ class GenerativeModel(GenerativeModelSuper):
                     idx_vec_o[-1] = i
 
                     A[o_idx][tuple(idx_vec_o)] = np.tile(A_slice.reshape(reshape_vec), tuple(broadcast_dims))
-                    """
-                    print("high focal esteem for the same belief (A[o_idx][0,0,0,0,0,0,:])")
 
-                    print(A[o_idx][:,0,0,:,0,0,1])
-                    print(A[o_idx][:,0,1,:,0,0,1])
-
-                    print(A[o_idx][:,1,:,0,0,0,1])
-                    print(A[o_idx][:,0,:,0,0,0,1])
-                    """
         
         if self.reduce_A:
             self.A_reduced = obj_array(self.num_modalities)

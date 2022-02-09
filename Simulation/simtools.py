@@ -211,6 +211,14 @@ def get_observations_time_t(G, t, model):
 
                 # node_attrs['o'][t,idx] = calculate_esteem(agent_i.qs[i+1], belief_mu, belief_std) #calculated using a threshold on the number of standard deviations between the focal agent's belief about the neighbours' belief and the average belief
                     #TODO: should we be using the focal agent's belief about the neighbours' belief or the neighbours actual belief to generate the focal agent's observation of the neighbours' esteem?
+
+        elif agent_i.model == "sequencing":
+            #need to check whether the agent observed the same hashtag that it tweeted 
+            if node_attrs['my_tweet'][t] == node_attrs['other_tweet'][t]:
+                node_attrs['o'][t, agent_i.genmodel.mirroring_idx] = 0 
+            else: 
+                node_attrs['o'][t,agent_i.genmodel.mirroring_idx] = 1
+    
     return G
 
 def calculate_esteem(qs, belief_mu, belief_std):
@@ -224,7 +232,13 @@ def calculate_esteem(qs, belief_mu, belief_std):
     return 1
 
 def calculate_esteem_as_KL(expected_state, real_state):
-    """ sum of action of "likes" which depends on KL divergence between focal belief and belief about neighbours' belief""
+    """ sum of action of "likes" which depends on KL divergence between focal belief and belief about neighbours' belief
+    so at every time step, calculate the KL divergence between the focal belief and the belief about the nieghbour
+    if beyond some threshold this simulates a fake action of a "like" for that agent 
+    and so each agent gets a certain amount of likes 
+    and the sum of likes that each agent gets is equal to their esteem 
+    
+    ""
 
 
 def calculate_esteem_as_KL(expected_state, real_state):
