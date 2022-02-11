@@ -42,7 +42,6 @@ class Agent(object):
         self.action[-2] = policy_params["initial_action"][-2]
         self.action[-1] = policy_params["initial_action"][-1]
         self.genmodel.E += update_E(self.action[1], self.genmodel.who_idx, self.genmodel.policies, learning_rate=policy_params["E_lr"])
-
         self.set_starting_state_and_priors()
 
     def infer_states(self, t, observation):
@@ -77,7 +76,9 @@ class Agent(object):
         neighbour_bias = spm_log(self.genmodel.E / self.genmodel.E.sum())
 
         posterior_E = belief_component_E + neighbour_bias
+
      #   q_pi, neg_efe = update_posterior_policies(self.qs, self.genmodel.A,  self.genmodel.B, self.genmodel.C, self.genmodel.policies, **self.policy_hyperparams)
+        
 
         q_pi, neg_efe = update_posterior_policies_reduced(self.qs, self.genmodel.A_reduced, self.genmodel.informative_dims, self.genmodel.B, self.genmodel.C, posterior_E, self.genmodel.policies, **self.policy_hyperparams)
 

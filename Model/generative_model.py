@@ -16,16 +16,16 @@ class GenerativeModelSuper(object):
     """
     parameters:
 
-    ecb_precisions : an array of shape (num_neighbours, num_idea_levels)         
+    ecb_precisions : an array of shape (num_neighbours, num_num_idea_levels)         
     num_neighbours : int
 
     num_H: int, number of hashtags 
-    idea_levels: int
+    num_idea_levels: int
 
-    h_idea_mapping: an array of shape (num_H, num_idea_levels) that maps how the agent believes the hashtags correspond to the idea levels
+    h_idea_mapping: an array of shape (num_H, num_num_idea_levels) that maps how the agent believes the hashtags correspond to the idea levels
                     if h idea mapping is the identity matrix, then the agent will always believe that observing hasthag 0 represents idea 0 and observing hashtag 1 represents idea 1
 
-    belief2tweet_mapping: an array of shape (num_H, num_idea_levels)
+    belief2tweet_mapping: an array of shape (num_H, num_num_idea_levels)
     E_lr: float 
 
 
@@ -35,12 +35,12 @@ class GenerativeModelSuper(object):
     """
     def __init__(
         self,
-        ecb_precisions, 
         num_neighbours, 
 
         num_H,
-        idea_levels,
-    
+        num_idea_levels,
+        ecb_precisions = None, 
+
         initial_action = None,
 
         h_idea_mapping = None,
@@ -57,12 +57,12 @@ class GenerativeModelSuper(object):
 
         
         self.num_H = num_H
-        self.idea_levels = idea_levels
+        self.num_idea_levels = num_idea_levels
 
         if h_idea_mapping is None:
             self.h_idea_mapping = self.create_idea_mapping()
         else:
-            assert h_idea_mapping.shape == (self.num_H, self.idea_levels), "Your h_idea_mapping has the wrong shape. It should be (num_H, idea_levels)"
+            assert h_idea_mapping.shape == (self.num_H, self.num_idea_levels), "Your h_idea_mapping has the wrong shape. It should be (num_H, num_idea_levels)"
             self.h_idea_mapping = h_idea_mapping
 
         self.ecb_precisions = ecb_precisions
@@ -83,7 +83,7 @@ class GenerativeModelSuper(object):
         #self.num_obs = [self.num_H] + (self.num_neighbours) * [self.num_H+1] + [self.num_neighbours]  # list that contains the dimensionalities of each observation modality 
 
         #self.num_modalities = len(self.num_obs) # total number of observation modalities
-        self.num_states = (1+ self.num_neighbours) * [self.idea_levels] + [self.num_H] + [self.num_neighbours] #list that contains the dimensionality of each state factor 
+        self.num_states = (1+ self.num_neighbours) * [self.num_idea_levels] + [self.num_H] + [self.num_neighbours] #list that contains the dimensionality of each state factor 
         self.num_factors = len(self.num_states) # total number of hidden state factors
 
         self.focal_h_idx = 0 # index of the observation modality corresponding to my observing my own hashtags
@@ -274,12 +274,12 @@ class GenerativeModelSuper(object):
         policy mapping over just the `hashtag` control factor.
         """
         num_policies = len(self.policies)
-        policy_mapping = np.zeros((num_policies, self.idea_levels))
+        policy_mapping = np.zeros((num_policies, self.num_idea_levels))
         
         if self.belief2tweet_mapping is None:
-            self.belief2tweet_mapping = np.eye(self.num_H, self.idea_levels)
+            self.belief2tweet_mapping = np.eye(self.num_H, self.num_idea_levels)
         else:
-            assert self.belief2tweet_mapping.shape == (self.num_H , self.idea_levels), "Your belief2tweet_mapping has the wrong shape. It should be (self.num_H , self.idea_levels)"
+            assert self.belief2tweet_mapping.shape == (self.num_H , self.num_idea_levels), "Your belief2tweet_mapping has the wrong shape. It should be (self.num_H , self.num_idea_levels)"
         self.belief2tweet_mapping = self.belief2tweet_mapping / self.belief2tweet_mapping.sum(axis=0)
         array_policies = np.array(self.policies).squeeze()
         for policy_idx, policy in enumerate(array_policies):

@@ -2,8 +2,7 @@ import numpy as np
 from . import utils
 
 def update_E(action_id, control_factor_id, policies, learning_rate = 0):
-    # print("action id")
-    # print(action_id)
+
     num_policies = len(policies)
     E_increment = np.zeros(num_policies)
 

@@ -7,6 +7,7 @@ import time
 from model.agent import Agent
 from model.pymdp import utils
 from model.pymdp.utils import softmax
+from .model_params import epistemic_community_params, sequencing_model_params, self_esteem_model_params, self_esteem_model_params
 
 def generate_network(N,p):
     G = nx.fast_gnp_random_graph(N,p) # create the graph for this trial & condition
@@ -24,13 +25,13 @@ def generate_network(N,p):
 
 def initialize_agent_params(G, 
                             num_H = 2, 
-                            idea_levels = 2, 
+                            num_idea_levels = 2, 
                             h_idea_mapping = None, 
                             belief2tweet_mappings = None, 
                             ecb_precisions = None, 
                             B_idea_precisions = None,
                             B_neighbour_precisions = None, 
-                            E_noise = None,
+                            E_noise = 0,
                             ecb_spread = 0.1,
                             volatility_spread = 0.1,
                             optim_options = None,
@@ -47,18 +48,7 @@ def initialize_agent_params(G,
 
     # set every single agent's belief2tweet_mapping
     if belief2tweet_mappings is None:
-        belief2tweet_mappings_all = {}
-        for i in G.nodes():
-            belief2tweet_mappings_all[i] = np.eye(num_H)
-    elif isinstance(belief2tweet_mappings,np.ndarray):
-        belief2tweet_mappings_all = {i: belief2tweet_mappings for i in G.nodes()}
-    
-    # set every single agent's ecb precision parameters, if not provided (min and max parameters of a uniform distribution)
-    ecb_precisions_all = {i: np.array(ecb_precisions) for i in G.nodes()}
-    
-    B_idea_precisions_all = {i: B_idea_precisions for i in G.nodes()}
-
-    B_neighbour_precisions_all = {i: np.array(B_neighbour_precisions) for i in G.nodes()}
+        belief2tweet_mappings = np.eye(num_H)
 
     if optim_options is None:
         optim_options = {'reduce_A': True, 'reduce_A_inference': True, 'reduce_A_policies': True}
@@ -71,36 +61,22 @@ def initialize_agent_params(G,
 
         initial_tweet, initial_neighbour_to_sample = np.random.randint(num_H), np.random.randint(num_neighbours) 
 
-        ecb_precisions_i = np.absolute(np.random.normal(ecb_precisions_all[i], ecb_spread, size=(num_neighbours, idea_levels)))
+        if ecb_precisions is not None:
+            ecb_precisions = np.absolute(np.random.normal(ecb_precisions, ecb_spread, size=(num_neighbours, num_idea_levels)))
 
-        env_determinism = B_idea_precisions_all[i]
+        env_determinism = B_idea_precisions
 
-        belief_determinism = np.absolute(np.random.normal(B_neighbour_precisions_all[i], volatility_spread, size=(num_neighbours,)) )
+        belief_determinism = np.absolute(np.random.normal(B_neighbour_precisions, volatility_spread, size=(num_neighbours,)) )
 
-        agent_constructor_params[i] = {
-
-            "neighbour_params" : {
-                "ecb_precisions" :  ecb_precisions_i,
-                "num_neighbours" : num_neighbours,
-                "env_determinism":  env_determinism,
-                "belief_determinism": belief_determinism
-                },
-
-            "idea_mapping_params" : {
-                "num_H" : num_H,
-                "idea_levels": idea_levels,
-                "h_idea_mapping": h_idea_mapping
-                },
-
-            "policy_params" : {
-                "initial_action" : [initial_tweet, initial_neighbour_to_sample],
-                "belief2tweet_mapping" : belief2tweet_mappings_all[i],
-                "E_lr" : E_noise
-                },
-            
-            "model_params": model_parameters
-
-        }
+        if model is None: 
+            agent_constructor_params[i] = epistemic_community_params(ecb_precisions, num_neighbours, env_determinism, belief_determinism, num_H, num_idea_levels, h_idea_mapping, initial_tweet, initial_neighbour_to_sample,
+                                belief2tweet_mappings, E_noise, model_parameters)
+        elif model == "sequencing":
+            agent_constructor_params[i] = sequencing_model_params(num_neighbours, env_determinism, belief_determinism, num_H, num_idea_levels, h_idea_mapping, initial_tweet, initial_neighbour_to_sample,
+                                belief2tweet_mappings, E_noise, model_parameters)    
+        elif model == "self_esteem":
+            agent_constructor_params[i] = self_esteem_model_params(num_neighbours, env_determinism, belief_determinism, num_H, num_idea_levels, h_idea_mapping, initial_tweet, initial_neighbour_to_sample,
+                    belief2tweet_mappings, E_noise, model_parameters)
 
     return agent_constructor_params
 
@@ -214,7 +190,7 @@ def get_observations_time_t(G, t, model):
 
         elif agent_i.model == "sequencing":
             #need to check whether the agent observed the same hashtag that it tweeted 
-            if node_attrs['my_tweet'][t] == node_attrs['other_tweet'][t]:
+            if node_attrs['my_tweet'][t] == node_attrs['other_tweet'][t] -1:
                 node_attrs['o'][t, agent_i.genmodel.mirroring_idx] = 0 
             else: 
                 node_attrs['o'][t,agent_i.genmodel.mirroring_idx] = 1
@@ -349,45 +325,3 @@ def clip_edges(G, max_degree = 10):
 
 
 
-
-
-def generate_quick_agent_observation(reduce_A = True, num_neighbours = 2, reduce_A_policies = True, reduce_A_inference = True ):
-
-    idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)
-    num_H = 2 #the number of hashtags, or observations that can shed light on the idea
-    h_idea_mapping = np.eye(num_H)
-    h_idea_mapping[:,0] = utils.softmax(h_idea_mapping[:,0]*1.0)
-    h_idea_mapping[:,1] = utils.softmax(h_idea_mapping[:,1]*1.0)
-    agent_params = {
-
-        "neighbour_params" : {
-            "ecb_precisions" : np.array([[8.0,8.0], [8.0, 8.0]]),
-            "num_neighbours" : num_neighbours,
-            "env_determinism": 9.0,
-            "belief_determinism": np.array([7.0, 7.0])
-            },
-
-        "idea_mapping_params" : {
-            "num_H" : num_H,
-            "idea_levels": idea_levels,
-            "h_idea_mapping": h_idea_mapping
-            },
-
-        "policy_params" : {
-            "initial_action" : [np.random.randint(num_H), 0],
-            "belief2tweet_mapping" : np.eye(num_H),
-            "E_lr" : 0.7
-            },
-
-        "C_params" : {
-            "preference_shape" : None,
-            "cohesion_exp" : None,
-            "cohesion_temp" : None
-            }
-    }
-    observation = np.zeros(num_neighbours + 3)
-    observation[2] = 1
-    agent = Agent(**agent_params,reduce_A=reduce_A, reduce_A_policies = reduce_A_policies, reduce_A_inferennce=reduce_A_inference)
-    
-    
-    return agent, observation

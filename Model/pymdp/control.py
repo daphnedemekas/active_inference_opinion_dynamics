@@ -208,6 +208,7 @@ def update_posterior_policies_reduced(
         ambiguity += spm_dot(spm_log(A[g]), qs_pi).sum() # sum across observation levels?
     But I'm not sure how to do the risk one off the top of my head (KLD(Q_pi(o) || P(o)))
     """
+
     q_pi = softmax(gamma*neg_efe + E)
 
     q_pi = q_pi / q_pi.sum(axis=0)  # type: ignore
@@ -721,30 +722,21 @@ def sample_action(q_pi, policies, n_states, control_indices, sampling_type="marg
     """
     control_factors = [n_states[i] for i in control_indices]
     n_factors = len(n_states)
-    n_control_factors = len(control_factors)
     if sampling_type == "marginal_action":
 
         action_marginals = utils.obj_array(n_factors)
         for f_idx, f_dim in enumerate(n_states):
             action_marginals[f_idx] = np.zeros(f_dim)
-
         # weight each action according to its integrated posterior probability over policies and timesteps
         for pol_idx, policy in enumerate(policies):
             for t in range(policy.shape[0]):
                 for factor_i, action_i in enumerate(policy[t, :]):
 
                     action_marginals[factor_i][action_i] += q_pi[pol_idx]
-
-        #print("Action marginals")
         selected_policy = np.zeros(n_factors)
         for factor_i in control_indices:
-                # # selected_policy[factor_i] = utils.sample(softmax(alpha*action_marginals[factor_i]))
-                # selected_policy[factor_i] = utils.sample(action_marginals[factor_i])
-            # else:
-            selected_policy[factor_i] = np.argmax(action_marginals[factor_i])
 
-            #selected_policy[factor_i] = np.where(np.random.multinomial(1,action_marginals[factor_i]))[0][0]
-            #selected_policy[factor_i] = np.argmax(action_marginals[factor_i])
+            selected_policy[factor_i] = np.argmax(action_marginals[factor_i])
             #selected_policy[factor_i] = utils.sample(softmax(alpha*action_marginals[factor_i]))
 
     elif sampling_type == "posterior_sample":

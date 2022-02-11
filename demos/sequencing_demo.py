@@ -21,7 +21,7 @@ from matplotlib import pyplot as plt
 
 """ Set up the generative model """
 
-idea_levels = 3 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)
+num_idea_levels = 3 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `num_idea_levels` ==2)
 num_H = 3 #the number of hashtags, or observations that can shed light on the idea
 num_neighbors = 2
 h_idea_mapping = np.eye(num_H)
@@ -33,11 +33,12 @@ h_idea_mapping[:,2] = softmax(h_idea_mapping[:,2]*1.0)
 """ Set parameters and generate agents"""
 env_d = 8
 c = 0
-ecb = 4
 belief_d = 7
 T = 10 #the number of timesteps 
 N = 3
 p = 1
+mirroring_params = [2,-1]
+C_params = [1,-1]
 
 
 single_node_attrs = {
@@ -56,21 +57,21 @@ single_node_attrs = {
 G = generate_network(N,p)
 
 
+model_parameters = { "mirroring_params": mirroring_params, "C_params":C_params}
 
-agent_constructor_params = initialize_agent_params(G, num_H = num_H, idea_levels = idea_levels, h_idea_mapping = h_idea_mapping, \
-                                    ecb_precisions = ecb, B_idea_precisions = env_d, \
-                                        B_neighbour_precisions = belief_d, model = "sequencing", model_parameters = {})
+agent_constructor_params = initialize_agent_params(G, num_H = num_H, num_idea_levels = num_idea_levels, h_idea_mapping = h_idea_mapping, \
+                                    B_idea_precisions = env_d, \
+                                        B_neighbour_precisions = belief_d, model = "sequencing", model_parameters = model_parameters, volatility_spread = 0.0)
 
-agent = Agent(**agent_constructor_params[0], model = "sequencing")
 
+#TODO: write tests to assert shapes are correct
 """
+agent = Agent(**agent_constructor_params[0], model = "sequencing")
 
 def test_B():
     assert B[0].shape == B[1].shape == B[2].shape#for the number of neighbours
     assert that the hashtag states index of B is of shape num_H x num_H x num_H
     assert that the who_idx state index of B is of shape num_neighbours x num_neighbours x num_neighbours
-"""
-#%%
 
 print(agent.genmodel.B.shape)
 print(agent.genmodel.B[0].shape)
@@ -81,12 +82,27 @@ print(agent.genmodel.B[4].shape)
 
 print(agent.genmodel.num_states)
 
+"""
+#%%
+
 
 G = initialize_network(G, agent_constructor_params, T = T, model = "sequencing")
 
 
 G = run_simulation(G, T = T, model = "sequencing")
 
+all_tweets = collect_tweets(G)
 
+def collect_mirroring_observations(G, T):
+    n = len(G.nodes())
+    mirroring_observations = np.zeros((T+1, n))
+    for agent in range(n):
+        mirroring_observations[:,agent] = G.nodes()[agent]['o'][:, -1]
+    return mirroring_observations
 
-# %%
+mirroring_observations = collect_mirroring_observations(G,T)
+print("Mirroring observations")
+print(mirroring_observations)
+print()
+print("tweets")
+print(all_tweets)

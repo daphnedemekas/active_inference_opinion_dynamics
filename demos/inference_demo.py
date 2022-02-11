@@ -11,7 +11,7 @@
 # from matplotlib import pyplot as plt
 
 # #%%
-# idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)
+# num_idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `num_idea_levels` ==2)
 # num_H = 2 #the number of hashtags, or observations that can shed light on the idea
 
 # h_idea_mapping = np.eye(num_H)
@@ -30,7 +30,7 @@
 
 #                 "idea_mapping_params" : {
 #                     "num_H" : num_H,
-#                     "idea_levels": idea_levels,
+#                     "num_idea_levels": num_idea_levels,
 #                     "h_idea_mapping": h_idea_mapping
 #                     },
 
@@ -60,7 +60,7 @@
 
 #         T = 100
 
-#         history_of_idea_beliefs = np.zeros((T,idea_levels))
+#         history_of_idea_beliefs = np.zeros((T,num_idea_levels))
 #         history_of_beliefs_about_other = np.zeros((T,2))
 #         history_of_idea_beliefs[0,:] = 0.5
 #         history_of_beliefs_about_other[0,:] = 0.5
@@ -107,7 +107,7 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 
 #%%
-idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)
+num_idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `num_idea_levels` ==2)
 num_H = 2 #the number of hashtags, or observations that can shed light on the idea
 
 h_idea_mapping = np.eye(num_H)
@@ -126,7 +126,7 @@ def agent_p(belief_d, env_d=None, ecb=None):
 
                 "idea_mapping_params" : {
                     "num_H" : num_H,
-                    "idea_levels": idea_levels,
+                    "num_idea_levels": num_idea_levels,
                     "h_idea_mapping": h_idea_mapping
                     },
 
@@ -154,7 +154,7 @@ for i, ecb in enumerate(np.linspace(3,10,2)):
         agent = Agent(**agent_params)
 
         observation = (0, 1, 0, 0)
-        history_of_idea_beliefs = np.zeros((T,idea_levels))
+        history_of_idea_beliefs = np.zeros((T,num_idea_levels))
         history_of_beliefs_about_other = np.zeros((T,2))
         
         qs = agent.infer_states(0, observation)

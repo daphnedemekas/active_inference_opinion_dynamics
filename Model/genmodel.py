@@ -16,7 +16,7 @@ class GenerativeModel(GenerativeModelSuper):
         num_neighbours, 
 
         num_H,
-        idea_levels,
+        num_idea_levels,
 
         initial_action = None,
         
@@ -33,7 +33,7 @@ class GenerativeModel(GenerativeModelSuper):
 
     ):
 
-        super().__init__(ecb_precisions, num_neighbours, num_H,idea_levels,initial_action, h_idea_mapping,belief2tweet_mapping ,E_lr ,env_determinism,belief_determinism,reduce_A)
+        super().__init__(ecb_precisions, num_neighbours, num_H,num_idea_levels,initial_action, h_idea_mapping,belief2tweet_mapping ,E_lr ,env_determinism,belief_determinism,reduce_A)
 
         
         self.A = self.generate_likelihood()
@@ -129,7 +129,7 @@ class GenerativeModel(GenerativeModelSuper):
         Similarly for the state factor corresponding to which neighbour the agent is sampling, this should be identically mapped
         for the slice conditioned on the action of which neighbour the agent is sampling """
 
-        transition_identity = np.eye(self.idea_levels, self.num_H)
+        transition_identity = np.eye(self.num_idea_levels, self.num_H)
         B = obj_array(self.num_factors)
 
         for f_idx, f_dim in enumerate(self.num_states): #iterate over the state factors

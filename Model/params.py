@@ -6,8 +6,8 @@ params:
 -- num_H
 -- num_neighbours: how many neighbours the agent has - a subset of the total number of agents  
 
--- h_idea_mapping: a predefined mapping between hidden states (beliefs of idea_levels) to hashtags / outcomes. if none, this will be random (initialzied inside agent). 
-    h_idea_mapping is a matrix of size (num_H x idea_levels). 
+-- h_idea_mapping: a predefined mapping between hidden states (beliefs of num_idea_levels) to hashtags / outcomes. if none, this will be random (initialzied inside agent). 
+    h_idea_mapping is a matrix of size (num_H x num_idea_levels). 
     for eg h_idea_mapping[0][0] represents how much the hidden state 1 (idea level 1) gives evidence for a tweet with hashtag 1. 
     this mapping is being used to construct a probability distribution over outcomes in the A matrix - (observation|hidden state)
     -  to construct the columns of the A matrix which define the probability of seeing some hashtag given the possible combinations of beliefs. 
@@ -30,7 +30,7 @@ between the current beliefs (qs) and the policies -- which are all combinations 
 #GLOBAL PARAMS
 total_number_of_agents = 4
 num_H = 2
-idea_levels = 2
+num_idea_levels = 2
 h_control_mapping = np.eye(num_H)
 
 
@@ -57,12 +57,12 @@ mia_params = {
 
     "idea_mapping_params" : {
         "num_H" : num_H,
-        "idea_levels": idea_levels,
+        "num_idea_levels": num_idea_levels,
         "h_idea_mapping": None
         },
 
     "policy_params" : {
-        "starting_state" : (num_neighbours+1) * [np.random.randint(idea_levels)] + [np.random.randint(num_H)] + [np.random.randint(num_neighbours)],
+        "starting_state" : (num_neighbours+1) * [np.random.randint(num_idea_levels)] + [np.random.randint(num_H)] + [np.random.randint(num_neighbours)],
         "belief2tweet_mapping" : None
         },
 
@@ -84,12 +84,12 @@ vincent_params = {
 
     "idea_mapping_params" : {
         "num_H" : num_H,
-        "idea_levels": idea_levels,
+        "num_idea_levels": num_idea_levels,
         "h_idea_mapping": None
         },
 
     "policy_params" : {
-        "starting_state" : (num_neighbours+1) * [np.random.randint(idea_levels)] + [np.random.randint(num_H)] + [np.random.randint(num_neighbours)],
+        "starting_state" : (num_neighbours+1) * [np.random.randint(num_idea_levels)] + [np.random.randint(num_H)] + [np.random.randint(num_neighbours)],
         "belief2tweet_mapping" : None
         },
 
@@ -110,12 +110,12 @@ jules_params = {
 
     "idea_mapping_params" : {
         "num_H" : num_H,
-        "idea_levels": idea_levels,
+        "num_idea_levels": num_idea_levels,
         "h_idea_mapping": None
         },
 
     "policy_params" : {
-        "starting_state" : (num_neighbours+1) * [np.random.randint(idea_levels)] + [np.random.randint(num_H)] + [np.random.randint(num_neighbours)],
+        "starting_state" : (num_neighbours+1) * [np.random.randint(num_idea_levels)] + [np.random.randint(num_H)] + [np.random.randint(num_neighbours)],
         "belief2tweet_mapping" : None
         },
 

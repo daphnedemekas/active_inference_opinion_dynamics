@@ -14,7 +14,7 @@ from matplotlib import pyplot as plt
 then the agent receives observations at each time step from two artificial neighbours that tweet opposing hashtags 
 and the plots created at the end represent which belief the agent converges to (if any)"""
 # %% Set up generative model
-idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)
+num_idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `num_idea_levels` ==2)
 num_H = 2 #the number of hashtags, or observations that can shed light on the idea
 num_neighbours = 2 
 h_idea_mapping = np.eye(num_H)
@@ -33,7 +33,7 @@ def agent_p(belief_d, env_d=None, ecb=None, learning_rate = None):
 
                 "idea_mapping_params" : {
                     "num_H" : num_H,
-                    "idea_levels": idea_levels,
+                    "num_idea_levels": num_idea_levels,
                     "h_idea_mapping": h_idea_mapping
                     },
 
@@ -71,7 +71,7 @@ for i, ecb in enumerate(np.linspace(3,9,2)):
             observation = (my_first_tweet, 0, int(neighbour_1_tweets[0]), my_first_neighbour)
 
         #just initializing arrays for the plots 
-        history_of_idea_beliefs = np.zeros((T,idea_levels)) # history of my own posterior over the truth/falsity of the idea
+        history_of_idea_beliefs = np.zeros((T,num_idea_levels)) # history of my own posterior over the truth/falsity of the idea
         history_of_beliefs_about_other = np.zeros((T,agent.genmodel.num_states[1],num_neighbours)) # histoyr of my posterior beliefs about the beliefs of my two neighbours about the truth/falsity of the idea
 
         #the first posterior distribution over states for timestep 0

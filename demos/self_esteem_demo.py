@@ -48,17 +48,17 @@ Agents should have a preference to observe that their neighbours have low esteem
 idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)
 num_H = 2 #the number of hashtags, or observations that can shed light on the idea
 h_idea_mapping = np.eye(num_H)
-h_idea_mapping[:,0] = softmax(h_idea_mapping[:,0]*1.0)
-h_idea_mapping[:,1] = softmax(h_idea_mapping[:,1]*1.0)
+h_idea_mapping[:,0] = softmax(h_idea_mapping[:,0]*0.7)
+h_idea_mapping[:,1] = softmax(h_idea_mapping[:,1]*0.7)
 
-
+print("H idea mapping")
+print(h_idea_mapping)
 """ Set parameters and generate agents"""
 env_d = 8
 c = 0
-ecb = 4 #just eliminate epistemic confirmation bias
 #in the rewritten generate_likelihood() function you just h_idea_mapping directly 
 
-belief_d = 4 #just fix this valeu 
+belief_d = 5 
 
 
 T = 20 #the number of timesteps 
@@ -67,7 +67,7 @@ T = 20 #the number of timesteps
 
 """ Parameter space """
 esteem_parameters = [1.5,0.2,-1.5]
-C_params = [1,0,-2]
+C_params = [2,0,-1]
 N = 4
 p = 1
 
@@ -76,9 +76,8 @@ G = generate_network(N,p)
 
 model_parameters = { "esteem_parameters": esteem_parameters, "C_params":C_params}
 
-agent_constructor_params = initialize_agent_params(G, h_idea_mapping = h_idea_mapping, \
-                                    ecb_precisions = ecb, B_idea_precisions = env_d, \
-                                        B_neighbour_precisions = belief_d, model = "self_esteem", model_parameters = model_parameters)
+agent_constructor_params = initialize_agent_params(G, h_idea_mapping = h_idea_mapping,  B_idea_precisions = env_d, \
+                                        B_neighbour_precisions = belief_d, model = "self_esteem", model_parameters = model_parameters, volatility_spread=0)
 
 G = initialize_network(G, agent_constructor_params, T = T, model = "self_esteem")
 
@@ -106,9 +105,11 @@ def collect_esteems(G, T):
 
 """ PLOTTING FOCAL ESTEEMS"""
 esteem_observations = collect_esteems(G,T)
-for i in range(N):
-    plt.plot(esteem_observations[:,0,i])
-plt.title("Focal esteems")
-plt.show()
+#for i in range(N):
+#    plt.plot(esteem_observations[:,0,i])
+#plt.title("Focal esteems")
+#plt.show()
 
 # %%
+print("tweets")
+print(all_tweets)

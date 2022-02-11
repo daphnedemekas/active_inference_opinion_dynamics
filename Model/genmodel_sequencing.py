@@ -48,33 +48,14 @@ preference over mirroring -- observation modality of mirroring
 
 class GenerativeModel(GenerativeModelSuper):
 
-    """
-    parameters:
-
-    ecb_precisions : an array of shape (num_neighbours, num_idea_levels)         
-    num_neighbours : int
-
-    num_H: int, number of hashtags 
-    idea_levels: int
-
-    h_idea_mapping: an array of shape (num_H, num_idea_levels) that maps how the agent believes the hashtags correspond to the idea levels
-                    if h idea mapping is the identity matrix, then the agent will always believe that observing hasthag 0 represents idea 0 and observing hashtag 1 represents idea 1
-
-    belief2tweet_mapping: an array of shape (num_H, num_idea_levels)
-    E_lr: float 
 
 
-    env_determinism: float
-    belief_determinism: an array of length number of neighbours, representing the inverse volatility with respect to each neighbour
-
-    """
     def __init__(
         self,
-        ecb_precisions, 
         num_neighbours, 
 
         num_H,
-        idea_levels,
+        num_idea_levels,
     
         initial_action = None,
 
@@ -86,18 +67,22 @@ class GenerativeModel(GenerativeModelSuper):
         env_determinism = 9,
         belief_determinism = None,
 
-        reduce_A = True
+        reduce_A = True,
+
+        mirroring_params = [2,-1],
+        C_params = np.array([0,0])
 
     ):
-        super().__init__(ecb_precisions, num_neighbours, num_H,idea_levels,initial_action, h_idea_mapping,belief2tweet_mapping ,E_lr ,env_determinism,belief_determinism,reduce_A)
+        super().__init__(num_neighbours=num_neighbours, num_H=num_H,num_idea_levels=num_idea_levels,initial_action=initial_action, h_idea_mapping=h_idea_mapping,belief2tweet_mapping=belief2tweet_mapping ,E_lr=E_lr ,env_determinism=env_determinism,belief_determinism=belief_determinism,reduce_A=reduce_A)
 
         self.num_mirroring_levels = 2 #mirroring or not mirroring 
         self.num_obs = [self.num_H] + (self.num_neighbours) * [self.num_H+1] + [self.num_neighbours] + [self.num_mirroring_levels]# list that contains the dimensionalities of each observation modality 
 
         self.num_modalities = len(self.num_obs) # total number of observation modalities
+        self.mirroring_idx = self.who_obs_idx + 1
 
         self.B = self.generate_transition()
-        self.C = self.generate_prior_preferences()
+        self.C = self.generate_prior_preferences(C_params)
 
         self.E = np.ones(len(self.policies))
 
@@ -105,10 +90,16 @@ class GenerativeModel(GenerativeModelSuper):
 
         self.reduce_A = reduce_A
         
-        self.mirroring_idx = self.who_obs_idx + 1
 
         self.initialize_A()
-        self.generate_likelihood()
+
+        A_slice = np.zeros((self.num_mirroring_levels, self.num_idea_levels, self.num_idea_levels))
+
+        A_slice[0]= softmax(np.eye(3)*mirroring_params[0])
+        A_slice[1] = softmax(np.eye(3)*mirroring_params[1])
+
+        self.generate_likelihood(A_slice)
+        
 
 
     def get_idea_mapping(self, neighbour_idx, o_dim):
@@ -119,7 +110,7 @@ class GenerativeModel(GenerativeModelSuper):
         return h_idea_with_null
     
 
-    def generate_likelihood(self):
+    def generate_likelihood(self, A_slice):
 
         """ This function generates the A matrix mapping states to observations 
         The logic of this function is as followsL 
@@ -179,13 +170,6 @@ class GenerativeModel(GenerativeModelSuper):
             elif o_idx == self.mirroring_idx:
                 #we want to create a mapping such that if mirroring == 0 (mirroring is happening)
                 #this makes the focal agent believe increase the probability that the observed neighbour believes what the focal agent believes 
-
-                A_slice = np.array([[0.7]*self.idea_levels, [0.3]*self.idea_levels])
-                A_slice = np.zeros((self.num_mirroring_levels, self.idea_levels, self.idea_levels))
-
-                A_slice[0]= softmax(np.eye(3)*2)
-                A_slice[1] = softmax(np.eye(3)*-1)
-
                 idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
                 #iterate over hashtag state and who_idx state and copy over the template matrix for each neighbour
 
@@ -193,8 +177,8 @@ class GenerativeModel(GenerativeModelSuper):
 
                     reshape_vec = np.ones(len(self.num_states), dtype = int)
                     reshape_vec[0] = self.num_mirroring_levels #first dimension is the levels of the esteem observation modality 
-                    reshape_vec[1] = self.idea_levels #second dimension is the focal agent's own belief 
-                    reshape_vec[i+2] = self.idea_levels #third dimensions is the beliefs of the sampled neighbour  
+                    reshape_vec[1] = self.num_idea_levels #second dimension is the focal agent's own belief 
+                    reshape_vec[i+2] = self.num_idea_levels #third dimensions is the beliefs of the sampled neighbour  
                     
                     broadcast_dims = np.ones(len(self.num_states), dtype = int) 
                     broadcast_dims[-1] = int(self.num_H)
@@ -256,14 +240,16 @@ class GenerativeModel(GenerativeModelSuper):
         return B
 
 
-    def generate_prior_preferences(self):
-        # Currently there are no prior preferences
+    def generate_prior_preferences(self, C_params):
         C = obj_array(self.num_modalities)
 
         for o_idx, o_dim in enumerate(self.num_obs): 
             
-            C[o_idx] = np.zeros(o_dim)
-        #C[-1] = -100
+            if o_idx == self.mirroring_idx: #the agent should prefer reward to rejection
+                C[o_idx] = np.array(C_params)
+            else :
+                C[o_idx] = np.zeros(o_dim)
+
                 
         return C
     

@@ -4,7 +4,7 @@ import networkx as nx
 def collect_idea_beliefs(G, start_t = 0, end_t = None):
     """
     Collect the history of agents' beliefs about the idea (the first factor of their posterior beliefs)
-    over time and return as a (T, num_idea_levels, N) matrix of posterior distributions, where num_idea_levels
+    over time and return as a (T, num_num_idea_levels, N) matrix of posterior distributions, where num_num_idea_levels
     is the dimensionality/support of the posterior marginal of the first hidden state factor
     """
 
@@ -13,9 +13,9 @@ def collect_idea_beliefs(G, start_t = 0, end_t = None):
 
     N = G.number_of_nodes()
 
-    idea_levels = G.nodes()[0]['agent'].genmodel.idea_levels
+    num_idea_levels = G.nodes()[0]['agent'].genmodel.num_idea_levels
 
-    belief_matrix = np.zeros((end_t-start_t, idea_levels, N))
+    belief_matrix = np.zeros((end_t-start_t, num_idea_levels, N))
 
     for i in G.nodes():
         belief_matrix[:,:,i] = np.stack(G.nodes()[i]['qs'][start_t:end_t,0])
@@ -23,6 +23,8 @@ def collect_idea_beliefs(G, start_t = 0, end_t = None):
     return belief_matrix
 
 def collect_tweets(G, start_t = 0, end_t = None):
+    print(len(G.nodes()))
+    print(G.nodes()[0]['my_tweet'])
 
     if end_t is None:
         end_t = len(G.nodes()[0]['my_tweet'])
@@ -31,7 +33,7 @@ def collect_tweets(G, start_t = 0, end_t = None):
 
     tweet_matrix = np.zeros((end_t-start_t, N))
 
-    for i in G.nodes():
+    for i in range(len(G.nodes())):
         tweet_matrix[:,i] = G.nodes()[i]['my_tweet'][start_t:end_t]
 
     return tweet_matrix

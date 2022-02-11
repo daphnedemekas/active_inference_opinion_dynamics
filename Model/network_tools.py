@@ -5,7 +5,7 @@ import random
 from .agent import Agent
 
 
-def create_multiagents(G, N , idea_levels = 2, num_H = 2, precision_params = None, env_determinism = None, belief_determinism = None):
+def create_multiagents(G, N , num_idea_levels = 2, num_H = 2, precision_params = None, env_determinism = None, belief_determinism = None):
     """
     Populates a networkx graph object G with N active inference agents
     """
@@ -29,7 +29,7 @@ def create_multiagents(G, N , idea_levels = 2, num_H = 2, precision_params = Non
         agent_i_params = {
 
             "neighbour_params" : {
-                "precisions" : precision_params*np.ones((num_neighbours,idea_levels)),
+                "precisions" : precision_params*np.ones((num_neighbours,num_idea_levels)),
                 "num_neighbours" : num_neighbours,
                 "env_determinism": env_determinism,
                 "belief_determinism": np.random.uniform(low=5.0, high=6.0, size=(num_neighbours,)) 
@@ -37,7 +37,7 @@ def create_multiagents(G, N , idea_levels = 2, num_H = 2, precision_params = Non
 
             "idea_mapping_params" : {
                 "num_H" : num_H,
-                "idea_levels": idea_levels,
+                "num_idea_levels": num_idea_levels,
                 "h_idea_mapping": None
                 },
 

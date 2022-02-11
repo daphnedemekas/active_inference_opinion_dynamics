@@ -19,11 +19,10 @@ class GenerativeModel(GenerativeModelSuper):
 
     def __init__(
         self,
-        ecb_precisions, 
         num_neighbours, 
 
         num_H,
-        idea_levels,
+        num_idea_levels,
 
         initial_action = None,
         
@@ -32,6 +31,7 @@ class GenerativeModel(GenerativeModelSuper):
         belief2tweet_mapping = None,
         E_lr = None,
 
+        
         env_determinism = 9,
         belief_determinism = None,
 
@@ -44,7 +44,7 @@ class GenerativeModel(GenerativeModelSuper):
 
     ):
 
-        super().__init__(ecb_precisions, num_neighbours, num_H,idea_levels,initial_action, h_idea_mapping,belief2tweet_mapping ,E_lr ,env_determinism,belief_determinism,reduce_A)
+        super().__init__(num_neighbours=num_neighbours, num_H=num_H,num_idea_levels=num_idea_levels,initial_action=initial_action, h_idea_mapping=h_idea_mapping,belief2tweet_mapping=belief2tweet_mapping ,E_lr=E_lr ,env_determinism=env_determinism,belief_determinism=belief_determinism,reduce_A=reduce_A)
 
         """ We need to overwrite the number of observations"""
         #observation: [what i tweeted, what my neighbours tweeted, who i observed, my self esteem, neighbours' esteem] 
@@ -64,7 +64,7 @@ class GenerativeModel(GenerativeModelSuper):
 
         self.reduce_A = reduce_A
 
-        A_slice = np.zeros((self.num_esteem_levels,self.idea_levels,self.idea_levels))
+        A_slice = np.zeros((self.num_esteem_levels,self.num_idea_levels,self.num_idea_levels))
         for i in range(A_slice.shape[0]):
             A_slice[i] = softmax(np.eye(2)*esteem_parameters[i])
 
@@ -147,12 +147,12 @@ class GenerativeModel(GenerativeModelSuper):
 
                     reshape_vec = np.ones(len(self.num_states), dtype = int)
                     reshape_vec[0] = self.num_esteem_levels #first dimension is the levels of the esteem observation modality 
-                    reshape_vec[1] = self.idea_levels #second dimension is the focal agent's own belief 
-                    reshape_vec[i+2] = self.idea_levels #third dimensions is the beliefs of the sampled neighbour  
+                    reshape_vec[1] = self.num_idea_levels #second dimension is the focal agent's own belief 
+                    reshape_vec[i+2] = self.num_idea_levels #third dimensions is the beliefs of the sampled neighbour  
                     
                     broadcast_dims = np.ones(len(self.num_states), dtype = int) 
                     other_neighbours = list(set(list(range(2,self.num_neighbours+2))) - set([i+2])) #we broadcast over all of the remaining neighbours 
-                    broadcast_dims[np.array(other_neighbours)] = int(self.idea_levels)
+                    broadcast_dims[np.array(other_neighbours)] = int(self.num_idea_levels)
 
                     broadcast_dims[-1] = int(self.num_H)
 
@@ -172,12 +172,12 @@ class GenerativeModel(GenerativeModelSuper):
                     
                     reshape_vec = np.ones(len(self.num_states), dtype = int)
                     reshape_vec[0] = self.num_esteem_levels #first dimension is the levels of the esteem observation modality
-                    reshape_vec[n_idx+2] = self.idea_levels #second dimension is the esteem-observed neighbours' beliefs 
-                    reshape_vec[i+2] = self.idea_levels #third dimension is the sampled neighbours' belief 
+                    reshape_vec[n_idx+2] = self.num_idea_levels #second dimension is the esteem-observed neighbours' beliefs 
+                    reshape_vec[i+2] = self.num_idea_levels #third dimension is the sampled neighbours' belief 
 
                     broadcast_dims = np.ones(len(self.num_states), dtype = int) 
                     other_neighbours = list(set([1] + list(range(2,self.num_neighbours+2))) - set([i+2, n_idx+2])) 
-                    broadcast_dims[np.array(other_neighbours)] = int(self.idea_levels)
+                    broadcast_dims[np.array(other_neighbours)] = int(self.num_idea_levels)
 
                     broadcast_dims[-1] = int(self.num_H)
 
@@ -226,10 +226,10 @@ class GenerativeModel(GenerativeModelSuper):
                 B[f_idx] = self.fill_B_states(matrix = np.eye(f_dim, f_dim), precision = self.belief_determinism[f_idx-1])
 
             if f_idx == self.h_control_idx: #for the hashtag control state we have rows of ones corresponding to the next state
-                B[f_idx] = self.fill_B_control_states(modality_shape = self.num_H*[f_dim] + [self.num_H], num_actions = self.num_H)
-            
+                B[f_idx] = self.fill_B_control_states(num_states = f_dim, num_actions = self.num_H)
+
             if f_idx == self.who_idx: #same as above for the who control state
-                B[f_idx] = self.fill_B_control_states(modality_shape = 2*[self.num_neighbours] + [self.num_neighbours], num_actions = self.num_neighbours)
+                B[f_idx] = self.fill_B_control_states(num_states = self.num_neighbours, num_actions = self.num_neighbours) 
         return B
 
 
@@ -256,11 +256,11 @@ class GenerativeModel(GenerativeModelSuper):
 
                 if f_idx == self.focal_belief_idx or f_idx in self.neighbour_belief_idx: #the first N+1 hidden state factors are variations of the identity matrix based on stubborness
                     r = np.random.randint(0,2)
-                    #D[f_idx] = np.ones(f_dim)/f_dim
                     if r == 0:
                         D[f_idx] = np.random.uniform(0.1,0.4,f_dim) #this is if we want the prior preferences to be uniform 
                     elif r == 1:
                         D[f_idx] = np.random.uniform(0.6,0.9,f_dim) #this is if we want the prior preferences to be uniform 
+                    #D[f_idx] = np.ones(f_dim)/f_dim
 
                 elif f_idx == self.h_control_idx:
                     

@@ -2,7 +2,7 @@
 import numpy as np
 
 def calculate_esteem(all_qs, t, threshold_high = 3, threshold_low = 1):
-    """ all_qs is a numpy array of shape (timesteps, idea_levels, num_agents) 
+    """ all_qs is a numpy array of shape (timesteps, num_idea_levels, num_agents) 
         t: the current timestep
     
     The esteem for each agent will be a functionn of how much their belief differs from the average beliefs of the group"""
@@ -18,8 +18,8 @@ def calculate_esteem(all_qs, t, threshold_high = 3, threshold_low = 1):
     agent_esteems = np.zeros(num_agents)
 
     for agent in num_agents:
-        agent_belief = all_qs[t,:,agent] #array of len(idea_levels)
-        neighbour_belief_avg = np.average(all_qs[t,:,[np.arange(num_agents)!=agent]], axis = 0) #array of len(idea_levels) 
+        agent_belief = all_qs[t,:,agent] #array of len(num_idea_levels)
+        neighbour_belief_avg = np.average(all_qs[t,:,[np.arange(num_agents)!=agent]], axis = 0) #array of len(num_idea_levels) 
         agent_std = np.std([agent_belief, neighbour_belief_avg]) #standard deviation between the agent and the norm 
 
         if agent_std == 0:
