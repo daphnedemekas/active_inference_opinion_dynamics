@@ -21,13 +21,12 @@ from matplotlib import pyplot as plt
 
 """ Set up the generative model """
 
-num_idea_levels = 3 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `num_idea_levels` ==2)
-num_H = 3 #the number of hashtags, or observations that can shed light on the idea
-num_neighbors = 2
+num_idea_levels = 5 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `num_idea_levels` ==2)
+num_H = 5 #the number of hashtags, or observations that can shed light on the idea
 h_idea_mapping = np.eye(num_H)
-h_idea_mapping[:,0] = softmax(h_idea_mapping[:,0]*1.0)
-h_idea_mapping[:,1] = softmax(h_idea_mapping[:,1]*1.0)
-h_idea_mapping[:,2] = softmax(h_idea_mapping[:,2]*1.0)
+for i in range(num_H):
+    h_idea_mapping[:,i] = softmax(h_idea_mapping[:,i]*1.0)
+
 
 
 """ Set parameters and generate agents"""
@@ -35,7 +34,7 @@ env_d = 8
 c = 0
 belief_d = 7
 T = 10 #the number of timesteps 
-N = 3
+N = 6
 p = 1
 mirroring_params = [2,-1]
 C_params = [1,-1]
@@ -106,3 +105,4 @@ print(mirroring_observations)
 print()
 print("tweets")
 print(all_tweets)
+

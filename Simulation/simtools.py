@@ -28,12 +28,12 @@ def initialize_agent_params(G,
                             num_idea_levels = 2, 
                             h_idea_mapping = None, 
                             belief2tweet_mappings = None, 
-                            ecb_precisions = None, 
+                            ecb_precision = None, 
                             B_idea_precisions = None,
                             B_neighbour_precisions = None, 
                             E_noise = 0,
                             ecb_spread = 0.1,
-                            volatility_spread = 0.1,
+                            volatility_spread = 0.0,
                             optim_options = None,
                             model = None,
                             model_parameters = {}):
@@ -42,7 +42,7 @@ def initialize_agent_params(G,
     """
 
     """
-    1. Set defaults if not specified (e.g. draw `low` 
+    1. Set defaults if not specified (e.g. draw `low`
     parameter of uniform distribution from Gamma distributions, then add +1 to make maximum)
     """
 
@@ -52,7 +52,7 @@ def initialize_agent_params(G,
 
     if optim_options is None:
         optim_options = {'reduce_A': True, 'reduce_A_inference': True, 'reduce_A_policies': True}
-    
+
     agent_constructor_params = {}
 
     for i in G.nodes():
@@ -61,19 +61,19 @@ def initialize_agent_params(G,
 
         initial_tweet, initial_neighbour_to_sample = np.random.randint(num_H), np.random.randint(num_neighbours) 
 
-        if ecb_precisions is not None:
-            ecb_precisions = np.absolute(np.random.normal(ecb_precisions, ecb_spread, size=(num_neighbours, num_idea_levels)))
+        if ecb_precision is not None:
+            ecb_precisions = np.absolute(np.random.normal(ecb_precision, ecb_spread, size=(num_neighbours, num_idea_levels)))
 
         env_determinism = B_idea_precisions
 
         belief_determinism = np.absolute(np.random.normal(B_neighbour_precisions, volatility_spread, size=(num_neighbours,)) )
 
-        if model is None: 
+        if model is None:
             agent_constructor_params[i] = epistemic_community_params(ecb_precisions, num_neighbours, env_determinism, belief_determinism, num_H, num_idea_levels, h_idea_mapping, initial_tweet, initial_neighbour_to_sample,
-                                belief2tweet_mappings, E_noise, model_parameters)
+                                belief2tweet_mappings, E_noise)
         elif model == "sequencing":
             agent_constructor_params[i] = sequencing_model_params(num_neighbours, env_determinism, belief_determinism, num_H, num_idea_levels, h_idea_mapping, initial_tweet, initial_neighbour_to_sample,
-                                belief2tweet_mappings, E_noise, model_parameters)    
+                                belief2tweet_mappings, E_noise, model_parameters)
         elif model == "self_esteem":
             agent_constructor_params[i] = self_esteem_model_params(num_neighbours, env_determinism, belief_determinism, num_H, num_idea_levels, h_idea_mapping, initial_tweet, initial_neighbour_to_sample,
                     belief2tweet_mappings, E_noise, model_parameters)
@@ -86,7 +86,7 @@ def initialize_network(G, agent_constructor_params, T, model):
     Initializes a network object G that stores agent-level information (e.g. parameters of individual
     generative models, global node-indices, ...) and information about the generative process.
     """
-            
+
     single_node_attrs = {
             'agent': {},
             'self_global_label_mapping': {},
@@ -100,7 +100,7 @@ def initialize_network(G, agent_constructor_params, T, model):
             }
 
     single_node_attrs['stored_data'] = {i:list(single_node_attrs.keys()) for i in G.nodes()}
-    
+
     for agent_i in G.nodes():
 
 
@@ -110,7 +110,7 @@ def initialize_network(G, agent_constructor_params, T, model):
         single_node_attrs['agent'][agent_i] = agent
 
         single_node_attrs['self_global_label_mapping'][agent_i] = self_global_label_mapping
-      
+
         single_node_attrs['qs'][agent_i] = np.empty((T, agent.genmodel.num_factors), dtype=object) # history of the posterior beliefs  about hidden states of `agent_i` 
 
         single_node_attrs['q_pi'][agent_i] = np.empty((T, len(agent.genmodel.policies)), dtype=object) # history of the posterior beliefs about policies of `agent_i` 
@@ -124,23 +124,22 @@ def initialize_network(G, agent_constructor_params, T, model):
 
         single_node_attrs['other_tweet'][agent_i] = np.zeros(T+1)  # history of indices of `other_tweet` (same as G.nodes()[agent_i][`o`][t,n+1]) where `n` is the index of the selected neighbour at time t
 
-        single_node_attrs['sampled_neighbors'][agent_i] = np.zeros(T+1) 
+        single_node_attrs['sampled_neighbors'][agent_i] = np.zeros(T+1)
 
     for attr, attr_dict in single_node_attrs.items():
 
         nx.set_node_attributes(G, attr_dict, attr)
-    
+
     return G
 
 
 def get_observations_time_t(G, t, model):
-    
+
     if model == "self_esteem" and t > 0:
         belief_mu =  np.mean([G.nodes[i]['qs'][t-1,0] for i in range(len(G.nodes()))],axis=0)
         belief_std =  np.std([G.nodes[i]['qs'][t-1,0] for i in range(len(G.nodes()))],axis=0)
-       # print("average beliefs: " + str(belief_mu))
-    
-    else: 
+
+    else:
         belief_mu = belief_std = None
 
     for i in G.nodes():
@@ -149,7 +148,7 @@ def get_observations_time_t(G, t, model):
         agent_i = node_attrs['agent']      # get agent class for the i-th node
 
         node_attrs['o'][t,agent_i.genmodel.focal_h_idx] = int(agent_i.action[agent_i.genmodel.h_control_idx])      # my first observation is what I'm tweeting
-        
+
         #redundant
         node_attrs['my_tweet'][t] = int(agent_i.action[agent_i.genmodel.h_control_idx]) # what I'm tweeting
 
@@ -179,7 +178,6 @@ def get_observations_time_t(G, t, model):
                 node_attrs['o'][t,agent_i.genmodel.focal_esteem_idx] = focal_esteem #calculated using a threshold on the number of standard deviations between the focal agent's belief and the average belief
                 for i, idx in enumerate(agent_i.genmodel.neighbour_esteem_idx):
                     global_neighbour_idx = node_attrs['self_global_label_mapping'][i] # convert from 'local' (focal-agent-relative) neighbour index to global (network-relative) index
-                    
                     neighbour_esteem = calculate_esteem(G.nodes()[global_neighbour_idx]['qs'][t-1,0], belief_mu, belief_std) #calculated using a threshold on the number of standard deviations between the neighbours' belief and the average belief
                     node_attrs['o'][t,idx] = neighbour_esteem
 
@@ -189,12 +187,12 @@ def get_observations_time_t(G, t, model):
                     #TODO: should we be using the focal agent's belief about the neighbours' belief or the neighbours actual belief to generate the focal agent's observation of the neighbours' esteem?
 
         elif agent_i.model == "sequencing":
-            #need to check whether the agent observed the same hashtag that it tweeted 
+            #need to check whether the agent observed the same hashtag that it tweeted
             if node_attrs['my_tweet'][t] == node_attrs['other_tweet'][t] -1:
-                node_attrs['o'][t, agent_i.genmodel.mirroring_idx] = 0 
-            else: 
+                node_attrs['o'][t, agent_i.genmodel.mirroring_idx] = 0
+            else:
                 node_attrs['o'][t,agent_i.genmodel.mirroring_idx] = 1
-    
+
     return G
 
 def calculate_esteem(qs, belief_mu, belief_std):
@@ -236,7 +234,6 @@ def run_simulation(G, T, model = None):
 
     # run active inference loop over time
     for t in range(T):
-        print("Time: " + str(t))
         G = run_single_timestep(G, t, model)
     
     return G

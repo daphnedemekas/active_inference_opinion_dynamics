@@ -19,7 +19,7 @@ class GenerativeModel(GenerativeModelSuper):
         num_idea_levels,
 
         initial_action = None,
-        
+
         h_idea_mapping = None,
 
         belief2tweet_mapping = None,
@@ -33,19 +33,18 @@ class GenerativeModel(GenerativeModelSuper):
 
     ):
 
-        super().__init__(ecb_precisions, num_neighbours, num_H,num_idea_levels,initial_action, h_idea_mapping,belief2tweet_mapping ,E_lr ,env_determinism,belief_determinism,reduce_A)
+        super().__init__(num_neighbours, num_H = num_H, num_idea_levels = num_idea_levels, ecb_precisions = ecb_precisions, initial_action = initial_action, h_idea_mapping = h_idea_mapping,
+                        belief2tweet_mapping = belief2tweet_mapping, E_lr = E_lr, env_determinism = env_determinism,belief_determinism = belief_determinism)
 
-        
         self.A = self.generate_likelihood()
 
-        
         if reduce_A:
             self.A_reduced = obj_array(self.num_modalities)
             self.informative_dims = []
             for g in range(self.num_modalities):
                 self.A_reduced[g], factor_idx = reduce_a_matrix(self.A[g])
                 self.informative_dims.append(factor_idx)
-            self.reshape_dims_per_modality, self.tile_dims_per_modality = self.generate_indices_for_policy_updating()
+            self.reshape_dims_per_modality, self.tile_dims_per_modality = self.generate_indices_for_policy_updating(self.informative_dims)
             del self.A
         self.B = self.generate_transition()
         self.C = self.generate_prior_preferences()
@@ -75,7 +74,7 @@ class GenerativeModel(GenerativeModelSuper):
 
         #initialize the A matrix 
         A = self.initialize_A()
-        
+
         idx_vec_s = [slice(self.num_states[f]) for f in range(self.num_factors)] #a vector of slices of the A matrix for each state factor 
         broadcast_dims = [1] + self.num_states # this is template broadcast dimension list
 
@@ -141,10 +140,10 @@ class GenerativeModel(GenerativeModelSuper):
                 B[f_idx] = self.fill_B_states(matrix = np.eye(f_dim, f_dim), precision = self.belief_determinism[f_idx-1])
 
             if f_idx == self.h_control_idx: #for the hashtag control state we have rows of ones corresponding to the next state
-                B[f_idx] = self.fill_B_control_states(modality_shape = self.num_H*[f_dim] + [self.num_H], num_actions = self.num_H)
-            
+                B[f_idx] = self.fill_B_control_states(num_states = f_dim, num_actions = self.num_H)
+
             if f_idx == self.who_idx: #same as above for the who control state
-                B[f_idx] = self.fill_B_control_states(modality_shape = 2*[self.num_neighbours] + [self.num_neighbours], num_actions = self.num_neighbours)
+                B[f_idx] = self.fill_B_control_states(num_states = self.num_neighbours, num_actions = self.num_neighbours) 
         return B
 
 

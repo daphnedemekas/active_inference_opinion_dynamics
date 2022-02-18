@@ -95,8 +95,8 @@ class GenerativeModel(GenerativeModelSuper):
 
         A_slice = np.zeros((self.num_mirroring_levels, self.num_idea_levels, self.num_idea_levels))
 
-        A_slice[0]= softmax(np.eye(3)*mirroring_params[0])
-        A_slice[1] = softmax(np.eye(3)*mirroring_params[1])
+        A_slice[0]= softmax(np.eye(num_H)*mirroring_params[0])
+        A_slice[1] = softmax(np.eye(num_H)*mirroring_params[1])
 
         self.generate_likelihood(A_slice)
         

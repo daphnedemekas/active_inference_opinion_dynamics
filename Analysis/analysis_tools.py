@@ -23,8 +23,7 @@ def collect_idea_beliefs(G, start_t = 0, end_t = None):
     return belief_matrix
 
 def collect_tweets(G, start_t = 0, end_t = None):
-    print(len(G.nodes()))
-    print(G.nodes()[0]['my_tweet'])
+
 
     if end_t is None:
         end_t = len(G.nodes()[0]['my_tweet'])

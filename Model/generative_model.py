@@ -55,7 +55,6 @@ class GenerativeModelSuper(object):
 
     ):
 
-        
         self.num_H = num_H
         self.num_idea_levels = num_idea_levels
 
@@ -74,15 +73,15 @@ class GenerativeModelSuper(object):
 
         if belief_determinism is None:
             belief_determinism = np.ones((num_neighbours,))*6
-        self.belief_determinism = belief_determinism   
+        self.belief_determinism = belief_determinism
         assert self.belief_determinism.shape == (num_neighbours,), "Your belief_determinism has the wrong shape. It should be (num_neighbours,)"
 
         self.belief2tweet_mapping = belief2tweet_mapping 
         self.h_control_mapping = np.eye(self.num_H)
         
-        #self.num_obs = [self.num_H] + (self.num_neighbours) * [self.num_H+1] + [self.num_neighbours]  # list that contains the dimensionalities of each observation modality 
+        self.num_obs = [self.num_H] + (self.num_neighbours) * [self.num_H+1] + [self.num_neighbours]  # list that contains the dimensionalities of each observation modality 
 
-        #self.num_modalities = len(self.num_obs) # total number of observation modalities
+        self.num_modalities = len(self.num_obs) # total number of observation modalities
         self.num_states = (1+ self.num_neighbours) * [self.num_idea_levels] + [self.num_H] + [self.num_neighbours] #list that contains the dimensionality of each state factor 
         self.num_factors = len(self.num_states) # total number of hidden state factors
 

@@ -1,7 +1,6 @@
 
 def epistemic_community_params(ecb_precisions, num_neighbours, env_determinism, belief_determinism, num_H, num_idea_levels, h_idea_mapping, initial_tweet, initial_neighbour_to_sample,
-                                belief2tweetmapping, E_noise, model_parameters):
-    
+                                belief2tweetmapping, E_noise):
     agent_constructor_params = {
 
     "neighbour_params" : {
@@ -22,9 +21,6 @@ def epistemic_community_params(ecb_precisions, num_neighbours, env_determinism, 
         "belief2tweet_mapping" : belief2tweetmapping,
         "E_lr" : E_noise
         },
-    
-    "model_params": model_parameters
-
     }
     return agent_constructor_params
 
