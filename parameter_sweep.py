@@ -17,6 +17,8 @@ import os
 def run_sweep(param_combos):
     iter = 0
     for p_idx, param_config in enumerate(param_combos):
+        if p_idx < 215:
+            continue
 
         num_agents_i, connectedness_i, ecb_p_i, env_precision_i, b_precision_i, lr_i = param_config
         N, p, T = num_agents_i, connectedness_i, 100
