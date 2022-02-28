@@ -3,7 +3,7 @@
 import numpy as np
 import networkx as nx
 from model.agent import Agent
-from simulation.simtools import generate_network, initialize_agent_params, initialize_network, run_simulation, connect_edgeless_nodes, clip_edges
+from Simulation.simtools import generate_network, initialize_agent_params, initialize_network, run_simulation, connect_edgeless_nodes, clip_edges
 from analysis.analysis_tools import collect_idea_beliefs, collect_sampling_history, collect_tweets
 from model.pymdp import maths
 from model.pymdp import utils
@@ -24,7 +24,7 @@ def run_sweep(param_combos):
         N, p, T = num_agents_i, connectedness_i, 100
         G = generate_network(N,p)
 
-
+ 
         if not os.path.isdir('analysis/hyp2_results/' + str(p_idx)  +"/"):
             os.mkdir('analysis/hyp2_results/' + str(p_idx)+"/")
         for trial_i in range(n_trials):
