@@ -3,7 +3,7 @@
 import numpy as np
 import networkx as nx
 from model.agent import Agent
-from simulation.simtools import generate_network, initialize_agent_params, initialize_network, run_simulation, connect_edgeless_nodes, clip_edges
+from Simulation.simtools import generate_network, initialize_agent_params, initialize_network, run_simulation, connect_edgeless_nodes, clip_edges
 from analysis.analysis_tools import collect_idea_beliefs, collect_sampling_history, collect_tweets
 from model.pymdp import maths
 from model.pymdp import utils
@@ -17,6 +17,9 @@ import os
 def run_sweep(param_combos):
     iter = 0
     for p_idx, param_config in enumerate(param_combos):
+        if p_idx < 180:
+            continue 
+            
 
         num_agents_i, connectedness_i, ecb_p_i, env_precision_i, b_precision_i, lr_i = param_config
         N, p, T = num_agents_i, connectedness_i, 100
