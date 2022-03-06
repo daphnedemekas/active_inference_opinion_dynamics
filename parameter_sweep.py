@@ -3,13 +3,13 @@
 import numpy as np
 import networkx as nx
 from model.agent import Agent
-from Simulation.simtools import generate_network, initialize_agent_params, initialize_network, run_simulation, connect_edgeless_nodes, clip_edges
+from simulation.simtools import generate_network, initialize_agent_params, initialize_network, run_simulation, connect_edgeless_nodes, clip_edges
 from analysis.analysis_tools import collect_idea_beliefs, collect_sampling_history, collect_tweets
 from model.pymdp import maths
 from model.pymdp import utils
 from matplotlib import pyplot as plt
 from analysis.plots import *
-#import pandas as pd 
+#import pandas as pd
 import itertools
 import os
 #import multiprocessing
@@ -17,7 +17,7 @@ import os
 def run_sweep(param_combos):
     iter = 0
     for p_idx, param_config in enumerate(param_combos):
-        if p_idx < 215:
+        if p_idx < 163:
             continue
 
         num_agents_i, connectedness_i, ecb_p_i, env_precision_i, b_precision_i, lr_i = param_config
@@ -25,9 +25,12 @@ def run_sweep(param_combos):
         G = generate_network(N,p)
 
  
-        if not os.path.isdir('analysis/hyp2_results/' + str(p_idx)  +"/"):
-            os.mkdir('analysis/hyp2_results/' + str(p_idx)+"/")
+        if not os.path.isdir('analysis/hyp1_results/' + str(p_idx)  +"/"):
+            os.mkdir('analysis/hyp1_results/' + str(p_idx)+"/")
         for trial_i in range(n_trials):
+            if p_idx == 163:
+                if trial_i < 41:
+                    continue
 
             agent_constructor_params = initialize_agent_params(G, h_idea_mapping = h_idea_mapping, \
                                         ecb_precision = ecb_p_i, B_idea_precisions = env_precision_i, \
@@ -42,7 +45,7 @@ def run_sweep(param_combos):
             trial_results = np.array([adj_mat, all_qs, all_tweets, all_neighbour_samplings], dtype=object)
 
 
-            np.savez('analysis/hyp2_results/' + str(p_idx) + "/" + str(trial_i) , trial_results)
+            np.savez('analysis/hyp1_results/' + str(p_idx) + "/" + str(trial_i) , trial_results)
 
             iter +=1
 
@@ -50,17 +53,14 @@ if __name__ == '__main__':
 
     h_idea_mapping = utils.softmax(np.array([[1,0],[0,1]])* np.random.uniform(0.3,2.1))
 
-    connectedness_values = [0.4]
-    #connectedness_values = np.linspace(0.2,0.8,15)
+    connectedness_values = np.linspace(0.2,0.8,15)
     ecb_precision_gammas = np.linspace(3,9,15)
-    #ecb_precision_gammas = np.append(ecb_precision_gammas, False)
     num_agent_values = [15]
 
     n = len(num_agent_values)
     c = len(connectedness_values)
     env_precision_gammas = [9]
-    #b_precision_gammas = [3]
-    b_precision_gammas = np.linspace(0.05,1,15)
+    b_precision_gammas = [0.6]
     lr = [0]
     r_len = len(ecb_precision_gammas)
     e_len = len(env_precision_gammas)

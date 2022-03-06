@@ -67,7 +67,7 @@ class GenerativeModelSuper(object):
         self.ecb_precisions = ecb_precisions
         self.num_neighbours = num_neighbours
 
-        
+
         assert np.isscalar(env_determinism), "Your env_determinism has the wrong shape. It should be a scalar"
         self.env_determinism = float(env_determinism)
 
@@ -78,7 +78,7 @@ class GenerativeModelSuper(object):
 
         self.belief2tweet_mapping = belief2tweet_mapping 
         self.h_control_mapping = np.eye(self.num_H)
-        
+
         self.num_obs = [self.num_H] + (self.num_neighbours) * [self.num_H+1] + [self.num_neighbours]  # list that contains the dimensionalities of each observation modality 
 
         self.num_modalities = len(self.num_obs) # total number of observation modalities
@@ -110,7 +110,7 @@ class GenerativeModelSuper(object):
         for idx in range(len(items)):
             s.insert(indices[idx], items[idx])
         return s
-        
+
 
     def initialize_A(self):
         """initialize the A matrix and fill the modalities with their correct shape"""

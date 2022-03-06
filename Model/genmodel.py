@@ -90,7 +90,7 @@ class GenerativeModel(GenerativeModelSuper):
                     h_idea_scaled_with_null, h_idea_with_null = self.scale_idea_mapping(o_idx, o_dim, truth_level)
                     idx_vec_o = [slice(0, o_dim)] + idx_vec_s.copy()
                     idx_vec_o[self.focal_belief_idx+1] = slice(truth_level,truth_level+1,None)
-                    
+
                     for neighbour_i in range(self.num_states[self.who_idx]): #iterate over the possible observed neighbours from state factor who_idx
 
                         # create a list of which dimensions you need to reshape along for the broadcasted tiling
