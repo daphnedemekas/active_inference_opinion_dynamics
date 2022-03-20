@@ -56,12 +56,12 @@ print(h_idea_mapping)
 """ Set parameters and generate agents"""
 env_d = 8
 c = 0
-#in the rewritten generate_likelihood() function you just h_idea_mapping directly 
+#in the rewritten generate_likelihood() function you just h_idea_mapping directly
 
-belief_d = 5 
+belief_d = 5
 
 
-T = 20 #the number of timesteps 
+T = 20 #the number of timesteps
 
 
 
@@ -87,6 +87,31 @@ G = run_simulation(G, T = T, model="self_esteem")
 #%%
 
 all_qs = collect_idea_beliefs(G)
+
+""" 
+RESULTS 
+T = 50 
+
+if they don't change their beliefs (need to figure out how to do this - maybe make the A matrix an identity matrix over belief states), 
+
+given the choice about whether or not to express yourself, do agents continue tweeting if they get low self esteem 
+
+-0.2 --> still express your opinion even if you're in the minority 
+after some threshold on the esteem parameter the punishment of being rejected is too high to allow you to express your opinion
+
+what is that threshold?
+
+3 neighbours, 2 agree 1 doesn't agree, based solely on self-esteem, choose to only read the neighbour who agrees with you (self esteem observation must coem from who you choose to read)
+
+
+adding actions: friend, unfriend
+- action to unfriend should depend on how much their action affects your overall 'rating' in self esteem 
+- friend whoever is closest to the person who agrees with you, you have direct access to your neighbours and partial access to your neighbours' neighbours (awareness of them)
+so you can choose to friend them if you want to increase your rating 
+
+if they have nobody in their group who believes them -- do they stop tweeting / looking for people, or do they form a pathway towards changing a group?
+
+"""
 
 plt.plot(all_qs[:,0,:])
 
