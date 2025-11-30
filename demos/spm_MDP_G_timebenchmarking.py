@@ -1,25 +1,9 @@
 # %% Imports
-from model.pymdp.maths import spm_MDP_G, spm_MDP_G_optim
 import numpy as np
 from matplotlib import pyplot as plt
-# %% Imports
+from model.pymdp.maths import spm_MDP_G, spm_MDP_G_optim
 
-# num_states = [3,4,5]
-
-# A = np.random.rand(2,10)
-
-# x = np.empty(1,dtype=object)
-
-# x[0] = np.random.rand(10)
-# #x[1] = np.random.rand(4)
-# #x[2] = np.random.rand(4)
-# print(A)
-# q = spm_MDP_G(A,x)
-
-# q_optim, cost1, cost2, cost3 = spm_MDP_G_optim(A,x)
-
-# print(q)
-# print(q_optim)
+# %% Run Benchmarking
 
 num_factors_list = range(1,10)
 num_iter = 100
