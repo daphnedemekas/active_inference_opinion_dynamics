@@ -2,13 +2,13 @@
 
 import numpy as np
 import networkx as nx
-from Model.agent import Agent
-from Simulation.simtools import generate_network, initialize_agent_params, initialize_network, run_simulation, connect_edgeless_nodes, clip_edges
-from Analysis.analysis_tools import collect_idea_beliefs, collect_sampling_history, collect_tweets
-from Model.pymdp import maths
-from Model.pymdp import utils
+from model.agent import Agent
+from simulation.simtools import generate_network, initialize_agent_params, initialize_network, run_simulation, connect_edgeless_nodes, clip_edges
+from analysis.analysis_tools import collect_idea_beliefs, collect_sampling_history, collect_tweets
+from model.pymdp import maths
+from model.pymdp import utils
 from matplotlib import pyplot as plt
-from Analysis.plots import *
+from analysis.plots import *
 #import pandas as pd 
 import itertools
 import os
@@ -26,8 +26,8 @@ def run_sweep(param_combos):
         N, p, T = num_agents_i, connectedness_i, 50
         G = generate_network(N,p)
 
-        if not os.path.isdir('Analysis/ecb_lr/' + str(p_idx)  +"/"):
-            os.mkdir('Analysis/ecb_lr/' + str(p_idx)+"/")
+        if not os.path.isdir('analysis/ecb_lr/' + str(p_idx)  +"/"):
+            os.makedirs('analysis/ecb_lr/' + str(p_idx)+"/", exist_ok=True)
 
         for trial_i in range(n_trials):
             #if trial_i < 30:
@@ -48,7 +48,7 @@ def run_sweep(param_combos):
             trial_results = np.array([adj_mat, all_qs, all_tweets, all_neighbour_samplings], dtype=object)
 
 
-            np.savez('Analysis/ecb_lr/' + str(p_idx) + "/" + str(trial_i) , trial_results)
+            np.savez('analysis/ecb_lr/' + str(p_idx) + "/" + str(trial_i) , trial_results)
 
             iter +=1
 

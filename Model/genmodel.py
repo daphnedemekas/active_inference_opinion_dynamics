@@ -270,7 +270,6 @@ class GenerativeModel(object):
                 if f_idx == self.focal_belief_idx or f_idx in self.neighbour_belief_idx: #the first N+1 hidden state factors are variations of the identity matrix based on stubborness
                     
                     D[f_idx] = np.ones(f_dim)/f_dim
-                    #D[f_idx] = np.random.uniform(0,1,f_dim)
                 
                 elif f_idx == self.h_control_idx:
                     
@@ -333,7 +332,6 @@ class GenerativeModel(object):
         
         if self.belief2tweet_mapping is None:
             self.belief2tweet_mapping = np.eye(self.num_H, self.idea_levels)
-            #self.belief2tweet_mapping = np.random.uniform(low = 1, high = 9, size=(self.num_H , self.idea_levels))
         else:
             assert self.belief2tweet_mapping.shape == (self.num_H , self.idea_levels), "Your belief2tweet_mapping has the wrong shape. It should be (self.num_H , self.idea_levels)"
         self.belief2tweet_mapping = self.belief2tweet_mapping / self.belief2tweet_mapping.sum(axis=0)

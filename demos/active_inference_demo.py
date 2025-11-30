@@ -56,15 +56,15 @@ def agent_p(belief_d, env_d=None, ecb=None):
             }
     return agent_params
         # %%
-fig, axs = plt.subplots(2, 2)        #plt.figure(figsize=(12,8))
+fig, axs = plt.subplots(4, 4)        #plt.figure(figsize=(12,8))
 fig.set_figheight(20)
 fig.set_figwidth(20)
 env_d = 8
 c = 0
-for i, ecb in enumerate(np.linspace(3,9,2)):
+for i, ecb in enumerate(np.linspace(3,9,4)):
     print("ECB")
     print(ecb)
-    for j, belief_d in enumerate(np.linspace(3,9,2)):
+    for j, belief_d in enumerate(np.linspace(3,9,4)):
         print("BELIEF D")
         print(belief_d)
         agent_params = agent_p(belief_d = belief_d, env_d = env_d, ecb = ecb)
@@ -150,12 +150,12 @@ for i, ecb in enumerate(np.linspace(3,9,2)):
         #plt.show()
         plt.figure(figsize=(12,8))
         plt.title("Sampling probabilities over time, ecb: " + str(ecb) + ", " r'$\omega_{s}$' + ": " + str(belief_d), fontsize=15)
-        fig = plt.figure(figsize=(10, 3))
         plt.imshow(neighbour_sampling_probs.T[:,3:33], cmap = 'gray')
         plt.title("Probability of sampling")
         plt.ylabel("Neighbour")
         plt.xlabel("Time")
-        #plt.savefig("test2")
+        plt.savefig(f"results/sampling_probs_ecb_{ecb}_belief_{belief_d}.png")
+        plt.close()
 
 
         #axs[i, j].plot(neighbour_sampling_probs[:,0],label="prob of sampling neighbour 1",  color = 'darkgreen')
@@ -164,8 +164,8 @@ for i, ecb in enumerate(np.linspace(3,9,2)):
         #axs[i, j].legend(fontsize=15)
 
 #plt.legend(fontsize = 20)
-#fig.suptitle("Three agent demo with opposing neighbours", fontsize = 30)
-#plt.savefig("Figure 1")
+fig.suptitle("Three agent demo with opposing neighbours", fontsize = 30)
+fig.savefig("results/active_inference_demo_beliefs.png")
 #plt.show()
 
         # plt.scatter(np.arange(T)[history_of_who_im_looking_at == 0], 0.75*np.ones(T)[history_of_who_im_looking_at==0], c = 'red')

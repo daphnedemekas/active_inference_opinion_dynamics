@@ -4,9 +4,9 @@ import numpy as np
 import networkx as nx
 import time
 
-from Model.agent import Agent
-from Simulation.simtools import initialize_agent_params, initialize_network, run_simulation
-from Model.pymdp import utils
+from model.agent import Agent
+from simulation.simtools import initialize_agent_params, initialize_network, run_simulation
+from model.pymdp import utils
 
 # %% Run simulation for different network sizes
 

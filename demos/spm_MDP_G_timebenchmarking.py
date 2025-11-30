@@ -1,5 +1,5 @@
 # %% Imports
-from Model.pymdp.maths import spm_MDP_G, spm_MDP_G_optim
+from model.pymdp.maths import spm_MDP_G, spm_MDP_G_optim
 import numpy as np
 from matplotlib import pyplot as plt
 # %% Imports

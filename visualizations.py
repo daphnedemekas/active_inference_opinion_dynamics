@@ -3,7 +3,7 @@ import numpy as np
 import networkx as nx
 import matplotlib as mpl
 from matplotlib import pyplot as plt
-from Analysis.plots import *
+from analysis.plots import *
 import imageio
 import os
 # %% Load data and visualize as graph

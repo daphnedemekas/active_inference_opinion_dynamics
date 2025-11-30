@@ -1,12 +1,12 @@
 # %%
 
 import numpy as np
-from Model.genmodel import GenerativeModel
-from Model.agent import Agent
-from Model.pymdp import utils
-from Model.pymdp.utils import obj_array, index_list_to_onehots, sample, reduce_a_matrix
-from Model.pymdp.maths import softmax, spm_dot, spm_log, get_joint_likelihood, calc_free_energy
-from Model.pymdp.inference import update_posterior_states
+from model.genmodel import GenerativeModel
+from model.agent import Agent
+from model.pymdp import utils
+from model.pymdp.utils import obj_array, index_list_to_onehots, sample, reduce_a_matrix
+from model.pymdp.maths import softmax, spm_dot, spm_log, get_joint_likelihood, calc_free_energy
+from model.pymdp.inference import update_posterior_states
 import matplotlib.pyplot as plt 
 
 idea_levels = 2 # the levels of beliefs that agents can have about the idea (e.g. 'True' vs. 'False', in case `idea_levels` ==2)

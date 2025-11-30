@@ -1,11 +1,11 @@
 #%%
 import numpy as np
-from Model.genmodel import GenerativeModel
-from Model.agent import Agent
-from Model.pymdp.maths import softmax
-from Model.pymdp.inference import update_posterior_states
-from Model.pymdp.fpi import run_fpi, run_fpi_factorized
-from Model.pymdp.utils import process_observation
+from model.genmodel import GenerativeModel
+from model.agent import Agent
+from model.pymdp.maths import softmax
+from model.pymdp.inference import update_posterior_states
+from model.pymdp.fpi import run_fpi, run_fpi_factorized
+from model.pymdp.utils import process_observation
 
 from matplotlib import pyplot as plt
 

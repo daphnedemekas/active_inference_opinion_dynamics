@@ -5,7 +5,7 @@ import pandas as pd
 from IPython.display import display
 import seaborn as sns
 import itertools
-#from Analysis.plots import plot_beliefs_over_time, plot_conclusion_thresholds
+#from analysis.plots import plot_beliefs_over_time, plot_conclusion_thresholds
 #from analysis_functions import *
 import metrics as cm 
 import os 
